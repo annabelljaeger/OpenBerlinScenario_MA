@@ -15,6 +15,8 @@ import org.matsim.core.controler.Controler;
 import org.matsim.core.replanning.strategies.DefaultPlanStrategiesModule;
 import org.matsim.core.router.costcalculators.TravelDisutilityFactory;
 import org.matsim.core.router.util.TravelTime;
+import org.matsim.core.scoring.functions.PersonScoringParametersFromPersonAttributes;
+import org.matsim.core.scoring.functions.ScoringParametersForPerson;
 import org.matsim.run.scoring.AdvancedScoringConfigGroup;
 import org.matsim.run.scoring.AdvancedScoringModule;
 import org.matsim.simwrapper.SimWrapperConfigGroup;
@@ -111,6 +113,15 @@ public class OpenBerlinScenario extends MATSimApplication {
 
 		if (ConfigUtils.hasModule(controler.getConfig(), AdvancedScoringConfigGroup.class)) {
 			controler.addOverridingModule(new AdvancedScoringModule());
+		} else {
+			// if the above config group is not present we still need income dependent scoring
+			// this implementation also allows for person specific asc
+			controler.addOverridingModule(new AbstractModule() {
+				@Override
+				public void install() {
+					bind(ScoringParametersForPerson.class).to(PersonScoringParametersFromPersonAttributes.class).asEagerSingleton();
+				}
+			});
 		}
 	}
 
