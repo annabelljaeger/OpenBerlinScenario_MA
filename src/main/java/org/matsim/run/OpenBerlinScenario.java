@@ -29,6 +29,7 @@ import org.matsim.run.scoring.AdvancedScoringModule;
 import org.matsim.simwrapper.SimWrapperConfigGroup;
 import org.matsim.simwrapper.SimWrapperModule;
 import picocli.CommandLine;
+import playground.vsp.scoring.IncomeDependentUtilityOfMoneyPersonScoringParameters;
 
 import java.util.List;
 
@@ -147,7 +148,7 @@ public class OpenBerlinScenario extends MATSimApplication {
 			controler.addOverridingModule(new AbstractModule() {
 				@Override
 				public void install() {
-					bind(ScoringParametersForPerson.class).to(PersonScoringParametersFromPersonAttributes.class).asEagerSingleton();
+					bind(ScoringParametersForPerson.class).to(IncomeDependentUtilityOfMoneyPersonScoringParameters.class).asEagerSingleton();
 				}
 			});
 		}
