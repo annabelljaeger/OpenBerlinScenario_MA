@@ -280,7 +280,6 @@
 			<version>1.5</version>
 		</dependency>
 
-
 		<!-- Include the JUnit testing library.  Not transitive. -->
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>

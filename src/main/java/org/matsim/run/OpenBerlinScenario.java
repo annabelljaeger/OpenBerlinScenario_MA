@@ -3,6 +3,7 @@ package org.matsim.run;
 import com.google.inject.Key;
 import com.google.inject.name.Names;
 import org.matsim.analysis.QsimTimingModule;
+import org.matsim.analysis.TripsAndLegsWriter;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.application.MATSimApplication;
@@ -109,6 +110,8 @@ public class OpenBerlinScenario extends MATSimApplication {
 
 		controler.addOverridingModule(new QsimTimingModule());
 
+	//	controler.addOverridingModule(new AdvancedTripsAndLegsWriter());
+
 		if (ConfigUtils.hasModule(controler.getConfig(), AdvancedScoringConfigGroup.class)) {
 			controler.addOverridingModule(new AdvancedScoringModule());
 		}
@@ -127,5 +130,17 @@ public class OpenBerlinScenario extends MATSimApplication {
 			addTravelDisutilityFactoryBinding("freight").to(Key.get(TravelDisutilityFactory.class, Names.named(TransportMode.truck)));
 		}
 	}
+
+	/**
+	 * Verlustzeitkalkulation und Erweiterung des TripsWriter
+
+
+	public static final class AdvancedTripsAndLegsWriter extends AbstractModule {
+		@Override
+		public void install() {
+			addControlerListenerBinding().to(TripsAndLegsWriter.CustomTripsWriterExtension.class);
+		}
+	}
+	 */
 
 }
