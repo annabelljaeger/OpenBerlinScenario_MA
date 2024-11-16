@@ -16,79 +16,128 @@ import org.matsim.core.utils.geometry.CoordUtils;
 
 import java.io.*;
 import java.time.LocalTime;
+import java.time.Duration;
 
 public class LostTimeAnalysisLegs {
 
 	public static void main(String[] args) {
 
-		// 1. Netzwerk laden
+		// 1. Netzwerk laden & NetworkCleaner laufen lassen
 		String networkFile = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-network-with-pt.xml.gz"; // Dein Netzwerk-Dateipfad
 		Network network = loadNetwork(networkFile);
 
 		NetworkCleaner cleaner = new NetworkCleaner();
 		cleaner.run(network);
 
-		// 2. Definiere die Koordinaten der zwei Punkte
+		// 2. legs.csv als Inputfile laden und Output-path festlegen
 		String legsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
-		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTimeTest.csv";
-		//Coord point1 = new Coord(802507.1816726763, 5804976.895634595);
-		//Coord point2 = new Coord(784590.01, 5790196.3);
+		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTimeErsterDurchlaufGesamt.csv";
 
 		// 3. CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
 		try (BufferedReader br = new BufferedReader(new FileReader(legsCsvFile));
 			 BufferedWriter bw = new BufferedWriter(new FileWriter(outputCsvFile))) {
 
-			// Überspringe die Header-Zeile
+			// Header-Zeile überspringen
 			String line = br.readLine(); // Lese und ignoriere die Header-Zeile
 
 
-			// Schreibe Header in die neue Datei
-			bw.write("person;trip_id;mode;dep_time;start_x;start_y;end_x;end_y;trav_time;freeSpeedTravelTime;lostTime;lostTimeHMS\n");
+			// Spalten-header für neue output-Datei festlegen (Semikolongetrennt)
+			bw.write("person;trip_id;mode;trav_time;fs_trav_time;lost_time;trav_time_hms;fs_trav_time_hms;lost_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
-			for ( int i  = 0; i < 10 && (line = br.readLine()) != null; i++ ){
-		//	while ((line = br.readLine()) != null) {
-				// Zeile parsen und in Felder aufteilen
-				String[] values = line.split(";");  // Spalten trennen (falls durch Komma getrennt)
+			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
+		//	for ( int i  = 0; i < 10 && (line = br.readLine()) != null; i++ ){
+				for (; (line = br.readLine()) != null;){
+				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
+				String[] values = line.split(";");
 
-				// Überprüfe, ob die Zeile genügend Spalten hat
-				if (values.length < 13) {
-					System.out.println("Zeile hat nicht genug Spalten: " + line);
-					continue; // Überspringe diese Zeile und fahre mit der nächsten fort
-				}
-
-				// Annahme: CSV-Format: start_x, start_y, end_x, end_y, trav_time
+				// Aufbau der neuen output-Datei - dafür Werte aus bestehender legs.csv über Spaltennummer als Werte festlegen
 				double startX = Double.parseDouble(values[8]);
 				double startY = Double.parseDouble(values[9]);
+				String startLink = values[7];
 				double endX = Double.parseDouble(values[11]);
 				double endY = Double.parseDouble(values[12]);
-				LocalTime travTime = LocalTime.parse(values[3]);  // Bereits existierende travel time in der CSV
+				String endLink = values[10];
+
+			//	String travTimeString = values[3].replace(":", "H") + "M0S";  // Beispiel: "27:58:32" -> "PT27H58M32S"
+			//	Duration travTime = Duration.parse("PT" + travTimeString);  // Parse in Duration
+			//	Duration travTime = Duration.parse("PT" + values[3].replace(":", "H").replace(":", "M") + "S");
+
+// Umwandlung der travTime (hh:mm:ss) in das Format PTnHnMnS für Duration
+				String travTimeString = values[3];
+/*
+// Überprüfen, ob die Zeit im richtigen Format vorliegt (hh:mm:ss)
+				if (travTimeString != null && travTimeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
+					// Umwandlung von hh:mm:ss in PTnHnMnS
+					String[] timeParts = travTimeString.split(":");
+					// Die Teile des Strings in Stunden, Minuten und Sekunden aufteilen
+					travTimeString = "PT" + timeParts[0] + "H" + timeParts[1] + "M" + timeParts[2] + "S";
+				} else {
+					// Falls das Format nicht stimmt, eine Ausnahme werfen oder eine Standardzeit festlegen
+					System.out.println("Ungültiges Zeitformat: " + travTimeString);
+					continue;  // Zum nächsten Durchlauf der Schleife gehen, wenn das Format nicht korrekt ist
+				}
+*/
+				// Umwandlung in Duration
+				if (travTimeString != null && travTimeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
+					String[] timeParts = travTimeString.split(":");
+					travTimeString = "PT" + timeParts[0] + "H" + timeParts[1] + "M" + timeParts[2] + "S";
+				} else {
+					System.out.println("Ungültiges Zeitformat: " + travTimeString);
+					continue;
+				}
+
+
+// Duration aus dem umgewandelten String parsen
+				Duration travTime = Duration.parse(travTimeString);
+				long hours = travTime.toHours();
+				long minutes = travTime.toMinutes() % 60;
+				long seconds = travTime.getSeconds() % 60;
+				String formattedTravTime = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+
 				String person = values[0];
 				String tripId = values[1];
 				String mode = values[6];
 				String depTime = values[2];
 
 
-
-
 				// 4. Berechne die Reisezeit im FreeSpeed-Modus
 				Coord point1 = new Coord(startX, startY);
 				Coord point2 = new Coord(endX, endY);
-				double freeSpeedTravelTime = calculateFreeSpeedTravelTime(network, point1, point2);
 
-				long travTimeInSeconds = localTimeToSeconds(travTime);
-				// 5. Berechne die verlorene Zeit (LostTime) als Differenz
-				long lostTime = travTimeInSeconds - (long) freeSpeedTravelTime;
+				Node startNodeFound = getClosestNode(network, point1);
+
+				Node endNodeFound = getClosestNode(network, point2);
+
+				long freeSpeedTravelTimeInSeconds = (long) calculateFreeSpeedTravelTime(network, point1, point2);
+				Duration fsTravTimeHMS = Duration.ofSeconds(freeSpeedTravelTimeInSeconds);
+				long hours_fs = fsTravTimeHMS.toHours();
+				long minutes_fs = fsTravTimeHMS.toMinutes() % 60;
+				long seconds_fs = fsTravTimeHMS.getSeconds() % 60;
+				String formattedFreeSpeedTravTime = String.format("%02d:%02d:%02d", hours_fs, minutes_fs, seconds_fs);
+
+				long travTimeInSeconds = travTime.getSeconds();
+				// 5. Berechne die Verlustzeit (LostTime) als Differenz
+				long lostTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
 				// Überprüfe, ob die LostTime negativ ist
-				if (lostTime < 0) {
+				if (lostTimeInSeconds < 0) {
 					// Warnung ausgeben, dass die Zeit negativ ist
 					//System.out.println("Warnung: Negative Lost Time! Berechnete Lost Time: " + lostTime + " Sekunden.");
-					lostTime = 0;  // Setze die Lost Time auf 0, wenn sie negativ ist
+					lostTimeInSeconds = 0;  // Setze die Lost Time auf 0, wenn sie negativ ist
 				}
 
 				// Wandelt die Sekunden in LocalTime um (nur für positive Werte)
-				Time lostTimeHMS = new Time(lostTime);
+				Duration lostTimeHMS = Duration.ofSeconds(lostTimeInSeconds);
+				long hours_lt = lostTimeHMS.toHours();
+				long minutes_lt = lostTimeHMS.toMinutes() % 60;
+				long seconds_lt = lostTimeHMS.getSeconds() % 60;
+				String formattedLostTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
+
+
 				// 6. Schreibe die neue Zeile in die Ausgabe-CSV
-				bw.write(String.format("%s;%s;%s;%s;%f;%f;%f;%f;%s;%f;%d;%s\n", person, tripId, mode, depTime.toString(),startX, startY, endX, endY, travTime.toString(), freeSpeedTravelTime, lostTime, lostTimeHMS));
+				bw.write(String.format("%s;%s;%s;%d;%d;%d;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", person, tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lostTimeInSeconds,
+					formattedTravTime,formattedFreeSpeedTravTime, formattedLostTime, depTime,
+					startX, startY, startNodeFound, startLink, endX, endY, endNodeFound, endLink));
+
 			}
 
 		} catch (IOException e) {
@@ -165,7 +214,7 @@ public class LostTimeAnalysisLegs {
 		}
 
 // Berechne die Reisezeit nur, wenn der Pfad vorhanden ist
-		double travelTime = 0.0;
+		long travelTime = 0;
 		for (Link link : path.links) {
 			travelTime += link.getLength() / link.getFreespeed();
 		}
