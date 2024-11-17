@@ -31,7 +31,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 
 		// 2. legs.csv als Inputfile laden und Output-path festlegen
 		String legsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
-		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTimeModespecificTests.csv";
+		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTimeModespecificTest2.csv";
 
 		// 3. CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
 		try (BufferedReader br = new BufferedReader(new FileReader(legsCsvFile));
@@ -45,8 +45,8 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;lost_time;trav_time_hms;fs_trav_time_hms;lost_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
 			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for ( int i  = 0; i < 30 && (line = br.readLine()) != null; i++ ){
-		//		for (; (line = br.readLine()) != null;){
+		//	for ( int i  = 0; i < 30 && (line = br.readLine()) != null; i++ ){
+				for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
 
@@ -107,7 +107,10 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 				Node startNodeFound = getClosestNode(network, point1);
 
 				Node endNodeFound = getClosestNode(network, point2);
-				long freeSpeedTravelTimeInSeconds = (long) calculateFreeSpeedTravelTime(network, point1, point2, mode);
+
+				long travTimeInSeconds = travTime.getSeconds();
+
+				long freeSpeedTravelTimeInSeconds = (long) calculateFreeSpeedTravelTime(network, point1, point2, mode, travTimeInSeconds);
 
 				Duration fsTravTimeHMS = Duration.ofSeconds(freeSpeedTravelTimeInSeconds);
 				long hours_fs = fsTravTimeHMS.toHours();
@@ -115,8 +118,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 				long seconds_fs = fsTravTimeHMS.getSeconds() % 60;
 				String formattedFreeSpeedTravTime = String.format("%02d:%02d:%02d", hours_fs, minutes_fs, seconds_fs);
 
-				long travTimeInSeconds = travTime.getSeconds();
-				// 5. Berechne die Verlustzeit (LostTime) als Differenz
+					// 5. Berechne die Verlustzeit (LostTime) als Differenz
 				long lostTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
 				// Überprüfe, ob die LostTime negativ ist
 				if (lostTimeInSeconds < 0) {
@@ -192,7 +194,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 	}
 
 	// Berechnung der Reisezeit auf der Strecke (FreeSpeed-Modus)
-	private static double calculateFreeSpeedTravelTime(Network network, Coord point1, Coord point2, String mode) {
+	private static double calculateFreeSpeedTravelTime(Network network, Coord point1, Coord point2, String mode, long InputTravTimeInSeconds) {
 		double travelTimeInSeconds = 0;
 		double beelineFactor = 1.3; // Faktor für bike und walk
 
@@ -239,9 +241,12 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 				travelTimeInSeconds = (long) path.travelTime;
 				break;
 
+			case "pt":
+				return InputTravTimeInSeconds;
+
 			default:
 				System.out.println("Ungültiger Modus: " + mode);
-				return -1; // Ungültiger Modus
+				return -2; // Ungültiger Modus
 		}
 
 		return travelTimeInSeconds;
