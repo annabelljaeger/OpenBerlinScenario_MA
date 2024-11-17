@@ -15,10 +15,10 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.geometry.CoordUtils;
 
 import java.io.*;
-import java.time.LocalTime;
 import java.time.Duration;
+import java.time.LocalTime;
 
-public class LostTimeAnalysisLegs {
+public class LostTimeAnalysisLegs_ModeSpecific {
 
 	public static void main(String[] args) {
 
@@ -31,7 +31,7 @@ public class LostTimeAnalysisLegs {
 
 		// 2. legs.csv als Inputfile laden und Output-path festlegen
 		String legsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
-		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTimeTestOpti2.csv";
+		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTimeModespecificTests.csv";
 
 		// 3. CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
 		try (BufferedReader br = new BufferedReader(new FileReader(legsCsvFile));
@@ -107,8 +107,8 @@ public class LostTimeAnalysisLegs {
 				Node startNodeFound = getClosestNode(network, point1);
 
 				Node endNodeFound = getClosestNode(network, point2);
+				long freeSpeedTravelTimeInSeconds = (long) calculateFreeSpeedTravelTime(network, point1, point2, mode);
 
-				long freeSpeedTravelTimeInSeconds = (long) calculateFreeSpeedTravelTime(network, point1, point2);
 				Duration fsTravTimeHMS = Duration.ofSeconds(freeSpeedTravelTimeInSeconds);
 				long hours_fs = fsTravTimeHMS.toHours();
 				long minutes_fs = fsTravTimeHMS.toMinutes() % 60;
@@ -192,35 +192,62 @@ public class LostTimeAnalysisLegs {
 	}
 
 	// Berechnung der Reisezeit auf der Strecke (FreeSpeed-Modus)
-	private static double calculateFreeSpeedTravelTime(Network network, Coord point1, Coord point2) {
-		Node startNode = getClosestNode(network, point1);
-		Node endNode = getClosestNode(network, point2);
+	private static double calculateFreeSpeedTravelTime(Network network, Coord point1, Coord point2, String mode) {
+		double travelTimeInSeconds = 0;
+		double beelineFactor = 1.3; // Faktor für bike und walk
 
-		// TravelTime-Implementierung für Freifahrtgeschwindigkeit
-		TravelTime freeSpeedTravelTime = (link, time, person, vehicle) -> link.getLength() / link.getFreespeed();
+		switch (mode.toLowerCase()) {
+			case "bike":
+			case "walk":
+				double distance = CoordUtils.calcEuclideanDistance(point1, point2);
 
-		// TravelDisutility-Implementierung
-		TravelDisutility travelDisutility = new OnlyTimeDependentTravelDisutility(freeSpeedTravelTime);
+				// Berücksichtige den Beeline-Faktor
+				distance *= beelineFactor;
 
-		// Verwende die Factory für die Dijkstra-Initialisierung
-		LeastCostPathCalculator router = new DijkstraFactory().createPathCalculator(network, travelDisutility, freeSpeedTravelTime);
+				// Durchschnittsgeschwindigkeit festlegen
+				double averageSpeed = mode.equals("bike") ? 3.1388889 : 1.23; // 5 m/s für bike, 1.4 m/s für walk
+				travelTimeInSeconds = distance / averageSpeed;
+				break;
 
-		// Pfad berechnen
-		LeastCostPathCalculator.Path path = router.calcLeastCostPath(startNode, endNode, 0, null, null);
+			case "car":
+			case "freight":
+			case "truck":
+			case "ride":
+				Node startNode = getClosestNode(network, point1);
+				Node endNode = getClosestNode(network, point2);
 
-		if (path == null) {
-			System.out.println("Keine Route gefunden. Überprüfen Sie das Netzwerk auf Verbindungen und unterstützte Modi.");
-			return -1; // Verhindert, dass die Berechnung mit einer Null-Pointer-Exception endet
+				// TravelTime-Implementierung für Freifahrtgeschwindigkeit
+				TravelTime freeSpeedTravelTime = (link, time, person, vehicle) -> {
+					if (link.getAllowedModes().contains(mode)) {
+						return link.getLength() / link.getFreespeed();
+					} else {
+						return Double.POSITIVE_INFINITY; // Modus nicht erlaubt
+					}
+				};
+
+				TravelDisutility travelDisutility = new OnlyTimeDependentTravelDisutility(freeSpeedTravelTime);
+				LeastCostPathCalculator router = new DijkstraFactory().createPathCalculator(network, travelDisutility, freeSpeedTravelTime);
+
+				LeastCostPathCalculator.Path path = router.calcLeastCostPath(startNode, endNode, 0, null, null);
+
+				if (path == null || path.links.isEmpty()) {
+					System.out.println("Keine Route für Modus " + mode + " gefunden.");
+					return -1;
+				}
+
+				// Verwende die Gesamtzeit der Route, die bereits berechnet wurde
+				travelTimeInSeconds = (long) path.travelTime;
+				break;
+
+			default:
+				System.out.println("Ungültiger Modus: " + mode);
+				return -1; // Ungültiger Modus
 		}
 
-// Berechne die Reisezeit nur, wenn der Pfad vorhanden ist
-		double travelTime = 0;
-		for (Link link : path.links) {
-			travelTime += link.getLength() / link.getFreespeed();
-		}
-
-		return travelTime;
+		return travelTimeInSeconds;
 	}
+
+
 
 	// Finde den nächsten Knoten für eine gegebene Koordinate
 	private static Node getClosestNode(Network network, Coord point) {
