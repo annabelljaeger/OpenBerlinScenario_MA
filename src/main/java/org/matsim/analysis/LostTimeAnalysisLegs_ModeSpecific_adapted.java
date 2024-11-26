@@ -1,7 +1,6 @@
 package org.matsim.analysis;
 
 import org.matsim.api.core.v01.Coord;
-import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
 import org.matsim.core.network.NetworkUtils;
@@ -13,16 +12,13 @@ import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.geometry.CoordUtils;
-import scala.xml.Null;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 import java.io.*;
 import java.time.Duration;
-import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.Map;
 
-public class LostTimeAnalysisLegs_ModeSpecific {
+public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 
 	public static void main(String[] args) {
 
@@ -36,7 +32,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 		//legs.csv als Inputfile laden und Output-path festlegen
 		String legsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
 		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTime_Test3.csv";
-	//	String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLostTime.csv";
+		String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLostTime.csv";
 
 		//Input-CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
 		try (BufferedReader br = new BufferedReader(new FileReader(legsCsvFile));
@@ -46,7 +42,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 			String line = br.readLine(); // Lese und ignoriere die Header-Zeile
 
 			//Map für kumulierte LostTime-Summen
-	//		Map<String, Long> cumulativeLostTime = new HashMap<>();
+			Map<String, Long> cumulativeLostTime = new HashMap<>();
 
 			// Spalten-header für neue output-Datei festlegen (Semikolongetrennt)
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;lost_time;trav_time_hms;fs_trav_time_hms;lost_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
@@ -76,7 +72,6 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 					continue;
 				}
 
-
 				// Duration aus dem umgewandelten String parsen
 				Duration travTime = Duration.parse(travTimeString);
 				long hours = travTime.toHours();
@@ -98,8 +93,6 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 
 				Node endNodeFound = getClosestNode(network, point2);
 
-			//	NetworkUtils.getNearestNode()
-
 				long travTimeInSeconds = travTime.getSeconds();
 
 				long freeSpeedTravelTimeInSeconds = (long) calculateFreeSpeedTravelTime(network, point1, point2, mode, travTimeInSeconds);
@@ -111,24 +104,21 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 				String formattedFreeSpeedTravTime = String.format("%02d:%02d:%02d", hours_fs, minutes_fs, seconds_fs);
 
 				//Verlustzeit (LostTime) als Differenz berechnen
-				long lostTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
-//				Long lostTimeInSeconds = null;
+				Long lostTimeInSeconds = null;
 
-//				if (freeSpeedTravelTimeInSeconds != -1 && freeSpeedTravelTimeInSeconds != -2) {
-//					lostTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
-//					if (lostTimeInSeconds < 0) lostTimeInSeconds = null; //falsche Differenzen vermeiden
-//				}
+				if (freeSpeedTravelTimeInSeconds != -1 && freeSpeedTravelTimeInSeconds != -2) {
+					lostTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
+					if (lostTimeInSeconds < 0) lostTimeInSeconds = null; //falsche Differenzen vermeiden
+				}
 /*
 				// Formatierte Ausgabe für Lost_Time
 				String formattedLostTime = (lostTimeInSeconds != null)
 					? formatDuration(Duration.ofSeconds(lostTimeInSeconds))
 					: "NULL";
-
+*/
 				if (lostTimeInSeconds != null && lostTimeInSeconds < 0) {
 					lostTimeInSeconds = 0L;
 				}
-
- */
 				/*
 				// Überprüfe, ob die LostTime negativ ist - evtl. rausnehmen, da duration negative Zeiten abbilden kann
 				if (lostTimeInSeconds < 0) {
@@ -147,7 +137,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 				String formattedLostTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
 
 
-				if (lostTimeInSeconds > 0){
+				if (lostTimeInSeconds != null){
 					cumulativeLostTime.put(mode, cumulativeLostTime.getOrDefault(mode, 0L) + lostTimeInSeconds);
 				}
 				//Die neue Zeile in die Ausgabe-CSV schreiben
@@ -248,7 +238,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 		}
 		return closestNode;
 	}
-/*
+
 	private static Duration parseTime(String timeString) {
 		if (timeString != null && timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
 			String[] parts = timeString.split(":");
@@ -265,7 +255,5 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 		long seconds = duration.getSeconds() % 60;
 		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
 	}
-
- */
 
 }
