@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 import java.io.*;
 import java.time.Duration;
 import java.time.LocalTime;
-
+/*
 public class LostTimeAnalysisLegs_ModeSpecific {
 
 	public static void main(String[] args) {
@@ -118,7 +118,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 //					lostTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
 //					if (lostTimeInSeconds < 0) lostTimeInSeconds = null; //falsche Differenzen vermeiden
 //				}
-/*
+
 				// Formatierte Ausgabe für Lost_Time
 				String formattedLostTime = (lostTimeInSeconds != null)
 					? formatDuration(Duration.ofSeconds(lostTimeInSeconds))
@@ -128,15 +128,15 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 					lostTimeInSeconds = 0L;
 				}
 
- */
-				/*
+
+
 				// Überprüfe, ob die LostTime negativ ist - evtl. rausnehmen, da duration negative Zeiten abbilden kann
 				if (lostTimeInSeconds < 0) {
 					// Warnung ausgeben, dass die Zeit negativ ist
 					//System.out.println("Warnung: Negative Lost Time! Berechnete Lost Time: " + lostTime + " Sekunden.");
 					lostTimeInSeconds = 0;  // Setze die Lost Time auf 0, wenn sie negativ ist
 				}
-				*/
+
 
 
 				// Wandelt die Sekunden in LocalTime um (nur für positive Werte)
@@ -248,7 +248,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 		}
 		return closestNode;
 	}
-/*
+
 	private static Duration parseTime(String timeString) {
 		if (timeString != null && timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
 			String[] parts = timeString.split(":");
@@ -266,6 +266,7 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
 	}
 
- */
+
 
 }
+*/
