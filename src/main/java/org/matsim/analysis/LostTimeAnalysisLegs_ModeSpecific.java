@@ -35,24 +35,24 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 
 		//legs.csv als Inputfile laden und Output-path festlegen
 		String legsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
-		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTime_Test3.csv";
-	//	String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLostTime.csv";
+		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTime_Test4.csv";
+		String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLostTime2.csv";
 
 		//Input-CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
 		try (BufferedReader br = new BufferedReader(new FileReader(legsCsvFile));
 			 BufferedWriter bw = new BufferedWriter(new FileWriter(outputCsvFile))) {
 
 			// Header-Zeile überspringen
-			String line = br.readLine(); // Lese und ignoriere die Header-Zeile
+			String line = br.readLine();
 
 			//Map für kumulierte LostTime-Summen
-	//		Map<String, Long> cumulativeLostTime = new HashMap<>();
+			Map<String, Long> cumulativeLostTime = new HashMap<>();
 
 			// Spalten-header für neue output-Datei festlegen (Semikolongetrennt)
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;lost_time;trav_time_hms;fs_trav_time_hms;lost_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
 			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for ( int i  = 0; i < 60 && (line = br.readLine()) != null; i++ ){
+			for ( int i  = 0; i < 6000 && (line = br.readLine()) != null; i++ ){
 		//		for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
@@ -265,8 +265,6 @@ public class LostTimeAnalysisLegs_ModeSpecific {
 		long seconds = duration.getSeconds() % 60;
 		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
 	}
-
-
 
 }
 */

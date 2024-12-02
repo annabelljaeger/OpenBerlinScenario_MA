@@ -102,7 +102,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		} catch (IOException e) {
 			log.error("Error writing detailed file: {}", e.getMessage());
 		}
-		log.info("Output path resolved to: {}", output.getPath("summary_tiles.csv"));
+		log.info("Output path resolved to: {}", output.getPath("summaryTiles2.csv"));
 
 	}
 

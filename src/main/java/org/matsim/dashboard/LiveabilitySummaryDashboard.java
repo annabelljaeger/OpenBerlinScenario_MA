@@ -21,16 +21,9 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 			viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "summaryTiles2.csv");
 			viz.height = 0.1;
 		});
-
 	}
 }
 /*
-	layout:
-	row1:
-		- type: 'tile'
-	title: Tiles Plug-in Example
-	dataset: 'data.csv'
-	}
 
 
 @Override

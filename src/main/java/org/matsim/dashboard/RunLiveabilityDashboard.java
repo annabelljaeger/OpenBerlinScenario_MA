@@ -1,18 +1,27 @@
 package org.matsim.dashboard;
 
+import org.matsim.application.ApplicationUtils;
+import org.matsim.core.config.Config;
+import org.matsim.core.config.ConfigUtils;
 import org.matsim.simwrapper.*;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 //example RunSimwrappercontribOfflineExample used and adapted
 
 public class RunLiveabilityDashboard {
+	private static Path runDirectory = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
 
 	//Rufe Klassen Übersicht + Unter-Dashboards 2-7 auf
 
 	public static void main( String[] args ) throws IOException{
 
-		SimWrapper sw = SimWrapper.create();
+		Path configPath = ApplicationUtils.matchInput("config.xml", runDirectory);
+		Config config = ConfigUtils.loadConfig(configPath.toString());
+		SimWrapper sw = SimWrapper.create(config);
+
+
 
 	//	sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
@@ -24,7 +33,8 @@ public class RunLiveabilityDashboard {
 
 //		sw.run( Path.of("./output" ) );
 
-		sw.generate( Path.of("dashboard") );
+		sw.generate(runDirectory);
+		sw.run(runDirectory);
 
 		// now: open simwrapper in Chrome, allow the "dashboard" local directory, point simwrapper to it.
 		// It fails, possibly because "file.csv" is not there.

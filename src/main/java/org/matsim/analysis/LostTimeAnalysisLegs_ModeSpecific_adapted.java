@@ -30,25 +30,26 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 		cleaner.run(network);
 
 		//legs.csv als Inputfile laden und Output-path festlegen
-		String legsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
+		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
 		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTime_Test3.csv";
-		String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLostTime.csv";
+		String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLostTime3.csv";
 
 		//Input-CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
-		try (BufferedReader br = new BufferedReader(new FileReader(legsCsvFile));
+		try (BufferedReader br = new BufferedReader(new FileReader(inputLegsCsvFile));
 			 BufferedWriter bw = new BufferedWriter(new FileWriter(outputCsvFile))) {
 
-			// Header-Zeile überspringen
-			String line = br.readLine(); // Lese und ignoriere die Header-Zeile
+			// Header-Zeile lesen und überspringen
+			String line = br.readLine();
 
-			//Map für kumulierte LostTime-Summen
-			Map<String, Long> cumulativeLostTime = new HashMap<>();
+			//Map für kumulierte LossTime-Summen
+			Map<String, Long> cumulativeLossTime = new HashMap<>();
+			Map<String, Long> failedRoutingOccurances = new HashMap<>();
 
 			// Spalten-header für neue output-Datei festlegen (Semikolongetrennt)
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;lost_time;trav_time_hms;fs_trav_time_hms;lost_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
 			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for ( int i  = 0; i < 60 && (line = br.readLine()) != null; i++ ){
+			for ( int i  = 0; i < 6000 && (line = br.readLine()) != null; i++ ){
 		//		for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
@@ -64,7 +65,7 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 				// Umwandlung der travTime (hh:mm:ss) in das Format PTnHnMnS (Duration)
 				String travTimeString = values[3];
 
-				if (travTimeString != null && travTimeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
+				if (travTimeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
 					String[] timeParts = travTimeString.split(":");
 					travTimeString = "PT" + timeParts[0] + "H" + timeParts[1] + "M" + timeParts[2] + "S";
 				} else {
@@ -84,14 +85,12 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 				String mode = values[6];
 				String depTime = values[2];
 
-
 				//Reisezeit im FreeSpeed-Modus berechnen
 				Coord point1 = new Coord(startX, startY);
 				Coord point2 = new Coord(endX, endY);
 
-				Node startNodeFound = getClosestNode(network, point1);
-
-				Node endNodeFound = getClosestNode(network, point2);
+				Node startNodeFound = NetworkUtils.getNearestNode(network, point1);
+				Node endNodeFound = NetworkUtils.getNearestNode(network, point2);
 
 				long travTimeInSeconds = travTime.getSeconds();
 
@@ -103,56 +102,57 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 				long seconds_fs = fsTravTimeHMS.getSeconds() % 60;
 				String formattedFreeSpeedTravTime = String.format("%02d:%02d:%02d", hours_fs, minutes_fs, seconds_fs);
 
-				//Verlustzeit (LostTime) als Differenz berechnen
-				Long lostTimeInSeconds = null;
+				//Verlustzeit (LossTime) als Differenz berechnen
+				Long lossTimeInSeconds;
 
 				if (freeSpeedTravelTimeInSeconds != -1 && freeSpeedTravelTimeInSeconds != -2) {
-					lostTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
-					if (lostTimeInSeconds < 0) lostTimeInSeconds = null; //falsche Differenzen vermeiden
+					lossTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
+		//			if (lossTimeInSeconds < 0) lossTimeInSeconds = 0L; //falsche Differenzen vermeiden
+
+				} else {
+					lossTimeInSeconds = 0L;
+					failedRoutingOccurances.put(mode, failedRoutingOccurances.getOrDefault(mode, 0L) +1);
 				}
 /*
 				// Formatierte Ausgabe für Lost_Time
-				String formattedLostTime = (lostTimeInSeconds != null)
-					? formatDuration(Duration.ofSeconds(lostTimeInSeconds))
+				String formattedLostTime = (lossTimeInSeconds != null)
+					? formatDuration(Duration.ofSeconds(lossTimeInSeconds))
 					: "NULL";
 */
-				if (lostTimeInSeconds != null && lostTimeInSeconds < 0) {
-					lostTimeInSeconds = 0L;
+				if (lossTimeInSeconds != null && lossTimeInSeconds < 0) {
+					lossTimeInSeconds = 0L;
 				}
-				/*
-				// Überprüfe, ob die LostTime negativ ist - evtl. rausnehmen, da duration negative Zeiten abbilden kann
-				if (lostTimeInSeconds < 0) {
-					// Warnung ausgeben, dass die Zeit negativ ist
-					//System.out.println("Warnung: Negative Lost Time! Berechnete Lost Time: " + lostTime + " Sekunden.");
-					lostTimeInSeconds = 0;  // Setze die Lost Time auf 0, wenn sie negativ ist
-				}
-				*/
-
 
 				// Wandelt die Sekunden in LocalTime um (nur für positive Werte)
-				Duration lostTimeHMS = Duration.ofSeconds(lostTimeInSeconds);
+				Duration lostTimeHMS = Duration.ofSeconds(lossTimeInSeconds);
 				long hours_lt = lostTimeHMS.toHours();
 				long minutes_lt = lostTimeHMS.toMinutes() % 60;
 				long seconds_lt = lostTimeHMS.getSeconds() % 60;
 				String formattedLostTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
 
 
-				if (lostTimeInSeconds != null){
-					cumulativeLostTime.put(mode, cumulativeLostTime.getOrDefault(mode, 0L) + lostTimeInSeconds);
+				if (lossTimeInSeconds != null){
+					cumulativeLossTime.put(mode, cumulativeLossTime.getOrDefault(mode, 0L) + lossTimeInSeconds);
+				} else {
+					System.out.println("Warnung: Loss Time für Modus"+ mode+ " ist null.");
 				}
 				//Die neue Zeile in die Ausgabe-CSV schreiben
-				bw.write(String.format("%s;%s;%s;%d;%d;%d;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", person, tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lostTimeInSeconds,
+				bw.write(String.format("%s;%s;%d;%d;%d;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
 					formattedTravTime,formattedFreeSpeedTravTime, formattedLostTime, depTime,
 					startX, startY, startNodeFound.getId(), startLink, endX, endY, endNodeFound.getId(), endLink));
 			}
 
 			try (BufferedWriter summaryBw = new BufferedWriter(new FileWriter(outputSummaryFile))) {
-				summaryBw.write("mode;cumulative_lost_time\n");
-				for (Map.Entry<String, Long> entry : cumulativeLostTime.entrySet()) {
-					summaryBw.write(String.format("%s;%d\n", entry.getKey(), entry.getValue()));
-				}
+				summaryBw.write("mode;cumulative_loss_time;failed_routings\n");
+				//for (Map.Entry<String, Long> entry : cumulativeLossTime.entrySet()) {
+			//		summaryBw.write(String.format("%s;%d\n", entry.getKey(), entry.getValue()));
+		//		}
+				for (String mode : cumulativeLossTime.keySet()){
+				long cumulativeLoss = cumulativeLossTime.getOrDefault(mode, 0L);
+				long failedCount = failedRoutingOccurances.getOrDefault(mode, 0L);
+				summaryBw.write(String.format("%s;%d;%d\n", mode, cumulativeLoss, failedCount));
 			}
-
+}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -187,8 +187,8 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 			case "freight":
 			case "truck":
 			case "ride":
-				Node startNode = getClosestNode(network, point1);
-				Node endNode = getClosestNode(network, point2);
+				Node startNode = NetworkUtils.getNearestNode(network, point1);
+				Node endNode = NetworkUtils.getNearestNode(network, point2);
 
 				// TravelTime-Implementierung für Freifahrtgeschwindigkeit
 				TravelTime freeSpeedTravelTime = (link, time, person, vehicle) -> {
@@ -224,20 +224,6 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 		return travelTimeInSeconds;
 	}
 
-
-	// Finde den nächsten Knoten für eine gegebene Koordinate
-	private static Node getClosestNode(Network network, Coord point) {
-		Node closestNode = null;
-		double minDistance = Double.MAX_VALUE;
-		for (Node node : network.getNodes().values()) {
-			double distance = CoordUtils.calcEuclideanDistance(point, node.getCoord());
-			if (distance < minDistance) {
-				minDistance = distance;
-				closestNode = node;
-			}
-		}
-		return closestNode;
-	}
 
 	private static Duration parseTime(String timeString) {
 		if (timeString != null && timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
