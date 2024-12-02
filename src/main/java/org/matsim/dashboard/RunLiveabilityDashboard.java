@@ -23,7 +23,7 @@ public class RunLiveabilityDashboard {
 
 
 
-	//	sw.addDashboard( new AgentBasedLossTimeDashboard());
+		sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 		//sw.addDashboard( new AgentBasedSafetyDashboard());

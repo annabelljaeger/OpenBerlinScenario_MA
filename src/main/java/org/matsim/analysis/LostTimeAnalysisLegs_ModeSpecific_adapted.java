@@ -3,6 +3,10 @@ package org.matsim.analysis;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
+import org.matsim.application.CommandSpec;
+import org.matsim.application.MATSimAppCommand;
+import org.matsim.application.options.InputOptions;
+import org.matsim.application.options.OutputOptions;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.algorithms.NetworkCleaner;
 import org.matsim.core.network.io.MatsimNetworkReader;
@@ -12,15 +16,42 @@ import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.geometry.CoordUtils;
+import picocli.CommandLine;
 
 import java.io.*;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 
-public class LostTimeAnalysisLegs_ModeSpecific_adapted {
+@CommandLine.Command(
+	name = "lossTime-analysis",
+	description = "Loss Time Analysis",
+	mixinStandardHelpOptions = true,
+	showDefaultValues = true
+)
 
+@CommandSpec(
+	requireRunDirectory = true,
+	produces = {
+		"output_legsLostTime_Test3.csv",
+		"summary_modeSpecificLegsLostTime3.csv"
+	}
+)
+
+public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppCommand {
+
+	@CommandLine.Mixin
+	private final InputOptions input = InputOptions.ofCommand(LostTimeAnalysisLegs_ModeSpecific_adapted.class);
+	@CommandLine.Mixin
+	private final OutputOptions output = OutputOptions.ofCommand(LostTimeAnalysisLegs_ModeSpecific_adapted.class);
+
+	//	public static void main(String[] args) {
 	public static void main(String[] args) {
+		new LostTimeAnalysisLegs_ModeSpecific_adapted().execute(args);
+	}
+
+	@Override
+	public Integer call() throws Exception {
 
 		//Netzwerk laden & NetworkCleaner laufen lassen
 		String networkFile = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-network-with-pt.xml.gz"; //Netzwerk-Dateipfad
@@ -49,8 +80,8 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;lost_time;trav_time_hms;fs_trav_time_hms;lost_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
 			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for ( int i  = 0; i < 6000 && (line = br.readLine()) != null; i++ ){
-		//		for (; (line = br.readLine()) != null;){
+			for (int i = 0; i < 600 && (line = br.readLine()) != null; i++) {
+				//		for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
 
@@ -107,11 +138,11 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 
 				if (freeSpeedTravelTimeInSeconds != -1 && freeSpeedTravelTimeInSeconds != -2) {
 					lossTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
-		//			if (lossTimeInSeconds < 0) lossTimeInSeconds = 0L; //falsche Differenzen vermeiden
+					//			if (lossTimeInSeconds < 0) lossTimeInSeconds = 0L; //falsche Differenzen vermeiden
 
 				} else {
 					lossTimeInSeconds = 0L;
-					failedRoutingOccurances.put(mode, failedRoutingOccurances.getOrDefault(mode, 0L) +1);
+					failedRoutingOccurances.put(mode, failedRoutingOccurances.getOrDefault(mode, 0L) + 1);
 				}
 /*
 				// Formatierte Ausgabe für Lost_Time
@@ -131,32 +162,34 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 				String formattedLostTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
 
 
-				if (lossTimeInSeconds != null){
+				if (lossTimeInSeconds != null) {
 					cumulativeLossTime.put(mode, cumulativeLossTime.getOrDefault(mode, 0L) + lossTimeInSeconds);
 				} else {
-					System.out.println("Warnung: Loss Time für Modus"+ mode+ " ist null.");
+					System.out.println("Warnung: Loss Time für Modus" + mode + " ist null.");
 				}
 				//Die neue Zeile in die Ausgabe-CSV schreiben
 				bw.write(String.format("%s;%s;%d;%d;%d;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
-					formattedTravTime,formattedFreeSpeedTravTime, formattedLostTime, depTime,
+					formattedTravTime, formattedFreeSpeedTravTime, formattedLostTime, depTime,
 					startX, startY, startNodeFound.getId(), startLink, endX, endY, endNodeFound.getId(), endLink));
 			}
 
 			try (BufferedWriter summaryBw = new BufferedWriter(new FileWriter(outputSummaryFile))) {
 				summaryBw.write("mode;cumulative_loss_time;failed_routings\n");
 				//for (Map.Entry<String, Long> entry : cumulativeLossTime.entrySet()) {
-			//		summaryBw.write(String.format("%s;%d\n", entry.getKey(), entry.getValue()));
-		//		}
-				for (String mode : cumulativeLossTime.keySet()){
-				long cumulativeLoss = cumulativeLossTime.getOrDefault(mode, 0L);
-				long failedCount = failedRoutingOccurances.getOrDefault(mode, 0L);
-				summaryBw.write(String.format("%s;%d;%d\n", mode, cumulativeLoss, failedCount));
+				//		summaryBw.write(String.format("%s;%d\n", entry.getKey(), entry.getValue()));
+				//		}
+				for (String mode : cumulativeLossTime.keySet()) {
+					long cumulativeLoss = cumulativeLossTime.getOrDefault(mode, 0L);
+					long failedCount = failedRoutingOccurances.getOrDefault(mode, 0L);
+					summaryBw.write(String.format("%s;%d;%d\n", mode, cumulativeLoss, failedCount));
+				}
 			}
-}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		return 0;
 	}
+
 
 	// Netzwerk laden
 	private static Network loadNetwork(String networkFile) {
@@ -241,5 +274,6 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted {
 		long seconds = duration.getSeconds() % 60;
 		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
 	}
+
 
 }
