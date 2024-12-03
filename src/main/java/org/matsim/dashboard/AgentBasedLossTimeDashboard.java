@@ -7,6 +7,7 @@ import org.matsim.core.utils.charts.BarChart;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
+import org.matsim.simwrapper.viz.Bar;
 import org.matsim.simwrapper.viz.ColorScheme;
 import org.matsim.simwrapper.viz.Plotly;
 import org.matsim.simwrapper.viz.Tile;
@@ -33,26 +34,45 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 		layout.row("BarChart Modes")
 			.el(Plotly.class, (viz, data) -> {
 
-			viz.title = "Mode Specific Loss Time";
-			viz.description = "sum by mode";
+				viz.title = "Mode Specific Loss Time";
+				viz.description = "sum by mode";
 
-			Plotly.DataSet ds = viz.addDataset(data.compute(LostTimeAnalysisLegs_ModeSpecific_adapted.class, "summary_modeSpecificLegsLostTime3.csv")); //, "--input", "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLostTime3.csv"))
-					//.aggregate(List.of("mode"), "cumulative_loss_time", Plotly.AggrFunc.SUM);
+				Plotly.DataSet ds = viz.addDataset(data.compute(LostTimeAnalysisLegs_ModeSpecific_adapted.class, "summary_modeSpecificLegsLossTime.csv"));
+				//.aggregate(List.of("mode"), "cumulative_loss_time", Plotly.AggrFunc.SUM);
 
-			viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-				.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
-				.xAxis(Axis.builder().title("Mode").build())
-				.yAxis(Axis.builder().title("Loss Time").build())
-				.build();
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
+					.xAxis(Axis.builder().title("Mode").build())
+					.yAxis(Axis.builder().title("Loss Time").build())
+					.build();
 
-			viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT).orientation(BarTrace.Orientation.VERTICAL).build(), ds.mapping()
-				.x("mode")
-				.y("cumulative_loss_time")
-				.name("cumulative_loss_time", ColorScheme.RdYlBu)
-			);
+				viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT).orientation(BarTrace.Orientation.VERTICAL).build(), ds.mapping()
+					.x("mode")
+					.y("cumulative_loss_time")
+					.name("cumulative_loss_time", ColorScheme.RdYlBu)
+				);
+			})
+			.el(Bar.class, (viz, data) -> {
+					viz.title = "Loss Time per mode v2";
+					viz.description = "in seconds";
+
+					viz.stacked = false;
+					viz.dataset = data.compute(LostTimeAnalysisLegs_ModeSpecific_adapted.class, "summary_modeSpecificLegsLossTime.csv");
+					viz.x = "mode";
+					viz.xAxisName = "Mode";
+					viz.yAxisName = "Loss Time [s]";
+					viz.columns = List.of("cumulative_loss_time", "failed_routings");
 		});
 
-	//	layout.row("second").el(Tile.class, (viz, data) -> {})
+		layout.row("histogramm")
+			.el(Bar.class, (viz, data) -> {
+				viz.title = "Histogram";
+				viz.description = "loss time over time";
+
+				viz.stacked = false;
+				viz.dataset = data.compute(LostTimeAnalysisLegs_ModeSpecific_adapted.class, "output_legsLostTime_Test3.csv");
+				viz.x = "departure_time";
+			});
 	}
 }
 

@@ -1,7 +1,9 @@
 package org.matsim.analysis;
 
 import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.CSVRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.matsim.application.CommandSpec;
@@ -12,6 +14,7 @@ import org.matsim.core.utils.io.IOUtils;
 import picocli.CommandLine;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
@@ -26,8 +29,12 @@ import java.util.*;
 
 @CommandSpec(
 	requireRunDirectory = true,
+//	requires = {
+//		"summary_modeSpecificLegsLossTime.csv"
+//	},
 	produces = {
-		"summaryTiles2.csv",
+		"summaryTiles.csv",
+		"summaryTiles_multiPolicy.csv",
 		"liveability_details.csv"
 	}
 )
@@ -42,7 +49,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(LiveabilitySummaryAnalysis.class);
 
 	private final Map<String, Double> liveabilityMetrics = new LinkedHashMap<>();
-	private final Map<String, String> bestPolicies = new LinkedHashMap<>();
+//	private final Map<String, String> bestPolicies = new LinkedHashMap<>();
 
 	public static void main(String[] args) {
 		new LiveabilitySummaryAnalysis().execute(args);
@@ -53,15 +60,47 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 		log.info("Starting LiveabilitySummaryAnalysis...");
 
-		// Beispielhafte Daten für die Liveability-Analyse (Platzhalter)
+		// Einträge je Dimension für die Liveability-Analyse (teils Platzhalter)
 		liveabilityMetrics.put("OverallRanking", 65.0);
-		liveabilityMetrics.put("LossTime", 21.0);
+
+		Path outputDirectory = output.getPath();
+	//	Path lossTimeFile = Path.of("summary_modeSpecificLegsLossTime.csv");
+	//	log.info("Versuche Datei zu lesen: {}", lossTimeFile.toAbsolutePath());
+
+		double cumulativeLossTimeSum = 0.0;
+		/*try {
+			cumulativeLossTimeSum = LostTimeAnalysisLegs_ModeSpecific_adapted.getLossTimeSum(lossTimeFile);
+			log.info("Cumulative Loss Time Sum: {}", cumulativeLossTimeSum);
+		} catch (IOException e) {
+			log.error("Error reading cumulative loss time: {}", e.getMessage());
+		}
+		 */
+		try {
+			double totalLossTime = LostTimeAnalysisLegs_ModeSpecific_adapted.getLossTimeSum(outputDirectory);
+			log.info("Gesamte Verlustzeit: {}", totalLossTime);
+		} catch (IOException e) {
+			log.error("Fehler beim Laden der Verlustzeitdaten: {}", e.getMessage());
+		}
+		liveabilityMetrics.put("LossTime", cumulativeLossTimeSum / 3600.0);
+/*
+		if (Files.exists(lossTimeFile)) {
+			double cumulativeLossTimeSum = calculateCumulativeLossTimeSum(lossTimeFile);
+			liveabilityMetrics.put("LossTime", cumulativeLossTimeSum / 3600.0); // Stunden
+		} else {
+			log.warn("Die Datei summary_modeSpecificLegsLossTime.csv wurde nicht gefunden. Standardwert wird verwendet.");
+			liveabilityMetrics.put("LossTime", 0.0); // Fallback
+		}
+
+ */
+	//	double cumulativeLossTimeSum = calculateCumulativeLossTimeSum(Path.of(input.getPath("summary_modeSpecificLegsLossTime.csv")));
+	//	liveabilityMetrics.put("LossTime", cumulativeLossTimeSum/3600.0);
+
 		liveabilityMetrics.put("Emissions", 54.0);
 		liveabilityMetrics.put("Noise", 39.0);
 
-		bestPolicies.put("LossTime", "BaseCase");
-		bestPolicies.put("Emissions", "PolicyA");
-		bestPolicies.put("Noise", "PolicyB");
+	//	bestPolicies.put("LossTime", "BaseCase");
+	//	bestPolicies.put("Emissions", "PolicyA");
+	//	bestPolicies.put("Noise", "PolicyB");
 
 		// Generieren der CSV-Dateien
 		writeSummaryFile();
@@ -71,15 +110,32 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		return 0;
 	}
 
+	private double calculateCumulativeLossTimeSum(Path inputPath) {
+		double sum = 0.0;
+		try (CSVParser parser = new CSVParser(Files.newBufferedReader(inputPath), CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
+			for (CSVRecord record : parser) {
+				String value = record.get("cumulative_loss_time");
+				sum += Double.parseDouble(value); // Werte summieren
+			}
+		} catch (IOException e) {
+			log.error("Error reading cumulative loss time from file {}: {}", inputPath, e.getMessage());
+		} catch (NumberFormatException e) {
+			log.error("Invalid number format in cumulative_loss_time column: {}", e.getMessage());
+		}
+		return sum;
+	}
+
+
 	private void writeSummaryFile() {
-		Path outputPath = output.getPath("summaryTiles2.csv");
+		Path outputPath = output.getPath("summaryTiles.csv");
 
 		try (CSVPrinter printer = new CSVPrinter(IOUtils.getBufferedWriter(outputPath.toString()), CSVFormat.DEFAULT)) {
-			printer.printRecord("Category", "Percentage", "Best Policy");
+			printer.printRecord("Category", "Percentage");
 
 			for (Map.Entry<String, Double> entry : liveabilityMetrics.entrySet()) {
-				String policy = bestPolicies.getOrDefault(entry.getKey(), "N/A");
-				printer.printRecord(entry.getKey(), formatPercentage(entry.getValue()), policy);
+				printer.printRecord(entry.getKey(), entry.getValue());
+//				printer.printRecord(entry.getKey(), formatPercentage(entry.getValue()));
+
 			}
 
 			log.info("Summary file written to {}", outputPath);
@@ -87,6 +143,25 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 			log.error("Error writing summary file: {}", e.getMessage());
 		}
 	}
+
+	/*
+	private void writeSummaryFileMultiPolicy() {
+		Path outputPath2 = output.getPath("summaryTiles_multiPolicy.csv");
+
+		try (CSVPrinter printer = new CSVPrinter(IOUtils.getBufferedWriter(outputPath2.toString()), CSVFormat.DEFAULT)) {
+			printer.printRecord("Category", "Percentage", "Best Policy");
+
+			for (Map.Entry<String, Double> entry : liveabilityMetrics.entrySet()) {
+				String policy = bestPolicies.getOrDefault(entry.getKey(), "N/A");
+				printer.printRecord(entry.getKey(), formatPercentage(entry.getValue()), policy);
+			}
+
+			log.info("Summary file written to {}", outputPath2);
+		} catch (IOException e) {
+			log.error("Error writing summary file: {}", e.getMessage());
+		}
+	}
+	*/
 
 	private void writeDetailedFile() {
 		Path outputPath = output.getPath("liveability_details.csv");
@@ -102,7 +177,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		} catch (IOException e) {
 			log.error("Error writing detailed file: {}", e.getMessage());
 		}
-		log.info("Output path resolved to: {}", output.getPath("summaryTiles2.csv"));
+		log.info("Output path resolved to: {}", output.getPath("summaryTiles.csv"));
 
 	}
 
@@ -119,7 +194,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		Path("filename");
 		Files.createDirectories(outputDirectory);
 
-		Path filePath = outputDirectory.resolve("summaryTiles2.csv");
+		Path filePath = outputDirectory.resolve("summaryTiles.csv");
 
 
 

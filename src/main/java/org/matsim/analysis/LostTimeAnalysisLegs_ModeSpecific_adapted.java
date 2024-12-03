@@ -1,5 +1,10 @@
 package org.matsim.analysis;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
@@ -19,9 +24,18 @@ import org.matsim.core.utils.geometry.CoordUtils;
 import picocli.CommandLine;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 @CommandLine.Command(
 	name = "lossTime-analysis",
@@ -34,11 +48,13 @@ import java.util.Map;
 	requireRunDirectory = true,
 	produces = {
 		"output_legsLostTime_Test3.csv",
-		"summary_modeSpecificLegsLostTime3.csv"
+		"summary_modeSpecificLegsLossTime.csv"
 	}
 )
 
 public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppCommand {
+
+	private static final Logger log = LogManager.getLogger(LostTimeAnalysisLegs_ModeSpecific_adapted.class);
 
 	@CommandLine.Mixin
 	private final InputOptions input = InputOptions.ofCommand(LostTimeAnalysisLegs_ModeSpecific_adapted.class);
@@ -63,7 +79,9 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 		//legs.csv als Inputfile laden und Output-path festlegen
 		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
 		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTime_Test3.csv";
-		String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLostTime3.csv";
+		String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLossTime.csv";
+		Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
+
 
 		//Input-CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
 		try (BufferedReader br = new BufferedReader(new FileReader(inputLegsCsvFile));
@@ -80,7 +98,7 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;lost_time;trav_time_hms;fs_trav_time_hms;lost_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
 			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for (int i = 0; i < 600 && (line = br.readLine()) != null; i++) {
+			for (int i = 0; i < 6000 && (line = br.readLine()) != null; i++) {
 				//		for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
@@ -173,7 +191,8 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 					startX, startY, startNodeFound.getId(), startLink, endX, endY, endNodeFound.getId(), endLink));
 			}
 
-			try (BufferedWriter summaryBw = new BufferedWriter(new FileWriter(outputSummaryFile))) {
+
+			try (BufferedWriter summaryBw = new BufferedWriter(Files.newBufferedWriter(outputSummaryPath))) {
 				summaryBw.write("mode;cumulative_loss_time;failed_routings\n");
 				//for (Map.Entry<String, Long> entry : cumulativeLossTime.entrySet()) {
 				//		summaryBw.write(String.format("%s;%d\n", entry.getKey(), entry.getValue()));
@@ -257,6 +276,24 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 		return travelTimeInSeconds;
 	}
 
+	public static double getLossTimeSum(Path outputDirectory) throws IOException {
+		double sum = 0.0;
+
+		Path filePath = outputDirectory.resolve("summary_modeSpecificLegsLossTime.csv");
+		if (!Files.exists(filePath)) {
+			throw new IOException(("Die Datei summary_modeSpecificLegsLossTime.csv wurde im Ordner nicht gefunden: " + filePath.toAbsolutePath()));
+		}
+		try (CSVParser parser = new CSVParser(Files.newBufferedReader(filePath),CSVFormat.DEFAULT.withFirstRecordAsHeader())){
+			for (CSVRecord record : parser) {
+				String value = record.get("cumulative_loss_time");
+				sum += Double.parseDouble(value);
+			}
+		}
+	catch (NumberFormatException e) {
+		throw new IOException("Fehler beim Parsen der Werte in der Datei: " + e.getMessage(), e);
+	}
+		return sum;
+	}
 
 	private static Duration parseTime(String timeString) {
 		if (timeString != null && timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {

@@ -18,7 +18,7 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 		header.description = "Prozent der Agenten, die Kriterien erfüllen";
 
 		layout.row("first").el(Tile.class, (viz, data) -> {
-			viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "summaryTiles2.csv");
+			viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "summaryTiles.csv");
 			viz.height = 0.1;
 		});
 	}
