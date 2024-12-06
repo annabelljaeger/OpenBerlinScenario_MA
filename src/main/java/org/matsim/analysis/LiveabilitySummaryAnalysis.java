@@ -63,7 +63,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		// Einträge je Dimension für die Liveability-Analyse (teils Platzhalter)
 		liveabilityMetrics.put("OverallRanking", 65.0);
 
-		Path outputDirectory = output.getPath();
+		Path outputDirectory = Path.of("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLossTime.csv");
+
 	//	Path lossTimeFile = Path.of("summary_modeSpecificLegsLossTime.csv");
 	//	log.info("Versuche Datei zu lesen: {}", lossTimeFile.toAbsolutePath());
 
@@ -76,7 +77,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		}
 		 */
 		try {
-			double totalLossTime = LostTimeAnalysisLegs_ModeSpecific_adapted.getLossTimeSum(outputDirectory);
+			double totalLossTime = AgentBasedLossTimeAnalysis.getLossTimeSum(outputDirectory);
 			log.info("Gesamte Verlustzeit: {}", totalLossTime);
 		} catch (IOException e) {
 			log.error("Fehler beim Laden der Verlustzeitdaten: {}", e.getMessage());

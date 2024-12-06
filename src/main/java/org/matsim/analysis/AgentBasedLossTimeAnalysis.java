@@ -26,16 +26,16 @@ import picocli.CommandLine;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+
 
 @CommandLine.Command(
 	name = "lossTime-analysis",
@@ -46,24 +46,29 @@ import java.nio.file.Paths;
 
 @CommandSpec(
 	requireRunDirectory = true,
+	requires = {
+		"berlin-v6.3.output_legs.csv.gz"
+	},
 	produces = {
-		"output_legsLostTime_Test3.csv",
-		"summary_modeSpecificLegsLossTime.csv"
+		"output_legsLossTime_new.csv",
+		"summary_modeSpecificLegsLossTime.csv",
+		"lossTime_stats_perAgent.csv",
+		"lossTime_RankingValue.csv"
 	}
 )
 
-public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppCommand {
+public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
-	private static final Logger log = LogManager.getLogger(LostTimeAnalysisLegs_ModeSpecific_adapted.class);
+//	private static final Logger log = LogManager.getLogger(AgentBasedLossTimeAnalysis.class);
 
 	@CommandLine.Mixin
-	private final InputOptions input = InputOptions.ofCommand(LostTimeAnalysisLegs_ModeSpecific_adapted.class);
+	private final InputOptions input = InputOptions.ofCommand(AgentBasedLossTimeAnalysis.class);
 	@CommandLine.Mixin
-	private final OutputOptions output = OutputOptions.ofCommand(LostTimeAnalysisLegs_ModeSpecific_adapted.class);
+	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedLossTimeAnalysis.class);
 
 	//	public static void main(String[] args) {
 	public static void main(String[] args) {
-		new LostTimeAnalysisLegs_ModeSpecific_adapted().execute(args);
+		new AgentBasedLossTimeAnalysis().execute(args);
 	}
 
 	@Override
@@ -77,15 +82,20 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 		cleaner.run(network);
 
 		//legs.csv als Inputfile laden und Output-path festlegen
+	//	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
 		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
-		String outputCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legsLostTime_Test3.csv";
-		String outputSummaryFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLossTime.csv";
 		Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
+		Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
+		Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
+		Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
 
+		//	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
 
 		//Input-CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
-		try (BufferedReader br = new BufferedReader(new FileReader(inputLegsCsvFile));
-			 BufferedWriter bw = new BufferedWriter(new FileWriter(outputCsvFile))) {
+		try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(inputLegsCsvFile)));
+	//	try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(inputLegsCSVPath)));
+			 //	 BufferedWriter bw = new BufferedWriter(new FileWriter(outputCsvFile))) {
+			 BufferedWriter bw = new BufferedWriter(Files.newBufferedWriter(outputCSVPath))) {
 
 			// Header-Zeile lesen und überspringen
 			String line = br.readLine();
@@ -93,12 +103,15 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 			//Map für kumulierte LossTime-Summen
 			Map<String, Long> cumulativeLossTime = new HashMap<>();
 			Map<String, Long> failedRoutingOccurances = new HashMap<>();
+			Map<String, Double> sumLossTimePerAgent = new HashMap<>();
+			Map<String, Double> sumTravTimePerAgent = new HashMap<>();
+
 
 			// Spalten-header für neue output-Datei festlegen (Semikolongetrennt)
-			bw.write("person;trip_id;mode;trav_time;fs_trav_time;lost_time;trav_time_hms;fs_trav_time_hms;lost_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
+			bw.write("person;trip_id;mode;trav_time;fs_trav_time;loss_time;percent_lossTime;trav_time_hms;fs_trav_time_hms;loss_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
-			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for (int i = 0; i < 6000 && (line = br.readLine()) != null; i++) {
+				// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
+			for (int i = 0; i < 600 && (line = br.readLine()) != null; i++) {
 				//		for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
@@ -163,7 +176,7 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 					failedRoutingOccurances.put(mode, failedRoutingOccurances.getOrDefault(mode, 0L) + 1);
 				}
 /*
-				// Formatierte Ausgabe für Lost_Time
+				// Formatierte Ausgabe für Loss_Time
 				String formattedLostTime = (lossTimeInSeconds != null)
 					? formatDuration(Duration.ofSeconds(lossTimeInSeconds))
 					: "NULL";
@@ -179,15 +192,29 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 				long seconds_lt = lostTimeHMS.getSeconds() % 60;
 				String formattedLostTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
 
+				//Prozentuale Loss Time ausgeben
+				double percentLossTime = 0.0;
+				if (freeSpeedTravelTimeInSeconds != 0 && freeSpeedTravelTimeInSeconds != -1 && freeSpeedTravelTimeInSeconds != -2) {
+					percentLossTime = (double) lossTimeInSeconds / freeSpeedTravelTimeInSeconds;
+				} else {
+					System.out.println("Warnung: Division by Zero for trip " + tripId + " avoided.");
+
+				}
 
 				if (lossTimeInSeconds != null) {
 					cumulativeLossTime.put(mode, cumulativeLossTime.getOrDefault(mode, 0L) + lossTimeInSeconds);
 				} else {
 					System.out.println("Warnung: Loss Time für Modus" + mode + " ist null.");
 				}
+
+				sumLossTimePerAgent.put(person, (double) (sumLossTimePerAgent.getOrDefault((Object) person, (double) 0L)+ lossTimeInSeconds));
+
+				sumTravTimePerAgent.put(person, (double) (sumTravTimePerAgent.getOrDefault((Object) person, (double) 0L)+travTimeInSeconds));
+
+
 				//Die neue Zeile in die Ausgabe-CSV schreiben
-				bw.write(String.format("%s;%s;%d;%d;%d;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
-					formattedTravTime, formattedFreeSpeedTravTime, formattedLostTime, depTime,
+				bw.write(String.format("%s;%s;%s;%d;%d;%f;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", person, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
+					percentLossTime, formattedTravTime, formattedFreeSpeedTravTime, formattedLostTime, depTime,
 					startX, startY, startNodeFound.getId(), startLink, endX, endY, endNodeFound.getId(), endLink));
 			}
 
@@ -203,12 +230,103 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 					summaryBw.write(String.format("%s;%d;%d\n", mode, cumulativeLoss, failedCount));
 				}
 			}
+			//Tabelle mit Summen pro Person - aus diesen können die Agentenbasierte True/False Werte gebildet werden und aus deren Summe der Ranking-Prozentsatz
+			try (BufferedWriter agentBasedBw = new BufferedWriter(Files.newBufferedWriter(outputRankingAgentStatsPath))) {
+				agentBasedBw.write("Person;lossTimePerAgent;travTimePerAgent;percentageLossTime;rankingStatus\n");
+
+				for (String person : sumLossTimePerAgent.keySet()) {
+					double lossTimePerAgent = sumLossTimePerAgent.getOrDefault((Object) person, 0.0);
+					double travTimePerAgent = sumTravTimePerAgent.getOrDefault((Object) person, 0.0);
+					double percentageLossTime = lossTimePerAgent/travTimePerAgent;
+					boolean rankingStatus = false;
+					if (percentageLossTime < 0.15){
+						rankingStatus = true;
+					}
+					agentBasedBw.write(String.format("%s;%f;%f;%f;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus));
+				}
+			}
+/*
+			//eigene csv-Tabelle für Tile in Dashboard
+			try (BufferedWriter lossTimeRankingBw = new BufferedWriter(Files.newBufferedWriter(outputRankingValuePath))) {
+				lossTimeRankingBw.write("Dimension;RankingPercentage\n");
+
+				String dimension = "Loss Time";
+				double rankingLossTime = 0.5;
+
+				lossTimeRankingBw.write(String.format("%s;%f \n", dimension, rankingLossTime));
+
+			}
+*/
+
+			try (BufferedReader agentBasedReader = Files.newBufferedReader(outputRankingAgentStatsPath)) {
+				String entry;
+				int totalEntries = 0;
+				int trueEntries = 0;
+
+				// Überspringen der Header-Zeile
+				agentBasedReader.readLine();
+
+				// Iteration über alle Zeilen
+				while ((entry = agentBasedReader.readLine()) != null) {
+					String[] values = entry.split(";");
+
+					// Prüfen, ob die Spalte "rankingStatus" auf True gesetzt ist
+					if (values.length > 4 && "true".equalsIgnoreCase(values[4].trim())) {
+						trueEntries++;
+					}
+					totalEntries++;
+				}
+
+				// Anteil der True-Einträge berechnen
+				double rankingLossTime = (totalEntries > 0) ? ((double) trueEntries / totalEntries) * 100 : 0.0;
+
+
+				// Ergebnis in die Datei schreiben
+				try (BufferedWriter lossTimeRankingBw = Files.newBufferedWriter(outputRankingValuePath)) {
+				//	lossTimeRankingBw.write("Dimension;RankingPercentage\n");
+
+					String dimension = "Loss Time";
+
+					// Prozentsatz formatieren und schreiben (z. B. 12,34 %)
+					String formattedRankingLossTime = String.format(Locale.US, "%.2f%%", rankingLossTime);
+					lossTimeRankingBw.write(String.format("%s;%s\n", dimension, formattedRankingLossTime));
+				}
+/*
+
+				try (BufferedWriter lossTimeRankingBw = Files.newBufferedWriter(outputRankingValuePath)) {
+					String dimension = "Loss Time";  // Die erste Spalte bleibt fest
+
+					// Erstelle einen DecimalFormat, der den Punkt als Dezimaltrennzeichen verwendet
+				//	DecimalFormat df = new DecimalFormat("#.00"); // Zwei Dezimalstellen
+					String df = new DecimalFormat("#.0#", DecimalFormatSymbols.getInstance(Locale.US)).format(rankingLossTime) + " %";
+
+					// Formatiere den Wert als Prozentzahl mit Punkt als Dezimaltrennzeichen
+				//	String formattedRankingLossTime = df.format(rankingLossTime) + " %";
+					double formattedRankingLossTime = Double.parseDouble(df.format(String.valueOf(rankingLossTime)));
+
+					//	String formatPercentage(double value) {
+				//		return new DecimalFormat("#.0#", DecimalFormatSymbols.getInstance(Locale.US)).format(value) + " %";
+				//	}
+
+				//	double formattedRankingLossTime = formatPercentage(rankingLossTime);
+
+					// Schreibe direkt die Datenzeile ohne Kopfzeile
+					lossTimeRankingBw.write(String.format("%s;%s\n", dimension, formattedRankingLossTime));
+				}
+
+*/
+
+	//		} catch (IOException e) {
+	//			e.printStackTrace();
+			}
+
+
+
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		return 0;
 	}
-
 
 	// Netzwerk laden
 	private static Network loadNetwork(String networkFile) {
@@ -272,18 +390,17 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 				System.out.println("Ungültiger Modus: " + mode);
 				return -2; // Ungültiger Modus
 		}
-
 		return travelTimeInSeconds;
 	}
 
 	public static double getLossTimeSum(Path outputDirectory) throws IOException {
 		double sum = 0.0;
 
-		Path filePath = outputDirectory.resolve("summary_modeSpecificLegsLossTime.csv");
-		if (!Files.exists(filePath)) {
-			throw new IOException(("Die Datei summary_modeSpecificLegsLossTime.csv wurde im Ordner nicht gefunden: " + filePath.toAbsolutePath()));
+	//	Path filePath = outputDirectory.resolve("summary_modeSpecificLegsLossTime.csv");
+		if (!Files.exists(outputDirectory)) {
+			throw new IOException(("Die Datei summary_modeSpecificLegsLossTime.csv wurde im Ordner nicht gefunden: " + outputDirectory.toAbsolutePath()));
 		}
-		try (CSVParser parser = new CSVParser(Files.newBufferedReader(filePath),CSVFormat.DEFAULT.withFirstRecordAsHeader())){
+		try (CSVParser parser = new CSVParser(Files.newBufferedReader(outputDirectory),CSVFormat.DEFAULT.withFirstRecordAsHeader())){
 			for (CSVRecord record : parser) {
 				String value = record.get("cumulative_loss_time");
 				sum += Double.parseDouble(value);
@@ -311,6 +428,5 @@ public class LostTimeAnalysisLegs_ModeSpecific_adapted implements MATSimAppComma
 		long seconds = duration.getSeconds() % 60;
 		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
 	}
-
 
 }
