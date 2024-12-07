@@ -21,6 +21,7 @@ import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.geometry.CoordUtils;
+import org.matsim.modechoice.commands.StrategyOptions;
 import picocli.CommandLine;
 
 import java.io.*;
@@ -29,9 +30,7 @@ import java.nio.file.Path;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -89,7 +88,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 		Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
 		Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
 		Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
-		//Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
+		Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
 
 		//	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
 
@@ -105,15 +104,16 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			//Map für kumulierte LossTime-Summen
 			Map<String, Long> cumulativeLossTime = new HashMap<>();
 			Map<String, Long> failedRoutingOccurances = new HashMap<>();
-			Map<String, Double> sumLossTimePerAgent = new HashMap<>();
 			Map<String, Double> sumTravTimePerAgent = new HashMap<>();
+			Map<String, Double> sumLossTimePerAgent = new HashMap<>();
+			Map<String, Set<String>> modePerPerson = new HashMap<>();
 
 
 			// Spalten-header für neue output-Datei festlegen (Semikolongetrennt)
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;loss_time;percent_lossTime;trav_time_hms;fs_trav_time_hms;loss_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
 				// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for (int i = 0; i < 60000 && (line = br.readLine()) != null; i++) {
+			for (int i = 0; i < 600 && (line = br.readLine()) != null; i++) {
 				//		for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
@@ -213,6 +213,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 				sumTravTimePerAgent.put(person, (double) (sumTravTimePerAgent.getOrDefault((Object) person, (double) 0L)+travTimeInSeconds));
 
+				//modePerPerson.put(person, (String) (modePerPerson.getOrDefault((Object) person, (String) "")+mode));
+				modePerPerson.computeIfAbsent(person, k -> new HashSet<>()).add(mode);
 
 				//Die neue Zeile in die Ausgabe-CSV schreiben
 				bw.write(String.format("%s;%s;%s;%s;%d;%d;%f;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", person, tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
@@ -223,28 +225,32 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 			try (BufferedWriter summaryBw = new BufferedWriter(Files.newBufferedWriter(outputSummaryPath))) {
 				summaryBw.write("mode;cumulative_loss_time;failed_routings\n");
-				//for (Map.Entry<String, Long> entry : cumulativeLossTime.entrySet()) {
-				//		summaryBw.write(String.format("%s;%d\n", entry.getKey(), entry.getValue()));
-				//		}
+
 				for (String mode : cumulativeLossTime.keySet()) {
 					long cumulativeLoss = cumulativeLossTime.getOrDefault(mode, 0L);
 					long failedCount = failedRoutingOccurances.getOrDefault(mode, 0L);
 					summaryBw.write(String.format("%s;%d;%d\n", mode, cumulativeLoss, failedCount));
 				}
 			}
-			//Tabelle mit Summen pro Person - aus diesen können die Agentenbasierte True/False Werte gebildet werden und aus deren Summe der Ranking-Prozentsatz
+
+		//	try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(inputLegsCsvFile)));
+
+				 //Tabelle mit Summen pro Person - aus diesen können die Agentenbasierte True/False Werte gebildet werden und aus deren Summe der Ranking-Prozentsatz
 			try (BufferedWriter agentBasedBw = new BufferedWriter(Files.newBufferedWriter(outputRankingAgentStatsPath))) {
-				agentBasedBw.write("Person;lossTimePerAgent;travTimePerAgent;percentageLossTime;rankingStatus\n");
+				agentBasedBw.write("Person;lossTimePerAgent;travTimePerAgent;percentageLossTime;rankingStatus;modesUsed\n");
+
 
 				for (String person : sumLossTimePerAgent.keySet()) {
 					double lossTimePerAgent = sumLossTimePerAgent.getOrDefault((Object) person, 0.0);
 					double travTimePerAgent = sumTravTimePerAgent.getOrDefault((Object) person, 0.0);
 					double percentageLossTime = lossTimePerAgent/travTimePerAgent;
+				//	String modeUsed = modePerPerson.getOrDefault((Object) person, "");
+					String modeUsed = String.join(",", modePerPerson.getOrDefault(person, Set.of()));
 					boolean rankingStatus = false;
 					if (percentageLossTime < 0.15){
 						rankingStatus = true;
 					}
-					agentBasedBw.write(String.format("%s;%f;%f;%f;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus));
+					agentBasedBw.write(String.format("%s;%f;%f;%f;%s;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus, modeUsed));
 				}
 			}
 /*
@@ -282,7 +288,6 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 				// Anteil der True-Einträge berechnen
 				double rankingLossTime = (totalEntries > 0) ? ((double) trueEntries / totalEntries) * 100 : 0.0;
 
-
 				// Ergebnis in die Datei schreiben
 				try (BufferedWriter lossTimeRankingBw = Files.newBufferedWriter(outputRankingValuePath)) {
 				//	lossTimeRankingBw.write("Dimension;RankingPercentage\n");
@@ -292,34 +297,13 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					// Prozentsatz formatieren und schreiben (z. B. 12,34 %)
 					String formattedRankingLossTime = String.format(Locale.US, "%.2f%%", rankingLossTime);
 					lossTimeRankingBw.write(String.format("%s;%s\n", dimension, formattedRankingLossTime));
-				}
-/*
+					System.out.println("Info: Loss Time Ranking Wert ist "+formattedRankingLossTime);
 
-				try (BufferedWriter lossTimeRankingBw = Files.newBufferedWriter(outputRankingValuePath)) {
-					String dimension = "Loss Time";  // Die erste Spalte bleibt fest
-
-					// Erstelle einen DecimalFormat, der den Punkt als Dezimaltrennzeichen verwendet
-				//	DecimalFormat df = new DecimalFormat("#.00"); // Zwei Dezimalstellen
-					String df = new DecimalFormat("#.0#", DecimalFormatSymbols.getInstance(Locale.US)).format(rankingLossTime) + " %";
-
-					// Formatiere den Wert als Prozentzahl mit Punkt als Dezimaltrennzeichen
-				//	String formattedRankingLossTime = df.format(rankingLossTime) + " %";
-					double formattedRankingLossTime = Double.parseDouble(df.format(String.valueOf(rankingLossTime)));
-
-					//	String formatPercentage(double value) {
-				//		return new DecimalFormat("#.0#", DecimalFormatSymbols.getInstance(Locale.US)).format(value) + " %";
-				//	}
-
-				//	double formattedRankingLossTime = formatPercentage(rankingLossTime);
-
-					// Schreibe direkt die Datenzeile ohne Kopfzeile
-					lossTimeRankingBw.write(String.format("%s;%s\n", dimension, formattedRankingLossTime));
 				}
 
-*/
 
-	//		} catch (IOException e) {
-	//			e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
 			}
 
 
@@ -417,7 +401,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 	}
 		return sum;
 	}
-
+/*
 	public double getRankingLossTime() throws IOException {
 		double ranklossTime = 0.0;
 
@@ -443,7 +427,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 		return ranklossTime;
 	}
-
+*/
 	private static Duration parseTime(String timeString) {
 		if (timeString != null && timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
 			String[] parts = timeString.split(":");

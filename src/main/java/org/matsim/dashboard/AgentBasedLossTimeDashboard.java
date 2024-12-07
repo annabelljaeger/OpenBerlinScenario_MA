@@ -4,10 +4,7 @@ import org.matsim.analysis.AgentBasedLossTimeAnalysis;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
-import org.matsim.simwrapper.viz.Bar;
-import org.matsim.simwrapper.viz.ColorScheme;
-import org.matsim.simwrapper.viz.Plotly;
-import org.matsim.simwrapper.viz.Tile;
+import org.matsim.simwrapper.viz.*;
 import tech.tablesaw.api.LongColumn;
 import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.plotly.components.Axis;
@@ -57,6 +54,7 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 					.x("mode")
 					.y("cumulative_loss_time")
 					.name("cumulative_loss_time", ColorScheme.RdYlBu)
+
 				);
 			})
 			.el(Bar.class, (viz, data) -> {
@@ -70,6 +68,45 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 					viz.yAxisName = "Loss Time [s]";
 					viz.columns = List.of("cumulative_loss_time", "failed_routings");
 		});
+/*
+		layout.row("BarChart ModesUsed")
+			.el(Bar.class, (viz, data) -> {
+				viz.title = "Modes Used";
+				viz.description = "teleported modes result in 0 seconds loss time, ergo all solely bike and walk users are defined as true in their loss time dependent liveability ranking - here shown is the number of persons usimg each combination of modes";
+
+				viz.dataset = data.compute(AgentBasedLossTimeAnalysis.class, "lossTime_stats_perAgent.csv")
+					.groupBy(List.of("modesUsed"))
+					.aggregate("person", Plotly.AggrFunc.COUNT);
+				viz.x = "modesUsed";
+				viz.y = "person";
+				viz.xAxisName = "Mode";
+				viz.yAxisName = "Number of Persons";
+				viz.stacked = false;
+			});
+*/
+		layout.row("BarChart ModesUsed")
+			.el(Plotly.class, (viz, data) -> {
+
+				viz.title = "Modes Used";
+				viz.description = "teleported modes result in 0 seconds loss time, ergo all solely bike and walk users are defined as true in their loss time dependent liveability ranking - here shown is the number of persons usimg each combination of modes";
+
+				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "lossTime_stats_perAgent.csv"))
+					.aggregate(List.of("modeUsed"),"Person", Plotly.AggrFunc.SUM);
+
+				// Layout und Achsen anpassen
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Modes").build())
+					.yAxis(Axis.builder().title("Number of Persons").build())
+					.build();
+
+
+				viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT).orientation(BarTrace.Orientation.VERTICAL).build(), ds.mapping()
+					.x("modesUsed")
+					.y("Person")
+	//				.name("mode", ColorScheme.RdYlBu)
+				);
+			});
+
 
 		layout.row("histogramm")
 			.el(Bar.class, (viz, data) -> {
@@ -101,31 +138,30 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 				);
 			})
 
-					.el(Plotly.class, (viz, data) -> {
-						viz.title = "Lost Time per Quarter Hour";
-						viz.description = "Sum of lost times (in seconds) for each 15-minute interval of the day";
+			.el(Plotly.class, (viz, data) -> {
+				viz.title = "Lost Time per Quarter Hour";
+				viz.description = "Sum of lost times (in seconds) for each 15-minute interval of the day";
 
-						// Add the legs dataset
-						Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
+				// Add the legs dataset
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
 
-						// Define the layout for the plot
-						viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-							.xAxis(Axis.builder().title("Time Interval").build())
-							.yAxis(Axis.builder().title("Total Loss Time (s)").build())
-							.build();
+				// Define the layout for the plot
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Time Interval").build())
+					.yAxis(Axis.builder().title("Total Loss Time (s)").build())
+					.build();
 
-				//		viz.addTrace((Trace) HistogramTrace.builder(Plotly.INPUT));
-						//viz.addTrace(HistogramTrace.builder(Plotly.OBJ_INPUT, Plotly.OBJ_INPUT)
+		//		viz.addTrace((Trace) HistogramTrace.builder(Plotly.INPUT));
+				//viz.addTrace(HistogramTrace.builder(Plotly.OBJ_INPUT, Plotly.OBJ_INPUT)
 
+				viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT) // Verwenden von INPUT
+						.name("Loss Time") // Name des Traces
+						.build(),
+					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
+						.x("dep_time") // Spaltenname für die X-Achse (Zeitintervalle)
+						.y("loss_time") );// Spaltenname für die Y-Achse (Verlustzeiten)
 
-						viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT) // Verwenden von INPUT
-								.name("Loss Time") // Name des Traces
-								.build(),
-							dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
-								.x("dep_time") // Spaltenname für die X-Achse (Zeitintervalle)
-								.y("loss_time") );// Spaltenname für die Y-Achse (Verlustzeiten)
-
-					});
+			});
 
 
 
