@@ -22,12 +22,12 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 			viz.height = 0.1; })
 			.el(Tile.class, (viz, data) -> {
 			viz.dataset = data.compute(AgentBasedLossTimeAnalysis.class, "lossTime_RankingValue.csv");
+
 			viz.height = 0.1;
 		});
 	}
 }
 /*
-
 
 @Override
 public void configure(Header header, Layout layout) {

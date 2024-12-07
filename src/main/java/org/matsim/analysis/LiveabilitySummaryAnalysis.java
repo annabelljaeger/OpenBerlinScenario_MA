@@ -41,7 +41,7 @@ import java.util.*;
 
 public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
-	private static final Logger log = LogManager.getLogger(LiveabilitySummaryAnalysis.class);
+	private final Logger log = LogManager.getLogger(LiveabilitySummaryAnalysis.class);
 
 	@CommandLine.Mixin
 	private final InputOptions input = InputOptions.ofCommand(LiveabilitySummaryAnalysis.class);
@@ -51,7 +51,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	private final Map<String, Double> liveabilityMetrics = new LinkedHashMap<>();
 //	private final Map<String, String> bestPolicies = new LinkedHashMap<>();
 
-	public static void main(String[] args) {
+	public void main(String[] args) {
 		new LiveabilitySummaryAnalysis().execute(args);
 	}
 
@@ -65,7 +65,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 		Path outputDirectory = Path.of("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLossTime.csv");
 
-	//	Path lossTimeFile = Path.of("summary_modeSpecificLegsLossTime.csv");
+	//	liveabilityMetrics.put("Loss Time", AgentBasedLossTimeAnalysis.getRankingLossTime;
+		//	Path lossTimeFile = Path.of("summary_modeSpecificLegsLossTime.csv");
 	//	log.info("Versuche Datei zu lesen: {}", lossTimeFile.toAbsolutePath());
 
 		double cumulativeLossTimeSum = 0.0;

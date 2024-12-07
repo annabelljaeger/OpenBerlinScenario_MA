@@ -71,6 +71,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 		new AgentBasedLossTimeAnalysis().execute(args);
 	}
 
+	Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
+
 	@Override
 	public Integer call() throws Exception {
 
@@ -87,7 +89,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 		Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
 		Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
 		Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
-		Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
+		//Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
 
 		//	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
 
@@ -111,7 +113,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;loss_time;percent_lossTime;trav_time_hms;fs_trav_time_hms;loss_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
 				// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for (int i = 0; i < 600 && (line = br.readLine()) != null; i++) {
+			for (int i = 0; i < 60000 && (line = br.readLine()) != null; i++) {
 				//		for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
@@ -213,7 +215,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 
 				//Die neue Zeile in die Ausgabe-CSV schreiben
-				bw.write(String.format("%s;%s;%s;%d;%d;%f;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", person, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
+				bw.write(String.format("%s;%s;%s;%s;%d;%d;%f;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", person, tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
 					percentLossTime, formattedTravTime, formattedFreeSpeedTravTime, formattedLostTime, depTime,
 					startX, startY, startNodeFound.getId(), startLink, endX, endY, endNodeFound.getId(), endLink));
 			}
@@ -335,6 +337,10 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 		return network;
 	}
 
+
+
+
+
 	// Berechnung der Reisezeit auf der Strecke (FreeSpeed-Modus)
 	private static double calculateFreeSpeedTravelTime(Network network, Coord point1, Coord point2, String mode, long InputTravTimeInSeconds) {
 		double travelTimeInSeconds = 0;
@@ -410,6 +416,32 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 		throw new IOException("Fehler beim Parsen der Werte in der Datei: " + e.getMessage(), e);
 	}
 		return sum;
+	}
+
+	public double getRankingLossTime() throws IOException {
+		double ranklossTime = 0.0;
+
+		String entry;
+		int totalEntries = 0;
+		int trueEntries = 0;
+
+		try (BufferedReader readerRankLT = Files.newBufferedReader(outputRankingValuePath)) {
+			// Überspringen der Header-Zeile
+			readerRankLT.readLine();
+			// Iteration über alle Zeilen
+			while ((entry = readerRankLT.readLine()) != null) {
+				String[] values = entry.split(";");
+				if (values.length > 4 && "true".equalsIgnoreCase(values[4].trim())) {
+					trueEntries++;
+				}
+				totalEntries++;
+			}
+
+
+			double rankLossTime = (totalEntries > 0) ? ((double) trueEntries / totalEntries) * 100 : 0.0;
+		}
+
+		return ranklossTime;
 	}
 
 	private static Duration parseTime(String timeString) {

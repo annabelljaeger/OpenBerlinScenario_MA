@@ -8,9 +8,13 @@ import org.matsim.simwrapper.viz.Bar;
 import org.matsim.simwrapper.viz.ColorScheme;
 import org.matsim.simwrapper.viz.Plotly;
 import org.matsim.simwrapper.viz.Tile;
+import tech.tablesaw.api.LongColumn;
+import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.plotly.components.Axis;
 import tech.tablesaw.plotly.traces.BarTrace;
+import tech.tablesaw.plotly.traces.HistogramTrace;
 import tech.tablesaw.plotly.traces.ScatterTrace;
+import tech.tablesaw.plotly.traces.Trace;
 
 import java.util.List;
 
@@ -101,58 +105,26 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 						viz.title = "Lost Time per Quarter Hour";
 						viz.description = "Sum of lost times (in seconds) for each 15-minute interval of the day";
 
-						// Add the legs dataset (adjust the filename as necessary)
+						// Add the legs dataset
 						Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
 
 						// Define the layout for the plot
 						viz.layout = tech.tablesaw.plotly.components.Layout.builder()
 							.xAxis(Axis.builder().title("Time Interval").build())
-							.yAxis(Axis.builder().title("Total Lost Time (s)").build())
+							.yAxis(Axis.builder().title("Total Loss Time (s)").build())
 							.build();
-/*
-						double[] lossTimes = dataset.column("loss_time").asDoubleArray(); // Verlustzeiten als Array
-						String[] intervals = dataset.column("dep_time").asStringArray(); // Viertelstundenintervalle als Array
 
-											// Add a BarTrace for the sum of lost time
-						viz.addTrace(BarTrace.builder(intervals, lossTimes)
-								.name("Lost Time")
-								.build(),
-							dataset.mapping()
-								.x("dep_time") // Adjust to the column that groups the time intervals
-								.y("loss_time") // Adjust to the column with the sum of lost times
-						);
+				//		viz.addTrace((Trace) HistogramTrace.builder(Plotly.INPUT));
+						//viz.addTrace(HistogramTrace.builder(Plotly.OBJ_INPUT, Plotly.OBJ_INPUT)
 
-						viz.addTrace(BarTrace.builder(Plotly.INPUT, Plotly.INPUT) // Verwenden von INPUT
-								.name("Lost Time") // Name des Traces
+
+						viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT) // Verwenden von INPUT
+								.name("Loss Time") // Name des Traces
 								.build(),
 							dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
 								.x("dep_time") // Spaltenname für die X-Achse (Zeitintervalle)
-								.y("loss_time") // Spaltenname für die Y-Achse (Verlustzeiten)
-						);
-					})
+								.y("loss_time") );// Spaltenname für die Y-Achse (Verlustzeiten)
 
-						.el(context, Plotly.class, (viz, data) -> {
-
-							viz.title = "Avg. error / bias";
-
-							viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-								.xAxis(Axis.builder().title("Hour").build())
-								.yAxis(Axis.builder().title("Mean rel. error [%]").build())
-								.yAxis2(Axis.builder().title("Mean (abs.) error [veh/h]")
-									.side(Axis.Side.right)
-									.overlaying(ScatterTrace.YAxis.Y)
-									.build())
-								.build();
-
-							Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv", args));
-
-							viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).mode(ScatterTrace.Mode.LINE)
-								.name("Mean rel. error")
-								.build(), ds.mapping()
-								.x("loss_time")
-								.y("dep_time"));
-
-				 */
 					});
 
 
