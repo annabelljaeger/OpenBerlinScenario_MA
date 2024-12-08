@@ -1,9 +1,15 @@
 package org.matsim.dashboard;
 
+import org.matsim.analysis.AgentBasedLossTimeAnalysis;
+import org.matsim.analysis.AgentLiveabilityInfo;
 import org.matsim.application.ApplicationUtils;
+import org.matsim.application.MATSimAppCommand;
+import org.matsim.application.options.OutputOptions;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.simwrapper.*;
+import picocli.CommandLine;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,7 +27,15 @@ public class RunLiveabilityDashboard {
 		Config config = ConfigUtils.loadConfig(configPath.toString());
 		SimWrapper sw = SimWrapper.create(config);
 
+	//	new AgentLiveabilityInfo().execute(args);
+		new AgentLiveabilityInfo().execute(new String[]{
+			"--input", runDirectory.toString(), // Übergabe des Eingabeverzeichnisses
+			"--output", runDirectory.resolve("analysis/analysis/liveabilityInfo.csv").toString() // Übergabe des Ausgabepfads
+		});
 
+
+		//	Path liveabilityCsvPath = Paths.get(runDirectory.toString(), "liveability_info.csv");
+	//	liveabilityInfo.generateLiveabilityData(runDirectory, liveabilityCsvPath);
 
 		sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
@@ -40,8 +54,5 @@ public class RunLiveabilityDashboard {
 		// It fails, possibly because "file.csv" is not there.
 
 	}
-
-
-
 
 }

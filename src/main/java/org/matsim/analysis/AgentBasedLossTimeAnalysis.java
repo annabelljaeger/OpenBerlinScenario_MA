@@ -3,8 +3,6 @@ package org.matsim.analysis;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
@@ -21,14 +19,11 @@ import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.geometry.CoordUtils;
-import org.matsim.modechoice.commands.StrategyOptions;
 import picocli.CommandLine;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.time.Duration;
 import java.util.*;
 
@@ -58,31 +53,26 @@ import java.io.IOException;
 
 public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
-//	private static final Logger log = LogManager.getLogger(AgentBasedLossTimeAnalysis.class);
-
 	@CommandLine.Mixin
 	private final InputOptions input = InputOptions.ofCommand(AgentBasedLossTimeAnalysis.class);
 	@CommandLine.Mixin
 	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedLossTimeAnalysis.class);
 
-	//	public static void main(String[] args) {
 	public static void main(String[] args) {
 		new AgentBasedLossTimeAnalysis().execute(args);
 	}
 
-	Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
-
 	@Override
 	public Integer call() throws Exception {
 
-		//Netzwerk laden & NetworkCleaner laufen lassen
+		//load network & execute NetworkCleaner
 		String networkFile = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-network-with-pt.xml.gz"; //Netzwerk-Dateipfad
 		Network network = loadNetwork(networkFile);
 
 		NetworkCleaner cleaner = new NetworkCleaner();
 		cleaner.run(network);
 
-		//legs.csv als Inputfile laden und Output-path festlegen
+		//find input-File (legs.csv) and define Output-paths
 		//	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
 		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
 		Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
@@ -113,7 +103,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			bw.write("person;trip_id;mode;trav_time;fs_trav_time;loss_time;percent_lossTime;trav_time_hms;fs_trav_time_hms;loss_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
 			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for (int i = 0; i < 600 && (line = br.readLine()) != null; i++) {
+			for (int i = 0; i < 60000 && (line = br.readLine()) != null; i++) {
 				//		for (; (line = br.readLine()) != null;){
 				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
 				String[] values = line.split(";");
