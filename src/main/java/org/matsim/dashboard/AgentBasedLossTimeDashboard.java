@@ -5,15 +5,20 @@ import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
 import org.matsim.simwrapper.viz.*;
+import tech.tablesaw.api.DoubleColumn;
 import tech.tablesaw.api.LongColumn;
 import tech.tablesaw.api.StringColumn;
+import tech.tablesaw.api.*;
+import tech.tablesaw.api.Table;
 import tech.tablesaw.plotly.components.Axis;
 import tech.tablesaw.plotly.traces.BarTrace;
 import tech.tablesaw.plotly.traces.HistogramTrace;
 import tech.tablesaw.plotly.traces.ScatterTrace;
 import tech.tablesaw.plotly.traces.Trace;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class AgentBasedLossTimeDashboard implements Dashboard {
 
@@ -137,6 +142,54 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 					.name("lost_time", ColorScheme.RdYlBu)
 				);
 			})
+
+//NEUER ANSATZ HISTOGRAMM
+			.el(Plotly.class, (viz, data) -> {
+				viz.title = "Number of used modes";
+				viz.description = "Number of the used mode";
+
+				// Dataset hinzufügen
+				//Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
+
+				// Dateipfad aus dem Dataset abrufen
+				String csvFilePath = "C:\\Users\\annab\\MatSim for MA\\Output_Cluster\\OBS_Base\\output_OBS_Base\\berlin-v6.3-10pct\\analysis\\analysis\\output_legsLossTime_new-Kopie.csv";
+				//String csvFilePath = "C:\\Users\\holle\\IdeaProjects\\OpenBerlinScenario_MA\\output\\berlin-v6.3-10pct\\analysis\\analysis\\output_legsLossTime_new.csv";
+
+				// Layout definieren
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Modes").build())
+					.yAxis(Axis.builder().title("Number of modes").build())
+					.build();
+
+				String columnName = "mode";
+				System.out.println("Ich bin hier");
+				try {
+					// CSV-Datei mit Tablesaw laden
+					Table table = Table.read().csv(csvFilePath);
+
+					// Spalte extrahieren und Häufigkeiten berechnen
+					StringColumn categories = table.stringColumn(columnName);
+					Map<String, Integer> frequencyMap = new HashMap<>();
+					for (String value : categories) {
+						frequencyMap.put(value, frequencyMap.getOrDefault(value, 0) + 3);
+					}
+
+					// Frequenzen in Tablesaw-Spalten umwandeln
+					StringColumn uniqueValues = StringColumn.create("Unique Values", frequencyMap.keySet());
+					DoubleColumn frequencies = DoubleColumn.create("Frequencies",
+						frequencyMap.values().stream().mapToDouble(Integer::doubleValue).toArray());
+
+					// Histogramm-Trace hinzufügen
+					viz.addTrace(HistogramTrace.builder(uniqueValues, frequencies)
+						.name("Modes")
+						.build());
+
+				} catch (Exception e) {
+					e.printStackTrace(); // Fehlerausgabe
+				}
+			})
+
+
 
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Lost Time per Quarter Hour";
