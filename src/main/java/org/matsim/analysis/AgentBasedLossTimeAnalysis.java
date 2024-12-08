@@ -80,35 +80,32 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 		Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
 		Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
 
-		//	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
+		//read Input-legs.csv file and write new output files for loss time analysis
+		try (BufferedReader brInputLegs = new BufferedReader(new FileReader(inputLegsCsvFile));
 
-		//Input-CSV-Datei einlesen und für jedes Leg die Reisezeit berechnen
-		try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(inputLegsCsvFile)));
-			 //	try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(inputLegsCSVPath)));
-			 //	 BufferedWriter bw = new BufferedWriter(new FileWriter(outputCsvFile))) {
-			 BufferedWriter bw = new BufferedWriter(Files.newBufferedWriter(outputCSVPath))) {
+			 // writing new csv with added legs loss time information
+			 BufferedWriter bwLegsLossTime = new BufferedWriter(Files.newBufferedWriter(outputCSVPath))) {
 
-			// Header-Zeile lesen und überspringen
-			String line = br.readLine();
+			// read and skip header-line
+			String line = brInputLegs.readLine();
 
-			//Map für kumulierte LossTime-Summen
+			//defining maps for further csv-Writer tasks
 			Map<String, Long> cumulativeLossTime = new HashMap<>();
 			Map<String, Long> failedRoutingOccurances = new HashMap<>();
 			Map<String, Double> sumTravTimePerAgent = new HashMap<>();
 			Map<String, Double> sumLossTimePerAgent = new HashMap<>();
 			Map<String, Set<String>> modePerPerson = new HashMap<>();
 
+			// defining column-headers (; as separator) for the new legsLossTime_csv
+			bwLegsLossTime.write("person;trip_id;mode;trav_time;fs_trav_time;loss_time;percent_lossTime;trav_time_hms;fs_trav_time_hms;loss_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
 
-			// Spalten-header für neue output-Datei festlegen (Semikolongetrennt)
-			bw.write("person;trip_id;mode;trav_time;fs_trav_time;loss_time;percent_lossTime;trav_time_hms;fs_trav_time_hms;loss_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
-
-			// mittels for-Schleife über alle Legs-Einträge iterieren und die Werte berechnen
-			for (int i = 0; i < 60000 && (line = br.readLine()) != null; i++) {
-				//		for (; (line = br.readLine()) != null;){
-				// Zeile parsen und in Felder aufteilen (legs.csv ist Semikolon-getrennt)
+			// use for-loop to iterate over all legs-entries and calculate the values
+			for (int i = 0; i < 600 && (line = brInputLegs.readLine()) != null; i++) {
+	//		for (; (line = br.readLine()) != null;){
+				// parse entries and split in the value-cells (legs.csv is separated by ;)
 				String[] values = line.split(";");
 
-				// Aufbau der neuen output-Datei - dafür Werte aus bestehender legs.csv über Spaltennummer als Werte festlegen
+				// collection of values from existing legs.csv to take over to the new legsLossTime.csv
 				double startX = Double.parseDouble(values[8]);
 				double startY = Double.parseDouble(values[9]);
 				String startLink = values[7];
@@ -116,9 +113,14 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 				double endY = Double.parseDouble(values[12]);
 				String endLink = values[10];
 
-				// Umwandlung der travTime (hh:mm:ss) in das Format PTnHnMnS (Duration)
+				String person = values[0];
+				String tripId = values[1];
+				String mode = values[6];
+				String depTime = values[2];
+
 				String travTimeString = values[3];
 
+				// transforming travTime (hh:mm:ss) from the legs.csv into the string format (PTnHnMnS) and into the duration format (hh:mm:ss) afterwards [formattedTravTime as a result]
 				if (travTimeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
 					String[] timeParts = travTimeString.split(":");
 					travTimeString = "PT" + timeParts[0] + "H" + timeParts[1] + "M" + timeParts[2] + "S";
@@ -126,86 +128,77 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					System.out.println("Ungültiges Zeitformat: " + travTimeString);
 					continue;
 				}
-
-				// Duration aus dem umgewandelten String parsen
 				Duration travTime = Duration.parse(travTimeString);
 				long hours = travTime.toHours();
 				long minutes = travTime.toMinutes() % 60;
 				long seconds = travTime.getSeconds() % 60;
 				String formattedTravTime = String.format("%02d:%02d:%02d", hours, minutes, seconds);
 
-				String person = values[0];
-				String tripId = values[1];
-				String mode = values[6];
-				String depTime = values[2];
-
-				//Reisezeit im FreeSpeed-Modus berechnen
-				Coord point1 = new Coord(startX, startY);
-				Coord point2 = new Coord(endX, endY);
-
-				Node startNodeFound = NetworkUtils.getNearestNode(network, point1);
-				Node endNodeFound = NetworkUtils.getNearestNode(network, point2);
-
+				// transform travel time into seconds
 				long travTimeInSeconds = travTime.getSeconds();
 
-				long freeSpeedTravelTimeInSeconds = (long) calculateFreeSpeedTravelTime(network, point1, point2, mode, travTimeInSeconds);
+				// prep data for free speed travel time calculation
+				Coord startPoint = new Coord(startX, startY);
+				Coord endPoint = new Coord(endX, endY);
 
+				Node startNodeFound = NetworkUtils.getNearestNode(network, startPoint);
+				Node endNodeFound = NetworkUtils.getNearestNode(network, endPoint);
+
+				// free speed travel time is calculated by calling the calculateFreeSpeedTravelTime method for every start-end-point-combination
+				long freeSpeedTravelTimeInSeconds = (long) calculateFreeSpeedTravelTime(network, startPoint, endPoint, mode, travTimeInSeconds);
+
+				//transforming the resulting free speed travel time into the duration format as well es the String hh:mm:ss format
 				Duration fsTravTimeHMS = Duration.ofSeconds(freeSpeedTravelTimeInSeconds);
 				long hours_fs = fsTravTimeHMS.toHours();
 				long minutes_fs = fsTravTimeHMS.toMinutes() % 60;
 				long seconds_fs = fsTravTimeHMS.getSeconds() % 60;
 				String formattedFreeSpeedTravTime = String.format("%02d:%02d:%02d", hours_fs, minutes_fs, seconds_fs);
 
-				//Verlustzeit (LossTime) als Differenz berechnen
+				// defining loss time as the difference of travel time minus freeSpeedTravelTime (place holders are intercepted by the if-clause)
+				// data type is Long as no double is required since seconds is the smallest unit used in matsim
 				Long lossTimeInSeconds;
-
 				if (freeSpeedTravelTimeInSeconds != -1 && freeSpeedTravelTimeInSeconds != -2) {
 					lossTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
-					//			if (lossTimeInSeconds < 0) lossTimeInSeconds = 0L; //falsche Differenzen vermeiden
-
+					if (lossTimeInSeconds < 0) {lossTimeInSeconds = 0L;} // avoiding negative loss times
 				} else {
 					lossTimeInSeconds = 0L;
 					failedRoutingOccurances.put(mode, failedRoutingOccurances.getOrDefault(mode, 0L) + 1);
 				}
 
-				if (lossTimeInSeconds != null && lossTimeInSeconds < 0) {
-					lossTimeInSeconds = 0L;
-				}
-
-				// Wandelt die Sekunden in LocalTime um (nur für positive Werte)
+				// transforming the seconds of the loss time calculation to the duration format and the String (hh:mm:ss) afterwards
 				Duration lostTimeHMS = Duration.ofSeconds(lossTimeInSeconds);
 				long hours_lt = lostTimeHMS.toHours();
 				long minutes_lt = lostTimeHMS.toMinutes() % 60;
 				long seconds_lt = lostTimeHMS.getSeconds() % 60;
-				String formattedLostTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
+				String formattedLossTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
 
-				//Prozentuale Loss Time ausgeben
+				// calculating the percentage of loss time compared to the free speed (minimum possible) travel time for positive loss time values
 				double percentLossTime = 0.0;
 				if (freeSpeedTravelTimeInSeconds != 0 && freeSpeedTravelTimeInSeconds != -1 && freeSpeedTravelTimeInSeconds != -2) {
 					percentLossTime = (double) lossTimeInSeconds / freeSpeedTravelTimeInSeconds;
 				} else {
 					System.out.println("Warnung: Division by Zero for trip " + tripId + " avoided.");
-
 				}
 
-				if (lossTimeInSeconds != null) {
-					cumulativeLossTime.put(mode, cumulativeLossTime.getOrDefault(mode, 0L) + lossTimeInSeconds);
-				} else {
-					System.out.println("Warnung: Loss Time für Modus" + mode + " ist null.");
-				}
-
-				sumLossTimePerAgent.put(person, (double) (sumLossTimePerAgent.getOrDefault((Object) person, (double) 0L) + lossTimeInSeconds));
-
+				// calculate sum of travel time and of loss time per agent. overall loss time sum and mode per person info
+				sumLossTimePerAgent.put(person, sumLossTimePerAgent.getOrDefault(person, (double) 0L) + lossTimeInSeconds);
 				sumTravTimePerAgent.put(person, (double) (sumTravTimePerAgent.getOrDefault((Object) person, (double) 0L) + travTimeInSeconds));
-
-				//modePerPerson.put(person, (String) (modePerPerson.getOrDefault((Object) person, (String) "")+mode));
 				modePerPerson.computeIfAbsent(person, k -> new HashSet<>()).add(mode);
 
-				//Die neue Zeile in die Ausgabe-CSV schreiben
-				bw.write(String.format("%s;%s;%s;%s;%d;%d;%f;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n", person, tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
-					percentLossTime, formattedTravTime, formattedFreeSpeedTravTime, formattedLostTime, depTime,
+				if (lossTimeInSeconds != 0L) {
+					cumulativeLossTime.put(mode, cumulativeLossTime.getOrDefault(mode, 0L) + lossTimeInSeconds);
+				} else {
+					System.out.println("Warnung: Loss Time for trip" + tripId + " is zero.");
+				}
+
+				// writing the desired columns in the new legsLossTime output csv file
+				bwLegsLossTime.write(String.format("%s;%s;%s;%s;%d;%d;%f;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n",
+					person, tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
+					percentLossTime, formattedTravTime, formattedFreeSpeedTravTime, formattedLossTime, depTime,
 					startX, startY, startNodeFound.getId(), startLink, endX, endY, endNodeFound.getId(), endLink));
 			}
+
+			//HIER WEITER MIT CODE-ÜBERARBEITUNG UND KOMMENTIERUNG
 
 
 			try (BufferedWriter summaryBw = new BufferedWriter(Files.newBufferedWriter(outputSummaryPath))) {
@@ -288,7 +281,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					try (BufferedWriter writer = Files.newBufferedWriter(outputRankingValuePath)) {
 					//	writer.write("Dimension;Value\n"); // Header
 						writer.write(String.format("LossTimeRanking;%s\n", formattedRankingLossTime)); // Ranking
-						writer.write(String.format("LossTimeSum;%s\n", formattedTotalLossTime)); // Summe der Verlustzeit
+						writer.write(String.format("LossTimeSum(h:m:s);%s\n", formattedTotalLossTime)); // Summe der Verlustzeit
 					}
 
 					System.out.println("LossTimeSum (HH:mm:ss): " + formattedTotalLossTime);
@@ -298,12 +291,10 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					e.printStackTrace();
 				}
 
-
 				return 0;
 			}
 		}
 	}
-
 
 /*
 				try (BufferedReader legsLossTimeReader = Files.newBufferedReader(outputCSVPath)) {

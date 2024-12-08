@@ -10,6 +10,7 @@ import tech.tablesaw.api.LongColumn;
 import tech.tablesaw.api.StringColumn;
 import tech.tablesaw.api.*;
 import tech.tablesaw.api.Table;
+import tech.tablesaw.io.csv.CsvReadOptions;
 import tech.tablesaw.plotly.components.Axis;
 import tech.tablesaw.plotly.traces.BarTrace;
 import tech.tablesaw.plotly.traces.HistogramTrace;
@@ -17,6 +18,7 @@ import tech.tablesaw.plotly.traces.ScatterTrace;
 import tech.tablesaw.plotly.traces.Trace;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -162,16 +164,23 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 					.build();
 
 				String columnName = "mode";
-				System.out.println("Ich bin hier");
+
 				try {
 					// CSV-Datei mit Tablesaw laden
-					Table table = Table.read().csv(csvFilePath);
+					Table table = Table.read().csv(CsvReadOptions.builder(csvFilePath).separator(';').build());
+
+					// Überprüfen, ob die Spalte existiert
+					if (!table.columnNames().contains(columnName)) {
+						throw new IllegalArgumentException("Spalte '" + columnName + "' existiert nicht in der CSV-Datei.");
+					}
 
 					// Spalte extrahieren und Häufigkeiten berechnen
 					StringColumn categories = table.stringColumn(columnName);
-					Map<String, Integer> frequencyMap = new HashMap<>();
+					Map<String, Integer> frequencyMap = new LinkedHashMap<>();
 					for (String value : categories) {
-						frequencyMap.put(value, frequencyMap.getOrDefault(value, 0) + 3);
+						if (value != null && !value.isEmpty()) { // Sicherstellen, dass der Wert gültig ist
+							frequencyMap.put(value, frequencyMap.getOrDefault(value, 0) + 1); // Frequenz erhöhen
+						}
 					}
 
 					// Frequenzen in Tablesaw-Spalten umwandeln
@@ -179,17 +188,17 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 					DoubleColumn frequencies = DoubleColumn.create("Frequencies",
 						frequencyMap.values().stream().mapToDouble(Integer::doubleValue).toArray());
 
-					// Histogramm-Trace hinzufügen
-					viz.addTrace(HistogramTrace.builder(uniqueValues, frequencies)
-						.name("Modes")
+					// Bar-Trace hinzufügen
+					viz.addTrace(BarTrace.builder(uniqueValues, frequencies)
+						.name("Frequencies") // Name des Traces in der Legende
 						.build());
 
+				} catch (IllegalArgumentException e) {
+					System.err.println("Fehler in der Tabellenstruktur: " + e.getMessage());
 				} catch (Exception e) {
-					e.printStackTrace(); // Fehlerausgabe
+					e.printStackTrace(); // Für unerwartete Fehler
 				}
 			})
-
-
 
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Lost Time per Quarter Hour";
