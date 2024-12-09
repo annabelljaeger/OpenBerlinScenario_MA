@@ -92,8 +92,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			//defining maps for further csv-Writer tasks
 			Map<String, Long> cumulativeLossTime = new HashMap<>();
 			Map<String, Long> failedRoutingOccurances = new HashMap<>();
-			Map<String, Double> sumTravTimePerAgent = new HashMap<>();
-			Map<String, Double> sumLossTimePerAgent = new HashMap<>();
+			Map<String, Long> sumTravTimePerAgent = new HashMap<>();
+			Map<String, Long> sumLossTimePerAgent = new HashMap<>();
 			Map<String, Set<String>> modePerPerson = new HashMap<>();
 
 			// defining column-headers (; as separator) for the new legsLossTime_csv
@@ -181,8 +181,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 				}
 
 				// calculate sum of travel time and of loss time per agent. overall loss time sum and mode per person info
-				sumLossTimePerAgent.put(person, sumLossTimePerAgent.getOrDefault(person, (double) 0L) + lossTimeInSeconds);
-				sumTravTimePerAgent.put(person, (double) (sumTravTimePerAgent.getOrDefault((Object) person, (double) 0L) + travTimeInSeconds));
+				sumLossTimePerAgent.put(person, sumLossTimePerAgent.getOrDefault(person, 0L) + lossTimeInSeconds);
+				sumTravTimePerAgent.put(person, sumTravTimePerAgent.getOrDefault((Object) person, 0L) + travTimeInSeconds);
 				modePerPerson.computeIfAbsent(person, k -> new HashSet<>()).add(mode);
 
 				if (lossTimeInSeconds != 0L) {
@@ -219,8 +219,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 
 				for (String person : sumLossTimePerAgent.keySet()) {
-					double lossTimePerAgent = sumLossTimePerAgent.getOrDefault((Object) person, 0.0);
-					double travTimePerAgent = sumTravTimePerAgent.getOrDefault((Object) person, 0.0);
+					double lossTimePerAgent = sumLossTimePerAgent.getOrDefault((Object) person, 0L);
+					double travTimePerAgent = sumTravTimePerAgent.getOrDefault((Object) person, 0L);
 					double percentageLossTime = lossTimePerAgent / travTimePerAgent;
 					//	String modeUsed = modePerPerson.getOrDefault((Object) person, "");
 					String modeUsed = String.join(",", modePerPerson.getOrDefault(person, Set.of()));
@@ -230,6 +230,11 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					}
 					agentBasedBw.write(String.format("%s;%f;%f;%f;%s;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus, modeUsed));
 				}
+
+				AgentLiveabilityInfo.extendCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
+				AgentLiveabilityInfo.extendCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
+
+
 			}
 
 			// Summiere die Spalte loss_time aus der Datei output_legsLossTime_new.csv
