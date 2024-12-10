@@ -6,10 +6,13 @@ import org.apache.commons.csv.CSVRecord;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.api.core.v01.network.Node;
+import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
+import org.matsim.core.config.Config;
+import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.algorithms.NetworkCleaner;
 import org.matsim.core.network.io.MatsimNetworkReader;
@@ -66,15 +69,18 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 	public Integer call() throws Exception {
 
 		//load network & execute NetworkCleaner
-		String networkFile = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-network-with-pt.xml.gz"; //Netzwerk-Dateipfad
-		Network network = loadNetwork(networkFile);
+		Network network = NetworkUtils.readNetwork(ApplicationUtils.matchInput("network.xml.gz", input.getRunDirectory()).toAbsolutePath().toString());
+//		String networkFile = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-network-with-pt.xml.gz"; //Netzwerk-Dateipfad
+//		Network network = loadNetwork(networkFile);
 
 		NetworkCleaner cleaner = new NetworkCleaner();
 		cleaner.run(network);
 
 		//find input-File (legs.csv) and define Output-paths
 		//	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
-		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
+
+//		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
+		String inputLegsCsvFile = ApplicationUtils.matchInput("legs.csv", input.getRunDirectory()).toAbsolutePath().toString();
 		Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
 		Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
 		Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
