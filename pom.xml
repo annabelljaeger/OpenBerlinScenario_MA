@@ -228,7 +228,7 @@
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
 			<artifactId>jetty-server</artifactId>
-			<version>11.0.24</version>
+			<version>11.0.15</version>
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.jetty</groupId>
@@ -280,6 +280,7 @@
 			<version>1.5</version>
 		</dependency>
 
+
 		<!-- Include the JUnit testing library.  Not transitive. -->
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
@@ -305,12 +306,6 @@
 			<type>test-jar</type>
 			<version>${matsim.version}</version>
 			<scope>test</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>com.opencsv</groupId>
-			<artifactId>opencsv</artifactId>
-			<version>5.9</version>
 		</dependency>
 
 	</dependencies>
