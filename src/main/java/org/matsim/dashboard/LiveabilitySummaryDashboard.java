@@ -1,6 +1,7 @@
 package org.matsim.dashboard;
 
 import org.matsim.analysis.AgentBasedLossTimeAnalysis;
+import org.matsim.analysis.AgentLiveabilityInfo;
 import org.matsim.analysis.LiveabilitySummaryAnalysis;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
@@ -18,12 +19,12 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 		header.description = "Prozent der Agenten, die Kriterien erfüllen";
 
 		layout.row("ScoringTiles").el(Tile.class, (viz, data) -> {
-			viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "summaryTiles.csv");
-			viz.height = 0.1; })
-			.el(Tile.class, (viz, data) -> {
-			viz.dataset = data.compute(AgentBasedLossTimeAnalysis.class, "lossTime_RankingValue.csv");
-
-			viz.height = 0.1;
+			viz.dataset = data.compute(AgentLiveabilityInfo.class, "summaryTiles.csv");
+			viz.height = 0.1; //})
+//			.el(Tile.class, (viz, data) -> {
+//			viz.dataset = data.compute(AgentBasedLossTimeAnalysis.class, "lossTime_RankingValue.csv");
+//
+//			viz.height = 0.1;
 		});
 	}
 }

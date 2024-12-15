@@ -2,12 +2,15 @@ package org.matsim.dashboard;
 
 import org.matsim.analysis.AgentBasedLossTimeAnalysis;
 import org.matsim.analysis.AgentLiveabilityInfo;
+import org.matsim.analysis.LiveabilitySummaryAnalysis;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.OutputOptions;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.simwrapper.*;
+import org.matsim.simwrapper.dashboard.EmissionsDashboard;
+import org.matsim.simwrapper.dashboard.NoiseDashboard;
 import picocli.CommandLine;
 
 import java.io.IOException;
@@ -32,10 +35,19 @@ public class RunLiveabilityDashboard {
 			"--input", runDirectory.toString(), // Übergabe des Eingabeverzeichnisses
 			"--output", runDirectory.resolve("analysis/analysis/liveabilityInfo.csv").toString() // Übergabe des Ausgabepfads
 		});
+		/*
+		new LiveabilitySummaryAnalysis().execute(new String[]{
+			"--input", runDirectory.toString(), // Übergabe des Eingabeverzeichnisses
+			"--output", runDirectory.toString() // Übergabe des Ausgabepfads
+		});
+*/
 
 
 		//	Path liveabilityCsvPath = Paths.get(runDirectory.toString(), "liveability_info.csv");
 	//	liveabilityInfo.generateLiveabilityData(runDirectory, liveabilityCsvPath);
+
+	//	sw.addDashboard(new EmissionsDashboard());
+	//	sw.addDashboard(new NoiseDashboard());
 
 		sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
