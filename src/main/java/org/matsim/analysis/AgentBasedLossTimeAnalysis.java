@@ -1,5 +1,6 @@
 package org.matsim.analysis;
 
+import com.opencsv.CSVReader;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -68,23 +69,39 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 	@Override
 	public Integer call() throws Exception {
 
-		//load network & execute NetworkCleaner
-		Network network = NetworkUtils.readNetwork(ApplicationUtils.matchInput("network.xml.gz", input.getRunDirectory()).toAbsolutePath().toString());
+        //load network & execute NetworkCleaner
+        Network network = NetworkUtils.readNetwork(ApplicationUtils.matchInput("network.xml.gz", input.getRunDirectory()).toAbsolutePath().toString());
 //		String networkFile = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-network-with-pt.xml.gz"; //Netzwerk-Dateipfad
 //		Network network = loadNetwork(networkFile);
 
-		NetworkCleaner cleaner = new NetworkCleaner();
-		cleaner.run(network);
+        NetworkCleaner cleaner = new NetworkCleaner();
+        cleaner.run(network);
 
-		//find input-File (legs.csv) and define Output-paths
-		//	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
+        //find input-File (legs.csv) and define Output-paths
+        //	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
 
 //		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
-		String inputLegsCsvFile = ApplicationUtils.matchInput("legs.csv", input.getRunDirectory()).toAbsolutePath().toString();
-		Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
-		Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
-		Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
+        String inputLegsCsvFile = ApplicationUtils.matchInput("legs.csv", input.getRunDirectory()).toAbsolutePath().toString();
+        Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
+        Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
+        Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
 		Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
+
+//		CSVReader csvReader = new CSVReader(new FileReader(inputLegsCsvFile));
+//
+//		List<String[]> rows = csvReader.readAll();
+//		String[] headers = rows.get(0);
+//
+//		Map<String,Integer> columnIndexMap = new HashMap<>();
+//		for (int i = 0; i < headers.length; i++){
+//			columnIndexMap.put(headers[i],i);
+//		}
+//
+//		for (int i = 1; i < rows.size(); i++){
+//			String[] row = rows.get(i);
+//			String waitTime = row[columnIndexMap.get("waitTime")];
+//		}
+
 
 		//read Input-legs.csv file and write new output files for loss time analysis
 		try (BufferedReader brInputLegs = new BufferedReader(new FileReader(inputLegsCsvFile));
@@ -93,7 +110,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			 BufferedWriter bwLegsLossTime = new BufferedWriter(Files.newBufferedWriter(outputCSVPath))) {
 
 			// read and skip header-line
-			String line = brInputLegs.readLine();
+			line = brInputLegs.readLine();
 
 			//defining maps for further csv-Writer tasks
 			Map<String, Long> cumulativeLossTime = new HashMap<>();
@@ -107,7 +124,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 			// use for-loop to iterate over all legs-entries and calculate the values
 			for (int i = 0; i < 600 && (line = brInputLegs.readLine()) != null; i++) {
-	//		for (; (line = br.readLine()) != null;){
+				//		for (; (line = br.readLine()) != null;){
 				// parse entries and split in the value-cells (legs.csv is separated by ;)
 				String[] values = line.split(";");
 
@@ -165,7 +182,9 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 				Long lossTimeInSeconds;
 				if (freeSpeedTravelTimeInSeconds != -1 && freeSpeedTravelTimeInSeconds != -2) {
 					lossTimeInSeconds = travTimeInSeconds - freeSpeedTravelTimeInSeconds;
-					if (lossTimeInSeconds < 0) {lossTimeInSeconds = 0L;} // avoiding negative loss times
+					if (lossTimeInSeconds < 0) {
+						lossTimeInSeconds = 0L;
+					} // avoiding negative loss times
 				} else {
 					lossTimeInSeconds = 0L;
 					failedRoutingOccurances.put(mode, failedRoutingOccurances.getOrDefault(mode, 0L) + 1);
@@ -199,9 +218,9 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 				// writing the desired columns in the new legsLossTime output csv file
 				bwLegsLossTime.write(String.format("%s;%s;%s;%s;%d;%d;%f;%s;%s;%s;%s;%f;%f;%s;%s;%f;%f;%s;%s\n",
-					person, tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
-					percentLossTime, formattedTravTime, formattedFreeSpeedTravTime, formattedLossTime, depTime,
-					startX, startY, startNodeFound.getId(), startLink, endX, endY, endNodeFound.getId(), endLink));
+						person, tripId, mode, travTimeInSeconds, freeSpeedTravelTimeInSeconds, lossTimeInSeconds,
+						percentLossTime, formattedTravTime, formattedFreeSpeedTravTime, formattedLossTime, depTime,
+						startX, startY, startNodeFound.getId(), startLink, endX, endY, endNodeFound.getId(), endLink));
 			}
 
 			//HIER WEITER MIT CODE-ÜBERARBEITUNG UND KOMMENTIERUNG
@@ -290,7 +309,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 					// Schreibe das Ergebnis zusammen mit rankingLossTime in die Datei lossTime_RankingValue.csv
 					try (BufferedWriter writer = Files.newBufferedWriter(outputRankingValuePath)) {
-					//	writer.write("Dimension;Value\n"); // Header
+						//	writer.write("Dimension;Value\n"); // Header
 						writer.write(String.format("LossTimeRanking;%s\n", formattedRankingLossTime)); // Ranking
 						writer.write(String.format("LossTimeSum(h:m:s);%s\n", formattedTotalLossTime)); // Summe der Verlustzeit
 					}
