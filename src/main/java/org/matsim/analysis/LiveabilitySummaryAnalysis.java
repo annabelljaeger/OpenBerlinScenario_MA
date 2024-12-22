@@ -2,7 +2,6 @@ package org.matsim.analysis;
 
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVPrinter;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,14 +9,13 @@ import org.matsim.application.CommandSpec;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
-import org.matsim.core.utils.io.IOUtils;
 import picocli.CommandLine;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.util.*;
 
 @CommandLine.Command(
@@ -33,9 +31,11 @@ import java.util.*;
 //		"summary_modeSpecificLegsLossTime.csv"
 //	},
 	produces = {
-		"summaryTiles.csv",
+//		"summaryTiles.csv",
 		"summaryTiles_multiPolicy.csv",
-		"liveability_details.csv"
+		"liveability_details.csv",
+		"summaryTestValue.csv",
+		"test_stats_perAgent.csv"
 	}
 )
 
@@ -59,7 +59,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	public Integer call() throws Exception {
 
 		log.info("Starting LiveabilitySummaryAnalysis...");
-
+/*
 		// Einträge je Dimension für die Liveability-Analyse (teils Platzhalter)
 		liveabilityMetrics.put("OverallRanking", 65.0);
 
@@ -76,7 +76,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		} catch (IOException e) {
 			log.error("Error reading cumulative loss time: {}", e.getMessage());
 		}
-		 */
+
 		try {
 			double totalLossTime = AgentBasedLossTimeAnalysis.getLossTimeSum(outputDirectory);
 			log.info("Gesamte Verlustzeit: {}", totalLossTime);
@@ -84,16 +84,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 			log.error("Fehler beim Laden der Verlustzeitdaten: {}", e.getMessage());
 		}
 		liveabilityMetrics.put("LossTime", cumulativeLossTimeSum / 3600.0);
-/*
-		if (Files.exists(lossTimeFile)) {
-			double cumulativeLossTimeSum = calculateCumulativeLossTimeSum(lossTimeFile);
-			liveabilityMetrics.put("LossTime", cumulativeLossTimeSum / 3600.0); // Stunden
-		} else {
-			log.warn("Die Datei summary_modeSpecificLegsLossTime.csv wurde nicht gefunden. Standardwert wird verwendet.");
-			liveabilityMetrics.put("LossTime", 0.0); // Fallback
-		}
 
- */
 	//	double cumulativeLossTimeSum = calculateCumulativeLossTimeSum(Path.of(input.getPath("summary_modeSpecificLegsLossTime.csv")));
 	//	liveabilityMetrics.put("LossTime", cumulativeLossTimeSum/3600.0);
 
@@ -107,8 +98,74 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		// Generieren der CSV-Dateien
 		writeSummaryFile();
 		writeDetailedFile();
+*/
+		//TEST SECTION FOR SUMMARY FILE IMPLEMENTATION
+		/*
+		Path summaryTestValuePath = output.getPath("summaryTestValue.csv");
+		try (BufferedReader testReader = Files.newBufferedReader(summaryTestValuePath)) {
+
+			String entry;
+		}
+		double summaryTestValue = 99.99;
+		String formattedSummaryTestValue = String.format(Locale.US, "%.2f%%", summaryTestValue);
+
+		// Schreibe das Ergebnis zusammen mit rankingLossTime in die Datei lossTime_RankingValue.csv
+		try (BufferedWriter writer = Files.newBufferedWriter(summaryTestValuePath)) {
+			//	writer.write("Dimension;Value\n"); // Header
+			writer.write(String.format("SummaryTestRanking;%s\n", summaryTestValue)); // Ranking
+		}
+
+		System.out.println("SummaryTestRanking: " + summaryTestValue);
+
+		AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(summaryTestValuePath);
+*/
+		Path testAgentStats = output.getPath("test_stats_perAgent.csv");
+		try (BufferedReader agentBasedReader = Files.newBufferedReader(testAgentStats)) {
+			String entry;
+			int totalEntries = 0;
+			int trueEntries = 0;
+
+			// Überspringen der Header-Zeile
+			agentBasedReader.readLine();
+
+			// Iteration über alle Zeilen
+			while ((entry = agentBasedReader.readLine()) != null) {
+				String[] values = entry.split(";");
+				// Prüfen, ob die Spalte "rankingStatus" auf True gesetzt ist
+				if (values.length > 4 && "WAHR".equalsIgnoreCase(values[4].trim())) {
+					trueEntries++;
+				}
+				totalEntries++;
+			}
+
+			// Anteil der True-Einträge berechnen
+			double rankingTestValue = (totalEntries > 0) ? ((double) trueEntries / totalEntries) * 100 : 0.0;
+			String formattedTestValue = String.format(Locale.US, "%.2f%%", rankingTestValue);
+
+			// Test-Input für extendSummaryTilesCsvWithAttribute vorbereiten
+			Path tempTestInputPath = output.getPath("testInputForSummary.csv");
+
+			try (BufferedWriter testInputWriter = Files.newBufferedWriter(tempTestInputPath)) {
+				// Header für die Test-Input-Datei schreiben
+			//	testInputWriter.write("Dimension;Value\n");
+				// Test-Werte schreiben
+				testInputWriter.write(String.format("TestValueRanking;%s\n", formattedTestValue));
+			}
+
+			System.out.println("Test-Input-Datei für SummaryTiles erstellt: " + tempTestInputPath);
+
+			// AgentLiveabilityInfo aufrufen, um die SummaryTiles zu erweitern
+			AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(tempTestInputPath);
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+
 
 		log.info("LiveabilitySummaryAnalysis completed successfully.");
+
+
 		return 0;
 	}
 
@@ -126,8 +183,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		}
 		return sum;
 	}
-
-
+}
+/*
 	private void writeSummaryFile() {
 		Path outputPath = output.getPath("summaryTiles.csv");
 
@@ -146,6 +203,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		}
 	}
 
+
+ */
 	/*
 	private void writeSummaryFileMultiPolicy() {
 		Path outputPath2 = output.getPath("summaryTiles_multiPolicy.csv");
@@ -164,7 +223,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		}
 	}
 	*/
-
+/*
 	private void writeDetailedFile() {
 		Path outputPath = output.getPath("liveability_details.csv");
 
@@ -187,7 +246,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		return new DecimalFormat("#.0#", DecimalFormatSymbols.getInstance(Locale.US)).format(value) + " %";
 	}
 }
-
+*/
 	/*
 		// Der Pfad zur Ausgabe-CSV-Datei
 	//	String fileName = "summaryTiles2.csv";

@@ -10,6 +10,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,7 +28,8 @@ import java.util.Map;
 //		"berlin-v6.3.output_persons.csv.gz"
 //	},
 	produces = {
-		"agentLiveabilityInfo.csv"
+		"agentLiveabilityInfo.csv",
+		"summaryTiles.csv"
 	}
 )
 
@@ -50,6 +52,9 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 
 		Path outputAgentLiveabilityCSVPath = output.getPath("agentLiveabilityInfo.csv");
 		generateLiveabilityData(outputAgentLiveabilityCSVPath);
+
+		Path categoryRankingCsvPath = output.getPath("summaryTiles.csv");
+		generateSummaryTilesFile();
 
 		return 0;
 	}
@@ -111,7 +116,7 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 		System.out.println("Liveability-CSV erstellt unter: " + outputCsvPath);
 	}
 
-	public static void extendCsvWithAttribute(Map<String, ?> additionalData, String newAttributeName) throws IOException {
+	public static void extendAgentLiveabilityInfoCsvWithAttribute(Map<String, ?> additionalData, String newAttributeName) throws IOException {
 		Path inputCsvPath = output.getPath("agentLiveabilityInfo.csv");
 		Path tempOutputPath = inputCsvPath.resolveSibling("agentLiveabilityInfo_updated.csv");
 
@@ -150,5 +155,65 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 		Files.move(tempOutputPath, inputCsvPath, StandardCopyOption.REPLACE_EXISTING);
 	}
 
+	public void generateSummaryTilesFile() throws IOException {
+
+		Path categoryRankingCsvPath = output.getPath("summaryTiles.csv");
+
+/*
+		if (Files.exists(categoryRankingCsvPath)) {
+			System.out.println("Die Datei summaryTiles.csv existiert bereits unter: " + categoryRankingCsvPath);
+			return;
+		}
+		*/
+
+		// Wenn die Datei existiert, wird sie gelöscht
+		if (Files.exists(categoryRankingCsvPath)) {
+			Files.delete(categoryRankingCsvPath);
+			System.out.println("Die Datei summaryTiles.csv existierte bereits und wurde überschrieben.");
+		}
+
+		// Erstellen und initialisieren der leeren CSV-Datei
+		try (BufferedWriter writer = Files.newBufferedWriter(categoryRankingCsvPath)) {
+			// Schreiben eines Headers (optional)
+			//writer.write("Column1,Column2,Column3"); // Beispiel für einen Header
+			writer.newLine();
+
+			System.out.println("Die leere Datei summaryTiles.csv wurde erstellt unter: " + categoryRankingCsvPath);
+		}
+	}
+
+	public static void extendSummaryTilesCsvWithAttribute(Path categoryRankingCsvPath) throws IOException {
+		Path inputSummaryTileCsvPath = output.getPath("summaryTiles.csv");
+		//Path tempSummaryTilesOutputPath = inputSummaryTileCsvPath.resolveSibling("summaryTiles_updated.csv");
+
+		if (!Files.exists(categoryRankingCsvPath)) {
+			throw new IOException("Die zusätzliche CSV-Datei wurde nicht gefunden: " + categoryRankingCsvPath);
+		}
+
+		try (BufferedReader additionalReader = Files.newBufferedReader(categoryRankingCsvPath);
+		//	 BufferedWriter writer = Files.newBufferedWriter(tempSummaryTilesOutputPath)) {
+			 BufferedWriter writer = Files.newBufferedWriter(inputSummaryTileCsvPath, StandardOpenOption.APPEND)) {
+
+			String header = additionalReader.readLine();
+			if (header == null) {
+				throw new IOException("Die zusätzliche CSV ist leer.");
+			}
+
+			// Add new Column to the header
+		//	writer.write(header + ";" + newAttributeName);
+		//	writer.newLine();
+
+			String line;
+			while ((line = additionalReader.readLine()) != null) {
+				writer.write(line);
+				writer.newLine();
+
+			}
+		}
+		System.out.println("Daten aus der zusätzlichen CSV wurden an " + inputSummaryTileCsvPath + " angehängt.");
+
+		// Rewrite original file by temp file
+	//	Files.move(tempSummaryTilesOutputPath, inputSummaryTileCsvPath, StandardCopyOption.REPLACE_EXISTING);
+	}
 
 }

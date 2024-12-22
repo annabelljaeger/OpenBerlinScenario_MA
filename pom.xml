@@ -307,6 +307,23 @@
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>com.opencsv</groupId>
+			<artifactId>opencsv</artifactId>
+			<version>5.9</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-data</artifactId>
+			<version>32</version> <!-- Version kannst du anpassen, je nachdem was benötigt wird -->
+		</dependency>
+		<dependency>
+			<groupId>org.geotools</groupId>
+			<artifactId>gt-opengis</artifactId>
+			<version>28</version> <!-- Version kannst du anpassen, je nachdem was benötigt wird -->
+		</dependency>
+
 	</dependencies>
 
 	<build>
