@@ -63,7 +63,7 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 	public void generateLiveabilityData( Path outputCsvPath) throws IOException {
 
 		//Path personsCsvPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv.gz"));
-		Path personsCsvPath = Path.of("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/berlin-v6.3.output_persons.csv/berlin-v6.3.output_persons.csv");
+		Path personsCsvPath = Path.of("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/berlin-v6.3.output_persons.csv");
 
 		if (!Files.exists(personsCsvPath)) {
 			throw new IOException("Die Datei output_persons.csv wurde nicht gefunden: " + personsCsvPath);

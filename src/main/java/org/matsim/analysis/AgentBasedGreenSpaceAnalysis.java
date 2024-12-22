@@ -1,8 +1,16 @@
 package org.matsim.analysis;
 
 
+import com.opencsv.CSVParserBuilder;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
+import com.opencsv.exceptions.CsvValidationException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Point;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Scenario;
 import org.matsim.api.core.v01.TransportMode;
 import org.matsim.application.CommandSpec;
@@ -17,15 +25,23 @@ import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.scenario.ScenarioUtils;
+import org.matsim.core.utils.geometry.CoordUtils;
+import org.matsim.core.utils.geometry.geotools.MGC;
+import org.matsim.core.utils.gis.GeoFileReader;
+import org.matsim.core.utils.io.IOUtils;
 import org.matsim.facilities.ActivityFacilities;
 import org.matsim.legacy.run.RunBerlinScenario;
 import picocli.CommandLine;
 import org.matsim.contrib.accessibility.*;
 import org.matsim.contrib.accessibility.utils.VisualizationUtils;
 
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-
 
 @CommandLine.Command(
 	name = "greenSpace-analysis",
@@ -36,9 +52,12 @@ import java.util.List;
 
 @CommandSpec(
 	requireRunDirectory = true,
-//	requires = {
-//		"berlin-v6.3.output_legs.csv.gz"
-//	},
+	requires = {
+		"berlin-v6.3.output_persons.csv",
+		"berlin_accessPoints.shp",
+		//"berlin_allGreenSpacesLarger1ha.shp"
+		"allGreenSpaces_min1ha.shp"
+	},
 	produces = {
 		"greenSpace_stats_perAgent.csv",
 		"greenSpace_RankingValue.csv"
@@ -55,33 +74,118 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	public static void main(String[] args) {
 		new AgentBasedGreenSpaceAnalysis().execute(args);
 
-		if (args.length != 0 && args.length <= 1) {
-			Config config = ConfigUtils.loadConfig(args[0], new ConfigGroup[0]);
-			config.controller().setOverwriteFileSetting(OutputDirectoryHierarchy.OverwriteFileSetting.deleteDirectoryIfExists);
-			AccessibilityConfigGroup accConfig = (AccessibilityConfigGroup)ConfigUtils.addOrGetModule(config, AccessibilityConfigGroup.class);
-			accConfig.setComputingAccessibilityForMode(Modes4Accessibility.freespeed, true);
-			Scenario scenario = ScenarioUtils.loadScenario(config);
-			run(scenario);
-		} else {
-			throw new RuntimeException("No config.xml file provided. The config file needs to reference a network file and a facilities file.");
-		}
-
 	}
 
 	@Override
 	public Integer call() throws Exception {
 
 		//String
-		Path inputPersonsCSVPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv.gz"));
+		Path inputPersonsCSVPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv"));
 		Path outputPersonsCSVPath = output.getPath("greenSpace_stats_perAgent.csv");
+		Path accessPointShpPath = Path.of(input.getPath("berlin_accessPoints.shp"));
+		Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
 
-//		AccessibilityConfigGroup acg = ConfigUtils.addOrGetModule(config, AccessibilityConfigGroup.class);
-//		acg.setTimeOfDay((8 * 60. + 5.) * 60.); // Beispiel: 8:05 Uhr
-//		acg.setTileSize_m(5000); // Größe der Rasterzellen in Metern
-//		acg.setAreaOfAccessibilityComputation(AccessibilityConfigGroup.AreaOfAccesssibilityComputation.fromShapeFile);
-//		acg.setShapeFileCellBasedAccessibility("<path_to_shapefile>");
-//		acg.setComputingAccessibilityForMode(Modes4Accessibility.pt, true); // Beispiel: Berechnung für öffentlichen Verkehr
-//		acg.setOutputCrs(config.global().getCoordinateSystem()); // Koordinatensystem für die Ausgabe
+
+		Collection<SimpleFeature> allFeatures = GeoFileReader.getAllFeatures(IOUtils.resolveFileOrResource(String.valueOf(greenSpaceShpPath)));
+		Collection<SimpleFeature> accessPointFeatures = GeoFileReader.getAllFeatures(IOUtils.resolveFileOrResource(String.valueOf(accessPointShpPath)));
+
+		try {
+			// CSVReader mit Semikolon als Trennzeichen konfigurieren
+			CSVReader reader = new CSVReaderBuilder(new FileReader(String.valueOf(inputPersonsCSVPath)))
+				.withCSVParser(new CSVParserBuilder().withSeparator(';').build())
+				.build();
+
+			String[] personRecord;
+
+			// Erste Zeile lesen (optional, z. B. Header überspringen)
+			personRecord = reader.readNext();
+
+//		try {
+//			CSVReader reader = new CSVReader(new FileReader(String.valueOf(inputPersonsCSVPath)));
+//
+//			String[] personRecord = reader.readNext();
+
+
+			while ((personRecord = reader.readNext()) != null) {
+
+				for (String value : personRecord) {
+					System.out.print(value + " | ");
+				}
+				String id = personRecord[0];
+				String homeX = personRecord[15];
+				String homeY = personRecord[16];
+
+				Coord homeCoord = new Coord(Double.parseDouble(homeX), Double.parseDouble(homeY));
+
+				for (SimpleFeature simpleFeature : accessPointFeatures) {
+					// Geometrie aus dem SimpleFeature extrahieren
+					Geometry geometry = (Geometry) simpleFeature.getDefaultGeometry();
+
+					double shortestDistance = Double.MAX_VALUE;
+					Geometry closestGeometry = null;
+
+					if (geometry instanceof Point) {
+						Point point = (Point) geometry; // In Point umwandeln
+						double distanceToClosestAccessPoint = CoordUtils.calcEuclideanDistance(
+							homeCoord,
+							MGC.point2Coord(point)
+						);
+
+						if (distanceToClosestAccessPoint < shortestDistance) {
+							shortestDistance = distanceToClosestAccessPoint;
+							closestGeometry = geometry;
+						}
+
+						String name = (String) simpleFeature.getAttribute("osm_id");
+						System.out.println("OSM-ID der Grünfläche: " + name + " Distanz: " + shortestDistance);
+					} else {
+						System.out.println("Geometrie ist kein Punkt: " + geometry.getGeometryType());
+					}
+				}
+
+
+
+//				for (SimpleFeature simpleFeature : accessPointFeatures) {
+//
+//					Geometry defaultGeometry = (Geometry) simpleFeature.getDefaultGeometry();
+//
+//					double shortestDistance = Double.MAX_VALUE;
+//					Geometry closestGeometry = null;
+//
+//					double distanceToClosestAccessPoint = CoordUtils.calcEuclideanDistance(homeCoord, MGC.point2Coord((Point) simpleFeature));
+//					if (distanceToClosestAccessPoint < shortestDistance) {
+//						shortestDistance = distanceToClosestAccessPoint;
+//						closestGeometry = defaultGeometry;
+//					}
+//
+//
+//					String name = (String) simpleFeature.getAttribute("osm_id");
+//
+//					System.out.println("OSM-ID der Grünfläche: " + name + "Distanz: " + shortestDistance);
+//
+//					CSVWriter writer = new CSVWriter("greenSpace_stats_perAgent.csv");
+//					writer.writeNewLine();
+//
+//				}
+			}
+
+		} catch (FileNotFoundException e) {
+			throw new RuntimeException(e);
+		} catch (CsvValidationException e) {
+			throw new RuntimeException(e);
+		} catch (IOException e) {
+			throw new RuntimeException(e);
+		}
+
+		List<Coord> activityCoords = new ArrayList<>();
+
+
+		//   PreparedGeometry flaeche = gruenflachen.get(0);
+
+		//   flaeche.contains(flaeche.getGeometry());
+
+
+
 
 
 
@@ -105,3 +209,4 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		controler.run();
 	}
 }
+

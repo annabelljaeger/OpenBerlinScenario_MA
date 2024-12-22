@@ -110,7 +110,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			 BufferedWriter bwLegsLossTime = new BufferedWriter(Files.newBufferedWriter(outputCSVPath))) {
 
 			// read and skip header-line
-			line = brInputLegs.readLine();
+			String line = brInputLegs.readLine();
 
 			//defining maps for further csv-Writer tasks
 			Map<String, Long> cumulativeLossTime = new HashMap<>();
@@ -256,8 +256,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					agentBasedBw.write(String.format("%s;%f;%f;%f;%s;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus, modeUsed));
 				}
 
-				AgentLiveabilityInfo.extendCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
-				AgentLiveabilityInfo.extendCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
+		//		AgentLiveabilityInfo.extendCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
+		//		AgentLiveabilityInfo.extendCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
 
 
 			}
