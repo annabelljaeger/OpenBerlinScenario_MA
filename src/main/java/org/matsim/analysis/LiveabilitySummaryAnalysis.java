@@ -155,7 +155,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 			System.out.println("Test-Input-Datei für SummaryTiles erstellt: " + tempTestInputPath);
 
 			// AgentLiveabilityInfo aufrufen, um die SummaryTiles zu erweitern
-			AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(tempTestInputPath);
+			//AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(tempTestInputPath);
 
 		} catch (IOException e) {
 			e.printStackTrace();

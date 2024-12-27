@@ -33,7 +33,9 @@ public class RunLiveabilityDashboard {
 	//	new AgentLiveabilityInfo().execute(args);
 		new AgentLiveabilityInfo().execute(new String[]{
 			"--input", runDirectory.toString(), // Übergabe des Eingabeverzeichnisses
-			"--output", runDirectory.resolve("analysis/analysis/liveabilityInfo.csv").toString() // Übergabe des Ausgabepfads
+			"--output", runDirectory.resolve("analysis/analysis/Baum.csv").toString() // Übergabe des Ausgabepfads
+
+		//	"--output", runDirectory.resolve("analysis/analysis/liveabilityInfo.csv").toString() // Übergabe des Ausgabepfads
 		});
 		/*
 		new LiveabilitySummaryAnalysis().execute(new String[]{
@@ -49,13 +51,13 @@ public class RunLiveabilityDashboard {
 	//	sw.addDashboard(new EmissionsDashboard());
 	//	sw.addDashboard(new NoiseDashboard());
 
-	//	sw.addDashboard( new AgentBasedLossTimeDashboard());
+		sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 		//sw.addDashboard( new AgentBasedSafetyDashboard());
 		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
 		//sw.addDashboard( new AgentBasedPtQualityDashboard());
-	//	sw.addDashboard( new LiveabilitySummaryDashboard());
+		sw.addDashboard( new LiveabilitySummaryDashboard());
 
 //		sw.run( Path.of("./output" ) );
 

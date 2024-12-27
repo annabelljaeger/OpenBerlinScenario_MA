@@ -80,8 +80,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
         //find input-File (legs.csv) and define Output-paths
         //	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
 
-//		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
-        String inputLegsCsvFile = ApplicationUtils.matchInput("legs.csv", input.getRunDirectory()).toAbsolutePath().toString();
+		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
+//        String inputLegsCsvFile = ApplicationUtils.matchInput("legs.csv", input.getRunDirectory()).toAbsolutePath().toString();
         Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
         Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
         Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
@@ -256,8 +256,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					agentBasedBw.write(String.format("%s;%f;%f;%f;%s;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus, modeUsed));
 				}
 
-		//		AgentLiveabilityInfo.extendCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
-		//		AgentLiveabilityInfo.extendCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
+				AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
+				AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
 
 
 			}
@@ -316,6 +316,9 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 					System.out.println("LossTimeSum (HH:mm:ss): " + formattedTotalLossTime);
 					System.out.println("LossTimeRanking: " + formattedRankingLossTime);
+
+					AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingLossTime, "LossTime");
+
 
 				} catch (IOException e) {
 					e.printStackTrace();

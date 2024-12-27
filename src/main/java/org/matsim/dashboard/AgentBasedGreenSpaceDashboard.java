@@ -10,6 +10,9 @@ import org.matsim.simwrapper.viz.Bar;
 import org.matsim.simwrapper.viz.Tile;
 
 public class AgentBasedGreenSpaceDashboard implements Dashboard {
+
+	public double priority(){return -1;}
+
 	@Override
 	public void configure(Header header, Layout layout) {
 
@@ -22,7 +25,18 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.title = "Green Space Ranking Value";
 				viz.description = "test file";
 
-				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysisTest.class, "greenSpace_stats_perAgent.csv");
+				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_stats_perAgent.csv");
+				viz.height = 0.1;
+
+			});
+
+		layout.row("overall ranking result green space")
+			.el(Tile.class, (viz, data) -> {
+
+				viz.title = "Green Space Ranking Value";
+				viz.description = "first try";
+
+				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_RankingValue.csv");
 				viz.height = 0.1;
 
 			});

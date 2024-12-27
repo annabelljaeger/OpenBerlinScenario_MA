@@ -4,6 +4,7 @@ package org.matsim.analysis;
 import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
+import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvValidationException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,13 +36,12 @@ import picocli.CommandLine;
 import org.matsim.contrib.accessibility.*;
 import org.matsim.contrib.accessibility.utils.VisualizationUtils;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+
+import static java.lang.Double.NaN;
 
 @CommandLine.Command(
 	name = "greenSpace-analysis",
@@ -54,13 +54,14 @@ import java.util.List;
 	requireRunDirectory = true,
 	requires = {
 		"berlin-v6.3.output_persons.csv",
-		"berlin_accessPoints.shp",
+		"test_accessPoints.shp",
 		//"berlin_allGreenSpacesLarger1ha.shp"
 		"allGreenSpaces_min1ha.shp"
 	},
 	produces = {
 		"greenSpace_stats_perAgent.csv",
-		"greenSpace_RankingValue.csv"
+		"greenSpace_RankingValue.csv",
+		"greenSpace_utilization.csv"
 	}
 )
 
@@ -79,115 +80,190 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	@Override
 	public Integer call() throws Exception {
 
-		//String
 		Path inputPersonsCSVPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv"));
 		Path outputPersonsCSVPath = output.getPath("greenSpace_stats_perAgent.csv");
-		Path accessPointShpPath = Path.of(input.getPath("berlin_accessPoints.shp"));
-		Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
+		//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
+		Path accessPointShpPath = Path.of(input.getPath("test_accessPoints.shp"));
+	//	Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
+		Path outputGreenSpaceUtilizationPath = output.getPath("greenSpace_utilization.csv");
+		Path outputRankingValueCSVPath = output.getPath("greenSpace_RankingValue.csv");
 
-
-		Collection<SimpleFeature> allFeatures = GeoFileReader.getAllFeatures(IOUtils.resolveFileOrResource(String.valueOf(greenSpaceShpPath)));
 		Collection<SimpleFeature> accessPointFeatures = GeoFileReader.getAllFeatures(IOUtils.resolveFileOrResource(String.valueOf(accessPointShpPath)));
 
-		try {
-			// CSVReader mit Semikolon als Trennzeichen konfigurieren
-			CSVReader reader = new CSVReaderBuilder(new FileReader(String.valueOf(inputPersonsCSVPath)))
-				.withCSVParser(new CSVParserBuilder().withSeparator(';').build())
-				.build();
+		try (CSVReader reader = new CSVReaderBuilder(new FileReader(String.valueOf(inputPersonsCSVPath)))
+			.withCSVParser(new CSVParserBuilder().withSeparator(';').build())
+			.build();) {
 
 			String[] personRecord;
-
-			// Erste Zeile lesen (optional, z. B. Header überspringen)
 			personRecord = reader.readNext();
 
-//		try {
-//			CSVReader reader = new CSVReader(new FileReader(String.valueOf(inputPersonsCSVPath)));
-//
-//			String[] personRecord = reader.readNext();
+			CSVWriter agentCSVWriter = new CSVWriter(new FileWriter(outputPersonsCSVPath.toFile()));
+			CSVWriter greenSpaceUtilizationWriter = new CSVWriter(new FileWriter(outputGreenSpaceUtilizationPath.toFile()));
 
+			agentCSVWriter.writeNext(new String[]{"AgentID", "ClosestGreenSpace", "DistanceToGreenSpace", "UtilizationOfGreenSpace [m²/person]"});
+			greenSpaceUtilizationWriter.writeNext(new String[]{"osm_id", "nrOfPeople", "meanDistance", "utilization [m²/person]"});
+
+			Map<String, List<Double>> greenSpaceUtilization = new HashMap<>();
+			Map<String, Double> distancePerAgent = new HashMap<>();
+			Map<String, String> greenSpaceIdPerAgent = new HashMap<>();
+			Map<String, Double> utilizationPerGreenSpace = new HashMap<>();
+			Map<String, Double> areaPerGreenSpace = new HashMap<>();
+			Map<String, Integer> nrOfPeoplePerGreenSpace = new HashMap<>();
+
+			for (SimpleFeature simpleFeature : accessPointFeatures) {
+				String osmId = (String) simpleFeature.getAttribute("osm_id");
+				if(!greenSpaceUtilization.containsKey(osmId)) {
+					greenSpaceUtilization.putIfAbsent(osmId, Arrays.asList(0.0,0.0));
+				}
+				Double area = (Double) simpleFeature.getAttribute("area");
+				if(!areaPerGreenSpace.containsKey(osmId)) {
+					areaPerGreenSpace.putIfAbsent(osmId, area);
+				}
+				if(!nrOfPeoplePerGreenSpace.containsKey(osmId)) {
+					nrOfPeoplePerGreenSpace.putIfAbsent(osmId, 0);
+				}
+				if(!utilizationPerGreenSpace.containsKey(osmId)) {
+					utilizationPerGreenSpace.putIfAbsent(osmId, 0.0);
+				}
+			}
 
 			while ((personRecord = reader.readNext()) != null) {
-
-				for (String value : personRecord) {
-					System.out.print(value + " | ");
-				}
 				String id = personRecord[0];
 				String homeX = personRecord[15];
 				String homeY = personRecord[16];
+				String RegioStaR7 = personRecord[5];
 
-				Coord homeCoord = new Coord(Double.parseDouble(homeX), Double.parseDouble(homeY));
-
-				for (SimpleFeature simpleFeature : accessPointFeatures) {
-					// Geometrie aus dem SimpleFeature extrahieren
-					Geometry geometry = (Geometry) simpleFeature.getDefaultGeometry();
-
-					double shortestDistance = Double.MAX_VALUE;
-					Geometry closestGeometry = null;
-
-					if (geometry instanceof Point) {
-						Point point = (Point) geometry; // In Point umwandeln
-						double distanceToClosestAccessPoint = CoordUtils.calcEuclideanDistance(
-							homeCoord,
-							MGC.point2Coord(point)
-						);
-
-						if (distanceToClosestAccessPoint < shortestDistance) {
-							shortestDistance = distanceToClosestAccessPoint;
-							closestGeometry = geometry;
-						}
-
-						String name = (String) simpleFeature.getAttribute("osm_id");
-						System.out.println("OSM-ID der Grünfläche: " + name + " Distanz: " + shortestDistance);
-					} else {
-						System.out.println("Geometrie ist kein Punkt: " + geometry.getGeometryType());
-					}
+				// Validierung der Koordinatenwerte
+				if (homeX == null || homeX.isEmpty() || homeY == null || homeY.isEmpty()) {
+				//	System.err.println("Ungültige Koordinaten für AgentID: " + id);
+					continue; // Überspringe diesen Datensatz
 				}
 
+				if (Objects.equals(RegioStaR7, "1")) {
 
+					try {
+						Coord homeCoord = new Coord(Double.parseDouble(homeX), Double.parseDouble(homeY));
 
-//				for (SimpleFeature simpleFeature : accessPointFeatures) {
-//
-//					Geometry defaultGeometry = (Geometry) simpleFeature.getDefaultGeometry();
-//
-//					double shortestDistance = Double.MAX_VALUE;
-//					Geometry closestGeometry = null;
-//
-//					double distanceToClosestAccessPoint = CoordUtils.calcEuclideanDistance(homeCoord, MGC.point2Coord((Point) simpleFeature));
-//					if (distanceToClosestAccessPoint < shortestDistance) {
-//						shortestDistance = distanceToClosestAccessPoint;
-//						closestGeometry = defaultGeometry;
-//					}
-//
-//
-//					String name = (String) simpleFeature.getAttribute("osm_id");
-//
-//					System.out.println("OSM-ID der Grünfläche: " + name + "Distanz: " + shortestDistance);
-//
-//					CSVWriter writer = new CSVWriter("greenSpace_stats_perAgent.csv");
-//					writer.writeNewLine();
-//
-//				}
+						double shortestDistance = Double.MAX_VALUE;
+						String closestGeometryName = null;
+						double areaOfGreenSpace = 0.0;
+
+						for (SimpleFeature simpleFeature : accessPointFeatures) {
+							// Geometrie aus dem SimpleFeature extrahieren
+							Geometry geometry = (Geometry) simpleFeature.getDefaultGeometry();
+
+							if (geometry instanceof Point) {
+								Point point = (Point) geometry; // In Point umwandeln
+								double distanceToClosestAccessPoint = CoordUtils.calcEuclideanDistance(
+									homeCoord,
+									MGC.point2Coord(point)
+								);
+
+								if (distanceToClosestAccessPoint < shortestDistance) {
+									shortestDistance = distanceToClosestAccessPoint;
+									distancePerAgent.put(id, shortestDistance);
+									closestGeometryName = (String) simpleFeature.getAttribute("osm_id");
+									greenSpaceIdPerAgent.put(id, closestGeometryName);
+								}
+
+							} else {
+								System.out.println("Geometrie ist kein Punkt: " + geometry.getGeometryType());
+							}
+						}
+
+						nrOfPeoplePerGreenSpace.put(closestGeometryName, nrOfPeoplePerGreenSpace.get(closestGeometryName)+1);
+						Double nrOfPeople = greenSpaceUtilization.get(closestGeometryName).get(0)+1;
+						Double meanDistance = (greenSpaceUtilization.get(closestGeometryName).get(1)*(nrOfPeople-1)+shortestDistance)/(nrOfPeople);
+
+						greenSpaceUtilization.put(closestGeometryName, Arrays.asList(nrOfPeople,meanDistance));
+
+						// Schreibe Ergebnisse in die Output-CSV
+					//	agentCSVWriter.writeNext(new String[]{id, closestGeometryName, String.valueOf(shortestDistance), String.valueOf(utilization)});
+
+					} catch (NumberFormatException e) {
+						System.err.println("Fehlerhafte Koordinaten für AgentID: " + id + " (" + homeX + ", " + homeY + ")");
+					}
+				}
 			}
 
-		} catch (FileNotFoundException e) {
-			throw new RuntimeException(e);
-		} catch (CsvValidationException e) {
-			throw new RuntimeException(e);
-		} catch (IOException e) {
+
+			for (String key : utilizationPerGreenSpace.keySet()) {
+				Double utilization = areaPerGreenSpace.get(key) / nrOfPeoplePerGreenSpace.get(key);
+				utilizationPerGreenSpace.put(key, utilization);
+			}
+
+			// Schreibe Ergebnisse pro Green Space in die Output-CSV
+			for (Map.Entry<String, List<Double>> greenSpaceUtilizationEntry : greenSpaceUtilization.entrySet()) {
+
+				List<Double> values = greenSpaceUtilizationEntry.getValue();
+				String id = greenSpaceUtilizationEntry.getKey();
+				String countAgentUtilization = String.valueOf(values.get(0).intValue());
+				String meanDistance = String.valueOf(values.get(1));
+				String utilization = utilizationPerGreenSpace.get(id).toString();
+
+				greenSpaceUtilizationWriter.writeNext(new String[]{id, countAgentUtilization, meanDistance, utilization});
+			}
+
+			// Schreibe Ergebnisse pro Agent in die Output-CSV
+			for (Map.Entry<String, String> AgentEntry : greenSpaceIdPerAgent.entrySet()) {
+				agentCSVWriter.writeNext(new String[]{AgentEntry.getKey(), AgentEntry.getValue(), String.valueOf(distancePerAgent.get(AgentEntry.getKey())), String.valueOf(utilizationPerGreenSpace.get(AgentEntry.getValue()))});
+
+			}
+
+			Map<String, Double> utilizationPerAgent = new HashMap<>();
+			for (String Key : greenSpaceIdPerAgent.keySet()) {
+				utilizationPerAgent.put(Key, utilizationPerGreenSpace.get(greenSpaceIdPerAgent.get(Key)));
+			}
+
+			Map<String, Boolean> greenSpaceRankingValuePerAgent = new HashMap<>();
+			for (String Key : greenSpaceIdPerAgent.keySet()) {
+
+				if (distancePerAgent.get(Key) < 500 && utilizationPerAgent.get(Key) < 6) {
+					greenSpaceRankingValuePerAgent.put(Key, Boolean.TRUE);
+				}
+				else {
+					greenSpaceRankingValuePerAgent.put(Key, Boolean.FALSE);
+				}
+			}
+
+			double greenSpaceRankingValue = greenSpaceRankingValuePerAgent.values().stream().filter(Boolean::booleanValue).count()*100/greenSpaceRankingValuePerAgent.size();
+			System.out.println(greenSpaceRankingValue);
+			String formattedRankingGreenSpace = String.format(Locale.US, "%.2f%%", greenSpaceRankingValue);
+
+			double averageDistance = distancePerAgent.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
+			System.out.println(averageDistance);
+			String formattedAverageDistance = String.format(Locale.US, "%.2fm", averageDistance);
+
+			double averageUtilization = utilizationPerAgent.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
+			System.out.println(averageUtilization);
+			String formattedAverageUtilization = String.format(Locale.US, "%.2fm²/person", averageUtilization);
+
+			// Schreibe das Ergebnis zusammen mit rankingLossTime in die Datei lossTime_RankingValue.csv
+			try (BufferedWriter writer = Files.newBufferedWriter(outputRankingValueCSVPath)) {
+				//	writer.write("Dimension;Value\n"); // Header
+				writer.write(String.format("GreenSpaceRanking;%s\n", formattedRankingGreenSpace)); // Ranking
+				writer.write(String.format("AverageDistance(m);%s\n", formattedAverageDistance)); // Summe der
+				writer.write(String.format("AverageUtilization(m²/Person);%s\n", formattedAverageUtilization)); // Summe der
+
+			}
+
+//			CSVWriter rankingWriter = null;
+//			rankingWriter.writeNext(greenSpaceRankingValuePerAgent.);
+//
+//			agentCSVWriter.writeNext(new String[]{AgentEntry.getKey(), AgentEntry.getValue(), String.valueOf(distancePerAgent.get(AgentEntry.getKey())), String.valueOf(utilizationPerGreenSpace.get(AgentEntry.getValue()))});
+
+
+			AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(distancePerAgent, "MinGreenSpaceEuclideanDistance");
+			AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(utilizationPerAgent, "GreenSpaceUtilization (m²/person)");
+
+			AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace");
+
+		} catch (IOException | CsvValidationException e) {
 			throw new RuntimeException(e);
 		}
 
 		List<Coord> activityCoords = new ArrayList<>();
-
-
-		//   PreparedGeometry flaeche = gruenflachen.get(0);
-
-		//   flaeche.contains(flaeche.getGeometry());
-
-
-
-
-
+		//AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(String.valueOf(utilizationPerGreenSpace.get(AgentEntry.getValue())));extendCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
 
 
 		return 0;
