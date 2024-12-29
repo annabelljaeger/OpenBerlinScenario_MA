@@ -191,7 +191,6 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 
 			while ((nextLine = tilesReader.readNext()) != null) {
 				tilesWriter.writeNext(nextLine);
-
 			}
 
 			tilesWriter.writeNext(new String[]{CategoryName, RankingValue});
@@ -202,6 +201,7 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 		}
 		// Rewrite original file by temp file
 		Files.move(tempSummaryTilesOutputPath, inputSummaryTileCsvPath, StandardCopyOption.REPLACE_EXISTING);
+
 	}
 
 	public static void extendSummaryTilesCsvWithAttribute3(Path categoryRankingCsvPath) throws IOException {

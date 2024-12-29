@@ -152,7 +152,6 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 					.y("loss_time")
 					.name("loss_time", ColorScheme.RdYlBu)
 
-
 			//	viz.addTrace((Trace) new Line.LineBuilder()),
 
 				);

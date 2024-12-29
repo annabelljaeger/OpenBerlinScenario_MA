@@ -54,7 +54,7 @@ import static java.lang.Double.NaN;
 	requireRunDirectory = true,
 	requires = {
 		"berlin-v6.3.output_persons.csv",
-		"test_accessPoints.shp",
+		"relevante_accessPoints.shp",
 		//"berlin_allGreenSpacesLarger1ha.shp"
 		"allGreenSpaces_min1ha.shp"
 	},
@@ -73,6 +73,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedGreenSpaceAnalysis.class);
 
 	public static void main(String[] args) {
+		System.out.println("Jetzt bin ich hier");
 		new AgentBasedGreenSpaceAnalysis().execute(args);
 
 	}
@@ -83,7 +84,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		Path inputPersonsCSVPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv"));
 		Path outputPersonsCSVPath = output.getPath("greenSpace_stats_perAgent.csv");
 		//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
-		Path accessPointShpPath = Path.of(input.getPath("test_accessPoints.shp"));
+		Path accessPointShpPath = Path.of(input.getPath("relevante_accessPoints.shp"));
 	//	Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
 		Path outputGreenSpaceUtilizationPath = output.getPath("greenSpace_utilization.csv");
 		Path outputRankingValueCSVPath = output.getPath("greenSpace_RankingValue.csv");
@@ -232,11 +233,16 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 			double averageDistance = distancePerAgent.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
 			System.out.println(averageDistance);
-			String formattedAverageDistance = String.format(Locale.US, "%.2fm", averageDistance);
+			String formattedAverageDistance = String.format(Locale.US, "%.2f", averageDistance);
+
+			//Ziel: Median statt Mittelwert, da dieser durch große Randgrünflächen verzerrt wird
+//			double medianDistance = distancePerAgent.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
+//			System.out.println(medianDistance);
+//			String formattedMedianDistance = String.format(Locale.US, "%.2f", medianDistance);
 
 			double averageUtilization = utilizationPerAgent.values().stream().mapToDouble(Double::doubleValue).average().orElse(0);
 			System.out.println(averageUtilization);
-			String formattedAverageUtilization = String.format(Locale.US, "%.2fm²/person", averageUtilization);
+			String formattedAverageUtilization = String.format(Locale.US, "%.2f", averageUtilization);
 
 			// Schreibe das Ergebnis zusammen mit rankingLossTime in die Datei lossTime_RankingValue.csv
 			try (BufferedWriter writer = Files.newBufferedWriter(outputRankingValueCSVPath)) {
@@ -264,7 +270,6 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 		List<Coord> activityCoords = new ArrayList<>();
 		//AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(String.valueOf(utilizationPerGreenSpace.get(AgentEntry.getValue())));extendCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
-
 
 		return 0;
 	}
