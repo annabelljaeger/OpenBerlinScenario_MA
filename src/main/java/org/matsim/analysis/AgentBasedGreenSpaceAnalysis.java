@@ -54,7 +54,7 @@ import static java.lang.Double.NaN;
 	requireRunDirectory = true,
 	requires = {
 		"berlin-v6.3.output_persons.csv",
-		"relevante_accessPoints.shp",
+		"test_accessPoints.shp",
 		//"berlin_allGreenSpacesLarger1ha.shp"
 		"allGreenSpaces_min1ha.shp"
 	},
@@ -84,7 +84,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		Path inputPersonsCSVPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv"));
 		Path outputPersonsCSVPath = output.getPath("greenSpace_stats_perAgent.csv");
 		//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
-		Path accessPointShpPath = Path.of(input.getPath("relevante_accessPoints.shp"));
+		Path accessPointShpPath = Path.of(input.getPath("test_accessPoints.shp"));
 	//	Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
 		Path outputGreenSpaceUtilizationPath = output.getPath("greenSpace_utilization.csv");
 		Path outputRankingValueCSVPath = output.getPath("greenSpace_RankingValue.csv");

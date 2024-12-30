@@ -51,13 +51,13 @@ public class RunLiveabilityDashboard {
 	//	sw.addDashboard(new EmissionsDashboard());
 	//	sw.addDashboard(new NoiseDashboard());
 
-		sw.addDashboard( new AgentBasedLossTimeDashboard());
+		//sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 		//sw.addDashboard( new AgentBasedSafetyDashboard());
-		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
-		//sw.addDashboard( new AgentBasedPtQualityDashboard());
-		sw.addDashboard( new LiveabilitySummaryDashboard());
+		//sw.addDashboard( new AgentBasedGreenSpaceDashboard());
+		sw.addDashboard( new AgentBasedAccessibilityDashboard());
+		//sw.addDashboard( new LiveabilitySummaryDashboard());
 
 //		sw.run( Path.of("./output" ) );
 
