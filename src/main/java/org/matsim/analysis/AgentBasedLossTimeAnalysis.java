@@ -34,6 +34,8 @@ import java.util.*;
 import java.io.BufferedWriter;
 import java.io.IOException;
 
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidInputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 @CommandLine.Command(
 	name = "lossTime-analysis",
@@ -57,20 +59,34 @@ import java.io.IOException;
 
 public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
+
 	@CommandLine.Mixin
 	private final InputOptions input = InputOptions.ofCommand(AgentBasedLossTimeAnalysis.class);
 	@CommandLine.Mixin
 	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedLossTimeAnalysis.class);
 
+	// constants for paths
+//	private final Path inputLegsCsvFile = getValidOutputDirectory().resolve("berlin-v6.3.output_legs.csv") ;
+	private final Path outputSummaryPath = getValidOutputDirectory().resolve("summary_modeSpecificLegsLossTime.csv");
+	private final Path outputCSVPath = getValidOutputDirectory().resolve("output_legsLossTime_new.csv");
+//	private final Path outputRankingAgentStatsPath = getValidOutputDirectory().resolve("analysis/analysis/lossTime_stats_perAgent.csv");
+	private final Path outputRankingAgentStatsPath = ApplicationUtils.matchInput("analysis/analysis/lossTime_stats_perAgent.csv", getValidOutputDirectory());
+
+	private final Path outputRankingValuePath = getValidOutputDirectory().resolve("lossTime_RankingValue.csv");
+
+
 	public static void main(String[] args) {
-		new AgentBasedLossTimeAnalysis().execute(args);
+		new AgentBasedLossTimeAnalysis().execute();
 	}
 
 	@Override
 	public Integer call() throws Exception {
 
         //load network & execute NetworkCleaner
-        Network network = NetworkUtils.readNetwork(ApplicationUtils.matchInput("network.xml.gz", input.getRunDirectory()).toAbsolutePath().toString());
+     //  Network network = NetworkUtils.readNetwork(ApplicationUtils.matchInput("network.xml.gz", input.getRunDirectory()).toAbsolutePath().toString());
+	//	Network network = NetworkUtils.readNetwork(String.valueOf(ApplicationUtils.matchInput("network.xml.gz", getValidOutputDirectory())));
+		Network network = NetworkUtils.readNetwork(String.valueOf(ApplicationUtils.matchInput("network.xml.gz", getValidOutputDirectory())));
+
 //		String networkFile = "https://svn.vsp.tu-berlin.de/repos/public-svn/matsim/scenarios/countries/de/berlin/berlin-v6.3/input/berlin-v6.3-network-with-pt.xml.gz"; //Netzwerk-Dateipfad
 //		Network network = loadNetwork(networkFile);
 
@@ -80,12 +96,15 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
         //find input-File (legs.csv) and define Output-paths
         //	Path inputLegsCSVPath = Path.of(input.getPath("berlin-v6.3.output_legs.csv.gz"));
 
-		String inputLegsCsvFile = "C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv";
-//        String inputLegsCsvFile = ApplicationUtils.matchInput("legs.csv", input.getRunDirectory()).toAbsolutePath().toString();
-        Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
-        Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
-        Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
-		Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
+		Path inputLegsCsvFile = Path.of("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/output_legs.csv/berlin-v6.3.output_legs.csv");
+////        String inputLegsCsvFile = ApplicationUtils.matchInput("legs.csv", input.getRunDirectory()).toAbsolutePath().toString();
+//        Path outputSummaryPath = output.getPath("summary_modeSpecificLegsLossTime.csv");
+//        Path outputCSVPath = output.getPath("output_legsLossTime_new.csv");
+//        Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
+//		Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
+
+		AgentLiveabilityInfo agentLiveabilityInfo = new AgentLiveabilityInfo();
+
 
 //		CSVReader csvReader = new CSVReader(new FileReader(inputLegsCsvFile));
 //
@@ -104,7 +123,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 
 		//read Input-legs.csv file and write new output files for loss time analysis
-		try (BufferedReader brInputLegs = new BufferedReader(new FileReader(inputLegsCsvFile));
+		try (BufferedReader brInputLegs = new BufferedReader(new FileReader(String.valueOf(inputLegsCsvFile)));
 
 			 // writing new csv with added legs loss time information
 			 BufferedWriter bwLegsLossTime = new BufferedWriter(Files.newBufferedWriter(outputCSVPath))) {
@@ -256,8 +275,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					agentBasedBw.write(String.format("%s;%f;%f;%f;%s;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus, modeUsed));
 				}
 
-				AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
-				AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
+				agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
+				agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
 
 
 			}
@@ -317,7 +336,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					System.out.println("LossTimeSum (HH:mm:ss): " + formattedTotalLossTime);
 					System.out.println("LossTimeRanking: " + formattedRankingLossTime);
 
-					AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingLossTime, "LossTime");
+					agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingLossTime, "LossTime");
 
 
 				} catch (IOException e) {

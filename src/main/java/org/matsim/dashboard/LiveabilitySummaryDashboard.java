@@ -26,9 +26,9 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 				});
 
 		layout.row("ScoringTiles").el(Tile.class, (viz, data) -> {
-			viz.dataset = data.compute(AgentLiveabilityInfo.class, "summaryTiles.csv");
+		//	viz.dataset = data.compute(AgentLiveabilityInfo.class, "summaryTiles.csv");
 		//	viz.dataset = data.fromFile("summaryTiles.csv");
-		//	viz.dataset = data.output("C:\\Users\\annab\\MatSim for MA\\Output_Cluster\\OBS_Base\\output_OBS_Base\\berlin-v6.3-10pct\\analysis\\analysis\\summaryTiles.csv");
+			viz.dataset = data.output("analysis/analysis/summaryTiles.csv");
 			viz.height = 0.1; //})
 //			.el(Tile.class, (viz, data) -> {
 //			viz.dataset = data.compute(AgentBasedLossTimeAnalysis.class, "lossTime_RankingValue.csv");

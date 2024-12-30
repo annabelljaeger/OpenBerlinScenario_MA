@@ -23,6 +23,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
+
 public class AgentBasedLossTimeDashboard implements Dashboard {
 
 	public double priority(){return -1;}
@@ -87,9 +89,8 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 				//Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
 
 				// Dateipfad aus dem Dataset abrufen
-				String csvFilePath = "C:\\Users\\annab\\MatSim for MA\\Output_Cluster\\OBS_Base\\output_OBS_Base\\berlin-v6.3-10pct\\analysis\\analysis\\lossTime_stats_perAgent.csv";
-
-				//String csvFilePath = "C:\\Users\\holle\\IdeaProjects\\OpenBerlinScenario_MA\\output\\berlin-v6.3-10pct\\analysis\\analysis\\output_legsLossTime_new.csv";
+			//	String csvFilePath = "C:\\Users\\annab\\MatSim for MA\\Output_Cluster\\OBS_Base\\output_OBS_Base\\berlin-v6.3-10pct\\analysis\\analysis\\lossTime_stats_perAgent.csv";
+				String csvFilePath = String.valueOf(getValidOutputDirectory().resolve("analysis\\analysis\\lossTime_stats_perAgent.csv"));
 
 				// Layout definieren
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
@@ -218,57 +219,58 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 
 			});
 
+		//HIER NOCH UNFERTIGER VERSUCH DIE AUSREIßER UND SONSTIGE FEHLER AUSZUBLENDEN - SCATTERPLOT DETAILARBEIT NOCH NÖTIG
 		layout.row("neuer Ansatz Scatterplot")
 		.el(Plotly.class, (viz, data) -> {
 
 			viz.title = "Scatter Plot Travel Time over Loss Time";
 			viz.description = "Agent based analysis of travel time compared to loss time";
 
-			// Bereinige die Daten vor dem Hinzufügen zum Dataset
-			List<Map<String, Object>> cleanedData = new ArrayList<>();
-			try (BufferedReader br = new BufferedReader(new FileReader("output_legsLossTime_new.csv"))) {
-				String line;
-				while ((line = br.readLine()) != null) {
-					String[] values = line.split(",");
-					double travTime = Double.parseDouble(values[0]);  // Annahme: Travel Time ist in der ersten Spalte
-					double lossTime = Double.parseDouble(values[1]);  // Annahme: Loss Time ist in der zweiten Spalte
-
-					// Nullwerte für Loss Time und Ausreißer filtern
-					if (lossTime != 0 && travTime <= 1000 && lossTime <= 500) {
-						Map<String, Object> row = new HashMap<>();
-						row.put("trav_time", travTime);
-						row.put("loss_time", lossTime);
-						cleanedData.add(row);
-					}
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-
-			// Konvertiere die bereinigten Daten in ein Dataset
-			Plotly.DataSet ds = viz.addDataset(cleanedData.toString());
-
-			// Layout konfigurieren
-			viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-				.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
-				.xAxis(Axis.builder().title("Travel Time").build())
-				.yAxis(Axis.builder().title("Loss Time").build())
-				.build();
-
-			// Scatter Trace für die bereinigten Daten
-			viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).build(), ds.mapping()
-				.x("trav_time")
-				.y("loss_time")
-				.name("Loss Time vs. Travel Time", ColorScheme.RdYlBu)
-			);
-
-			// Füge die Linie Travel Time = 2 * Loss Time hinzu
-			viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).build(), ds.mapping()
-				.x("trav_time")
-				.y("trav_time")//.transform(v -> v / 2)  // Die Linie, bei der Travel Time = 2 * Loss Time
-				.name("Travel Time = 2 * Loss Time")
-			//	.line(tech.tablesaw.plotly.components.Line.builder().color("red").width(2).build())  // Linie in Rot
-			);
+//			// Bereinige die Daten vor dem Hinzufügen zum Dataset
+//			List<Map<String, Object>> cleanedData = new ArrayList<>();
+//			try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(getValidOutputDirectory().resolve("analysis\\analysis\\output_legsLossTime_new.csv"))))) {
+//				String line;
+//				while ((line = br.readLine()) != null) {
+//					String[] values = line.split(";");
+//					double travTime = Double.parseDouble(values[3]);  // Annahme: Travel Time ist in der ersten Spalte
+//					double lossTime = Double.parseDouble(values[5]);  // Annahme: Loss Time ist in der zweiten Spalte
+//
+//					// Nullwerte für Loss Time und Ausreißer filtern
+//					if (lossTime != 0 && travTime <= 1000 && lossTime <= 500) {
+//						Map<String, Object> row = new HashMap<>();
+//						row.put("trav_time", travTime);
+//						row.put("loss_time", lossTime);
+//						cleanedData.add(row);
+//					}
+//				}
+////			} catch (IOException e) {
+////				e.printStackTrace();
+////			}
+////
+////			// Konvertiere die bereinigten Daten in ein Dataset
+////			Plotly.DataSet ds = viz.addDataset(cleanedData.toString());
+//
+//			// Layout konfigurieren
+//			viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+//				.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
+//				.xAxis(Axis.builder().title("Travel Time").build())
+//				.yAxis(Axis.builder().title("Loss Time").build())
+//				.build();
+//
+//			// Scatter Trace für die bereinigten Daten
+//			viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).build(), ds.mapping()
+//				.x("trav_time")
+//				.y("loss_time")
+//				.name("Loss Time vs. Travel Time", ColorScheme.RdYlBu)
+//			);
+//
+//			// Füge die Linie Travel Time = 2 * Loss Time hinzu
+//			viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).build(), ds.mapping()
+//				.x("trav_time")
+//				.y("trav_time")//.transform(v -> v / 2)  // Die Linie, bei der Travel Time = 2 * Loss Time
+//				.name("Travel Time = 2 * Loss Time")
+//			//	.line(tech.tablesaw.plotly.components.Line.builder().color("red").width(2).build())  // Linie in Rot
+//			);
 		});
 
 	}

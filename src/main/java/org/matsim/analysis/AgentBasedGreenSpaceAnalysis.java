@@ -42,6 +42,8 @@ import java.nio.file.Path;
 import java.util.*;
 
 import static java.lang.Double.NaN;
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidInputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 @CommandLine.Command(
 	name = "greenSpace-analysis",
@@ -72,22 +74,31 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	@CommandLine.Mixin
 	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedGreenSpaceAnalysis.class);
 
-	public static void main(String[] args) {
-		System.out.println("Jetzt bin ich hier");
-		new AgentBasedGreenSpaceAnalysis().execute(args);
+	// constants for paths
+	private final Path inputPersonsCSVPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv");
+	//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
+	private final Path accessPointShpPath = getValidOutputDirectory().resolve("test_accessPoints.shp");
+	private final Path outputPersonsCSVPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_stats_perAgent.csv");
+	private final Path outputGreenSpaceUtilizationPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_utilization.csv");
+	private final Path outputRankingValueCSVPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_RankingValue.csv");
 
+
+	public static void main(String[] args) {
+		new AgentBasedGreenSpaceAnalysis().execute(args);
 	}
 
 	@Override
 	public Integer call() throws Exception {
 
-		Path inputPersonsCSVPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv"));
-		Path outputPersonsCSVPath = output.getPath("greenSpace_stats_perAgent.csv");
-		//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
-		Path accessPointShpPath = Path.of(input.getPath("test_accessPoints.shp"));
-	//	Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
-		Path outputGreenSpaceUtilizationPath = output.getPath("greenSpace_utilization.csv");
-		Path outputRankingValueCSVPath = output.getPath("greenSpace_RankingValue.csv");
+//		Path inputPersonsCSVPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv"));
+//		Path outputPersonsCSVPath = output.getPath("greenSpace_stats_perAgent.csv");
+//		//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
+//		Path accessPointShpPath = Path.of(input.getPath("test_accessPoints.shp"));
+//	//	Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
+//		Path outputGreenSpaceUtilizationPath = output.getPath("greenSpace_utilization.csv");
+//		Path outputRankingValueCSVPath = output.getPath("greenSpace_RankingValue.csv");
+
+		AgentLiveabilityInfo agentLiveabilityInfo = new AgentLiveabilityInfo();
 
 		Collection<SimpleFeature> accessPointFeatures = GeoFileReader.getAllFeatures(IOUtils.resolveFileOrResource(String.valueOf(accessPointShpPath)));
 
@@ -259,10 +270,10 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 //			agentCSVWriter.writeNext(new String[]{AgentEntry.getKey(), AgentEntry.getValue(), String.valueOf(distancePerAgent.get(AgentEntry.getKey())), String.valueOf(utilizationPerGreenSpace.get(AgentEntry.getValue()))});
 
 
-			AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(distancePerAgent, "MinGreenSpaceEuclideanDistance");
-			AgentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(utilizationPerAgent, "GreenSpaceUtilization (m²/person)");
+			agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(distancePerAgent, "MinGreenSpaceEuclideanDistance");
+			agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(utilizationPerAgent, "GreenSpaceUtilization (m²/person)");
 
-			AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace");
+			agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace");
 
 		} catch (IOException | CsvValidationException e) {
 			throw new RuntimeException(e);
