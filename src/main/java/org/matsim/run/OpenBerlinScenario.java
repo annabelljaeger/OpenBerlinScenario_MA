@@ -165,7 +165,6 @@ public class OpenBerlinScenario extends MATSimApplication {
 				}
 			});
 		}
-		controler.addOverridingModule(new PtStop2StopAnalysisModule());
 		controler.addOverridingModule(new PersonMoneyEventsAnalysisModule());
 	}
 
