@@ -8,7 +8,7 @@ import org.matsim.simwrapper.viz.Tile;
 
 public class AgentBasedAccessibilityDashboard implements Dashboard {
 
-	public double priority() {return -1;}
+	public double priority() {return -2;}
 
 	public void configure(Header header, Layout layout) {
 

@@ -7,6 +7,7 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
@@ -14,10 +15,11 @@ import org.matsim.application.options.OutputOptions;
 import picocli.CommandLine;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
+
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 @CommandLine.Command(
 	name = "liveabilitySummary-analysis",
@@ -49,6 +51,9 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	@CommandLine.Mixin
 	private final OutputOptions output = OutputOptions.ofCommand(LiveabilitySummaryAnalysis.class);
 
+	private final Path inputSummaryTilesPath = ApplicationUtils.matchInput("summaryTiles.csv", getValidLiveabilityOutputDirectory());
+
+
 	private final Map<String, Double> liveabilityMetrics = new LinkedHashMap<>();
 //	private final Map<String, String> bestPolicies = new LinkedHashMap<>();
 
@@ -64,33 +69,43 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		System.out.println("Starting LiveabilitySummaryAnalysis...");
 
 		Path outputOverallRankingPath = output.getPath("overallRankingTile.csv");
-	//	Path inputSummaryTilesPath = Path.of(input.getPath("summaryTiles.csv"));
-	//	Path inputSummaryTilesPath = Path.of("C:\\Users\\annab\\MatSim for MA\\Output_Cluster\\OBS_Base\\output_OBS_Base\\berlin-v6.3-10pct\\analysis\\analysis\\summaryTiles.csv");
+	//	Path inputSummaryTilesPath = output.getPath("analysis/analysis/summaryTiles.csv");
 	//	System.out.println(Paths.get(inputSummaryTilesPath.toUri()).toAbsolutePath());
 
 		Map<String, Double> RankingValueMap = new LinkedHashMap<>();
 
-		try (//CSVReader summaryTileReader = new CSVReader(new FileReader(inputSummaryTilesPath.toFile()));
+		try (CSVReader summaryTileReader = new CSVReader(new FileReader(inputSummaryTilesPath.toFile()));
 			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(outputOverallRankingPath.toFile()))) {
 
-//			String[] nextLine;
-//			while ((nextLine = summaryTileReader.readNext()) != null) {
-//				String key = nextLine[0];
-//				try {
-//					double value = Double.parseDouble(nextLine[1]);
-//					RankingValueMap.put(key, value);
-//				} catch (NumberFormatException e) {
-//					System.err.println("Could not parse " + nextLine[1] + " as double");
-//				}
-//			}
-//			double overallRankingValue = RankingValueMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-//			String formattedOverallRankingValue = String.format(Locale.US, "%.2f%%", overallRankingValue);
+			String[] nextLine;
+			while ((nextLine = summaryTileReader.readNext()) != null) {
+
+				if (nextLine.length < 2) {
+					System.err.println("Zeile hat nicht genügend Spalten: " + String.join(", ", nextLine));
+					continue; // Überspringe diese Zeile
+				}
+
+				String key = nextLine[0];
+				try {
+					double value = convertPercentageToDouble(nextLine[1]);
+
+				//	double value = Double.parseDouble(nextLine[1]);
+					RankingValueMap.put(key, value);
+					System.out.println("eingelesener Wert" + RankingValueMap.get(key));
+				} catch (NumberFormatException e) {
+					System.err.println("Could not parse " + nextLine[1] + " as double");
+				}
+			}
+
+			double overallRankingValue = RankingValueMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+		//	double overallRankingValue = 2.0;
+			String formattedOverallRankingValue = String.format(Locale.US, "%.2f%%", overallRankingValue);
 
 		//	overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
 			//Test WErt damit csv erstellt wird
-			overallRankingWriter.writeNext(new String[]{"Overall Ranking", "0.3"});
+			overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
 
-			System.out.println("Der Gesamt-Rankingwert lautet " + "0,3");
+			System.out.println("Der Gesamt-Rankingwert lautet " + formattedOverallRankingValue);
 
 	} catch(
 	IOException e)
@@ -103,29 +118,16 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 		return 0;
 }
-}
-/*
-	private void writeSummaryFile() {
-		Path outputPath = output.getPath("summaryTiles.csv");
 
-		try (CSVPrinter printer = new CSVPrinter(IOUtils.getBufferedWriter(outputPath.toString()), CSVFormat.DEFAULT)) {
-			printer.printRecord("Category", "Percentage");
-
-			for (Map.Entry<String, Double> entry : liveabilityMetrics.entrySet()) {
-				printer.printRecord(entry.getKey(), entry.getValue());
-//				printer.printRecord(entry.getKey(), formatPercentage(entry.getValue()));
-
-			}
-
-			log.info("Summary file written to {}", outputPath);
-		} catch (IOException e) {
-			log.error("Error writing summary file: {}", e.getMessage());
-		}
+	public static double convertPercentageToDouble(String percentageString) {
+		// Entferne das Prozentzeichen und parse den numerischen Teil
+		String numericPart = percentageString.replace("%", "");
+		return Double.parseDouble(numericPart);
 	}
+}
 
-
- */
 	/*
+	//Mehrere Policys in einem Dashboard erstmal ausgeblendet - hat mehrere Schwierigkeiten, beginnend bei den verfügbaren Outputs
 	private void writeSummaryFileMultiPolicy() {
 		Path outputPath2 = output.getPath("summaryTiles_multiPolicy.csv");
 
@@ -143,86 +145,9 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		}
 	}
 	*/
-/*
-	private void writeDetailedFile() {
-		Path outputPath = output.getPath("liveability_details.csv");
-
-		try (CSVPrinter printer = new CSVPrinter(IOUtils.getBufferedWriter(outputPath.toString()), CSVFormat.DEFAULT)) {
-			printer.printRecord("Category", "Percentage");
-
-			for (Map.Entry<String, Double> entry : liveabilityMetrics.entrySet()) {
-				printer.printRecord(entry.getKey(), formatPercentage(entry.getValue()));
-			}
-
-			log.info("Detailed file written to {}", outputPath);
-		} catch (IOException e) {
-			log.error("Error writing detailed file: {}", e.getMessage());
-		}
-		log.info("Output path resolved to: {}", output.getPath("summaryTiles.csv"));
-
-	}
-
-	private String formatPercentage(double value) {
-		return new DecimalFormat("#.0#", DecimalFormatSymbols.getInstance(Locale.US)).format(value) + " %";
-	}
-}
-*/
 
 /*
-		// Einträge je Dimension für die Liveability-Analyse (teils Platzhalter)
-		liveabilityMetrics.put("OverallRanking", 65.0);
-
-		Path outputDirectory = Path.of("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/summary_modeSpecificLegsLossTime.csv");
-
-	//	liveabilityMetrics.put("Loss Time", AgentBasedLossTimeAnalysis.getRankingLossTime;
-		//	Path lossTimeFile = Path.of("summary_modeSpecificLegsLossTime.csv");
-	//	log.info("Versuche Datei zu lesen: {}", lossTimeFile.toAbsolutePath());
-
-		double cumulativeLossTimeSum = 0.0;
-		/*try {
-			cumulativeLossTimeSum = LostTimeAnalysisLegs_ModeSpecific_adapted.getLossTimeSum(lossTimeFile);
-			log.info("Cumulative Loss Time Sum: {}", cumulativeLossTimeSum);
-		} catch (IOException e) {
-			log.error("Error reading cumulative loss time: {}", e.getMessage());
-		}
-
-		try {
-			double totalLossTime = AgentBasedLossTimeAnalysis.getLossTimeSum(outputDirectory);
-			log.info("Gesamte Verlustzeit: {}", totalLossTime);
-		} catch (IOException e) {
-			log.error("Fehler beim Laden der Verlustzeitdaten: {}", e.getMessage());
-		}
-		liveabilityMetrics.put("LossTime", cumulativeLossTimeSum / 3600.0);
-
-	//	double cumulativeLossTimeSum = calculateCumulativeLossTimeSum(Path.of(input.getPath("summary_modeSpecificLegsLossTime.csv")));
-	//	liveabilityMetrics.put("LossTime", cumulativeLossTimeSum/3600.0);
-
-		// Generieren der CSV-Dateien
-		writeSummaryFile();
-		writeDetailedFile();
-*/
-//TEST SECTION FOR SUMMARY FILE IMPLEMENTATION
-		/*
-		Path summaryTestValuePath = output.getPath("summaryTestValue.csv");
-		try (BufferedReader testReader = Files.newBufferedReader(summaryTestValuePath)) {
-
-			String entry;
-		}
-		double summaryTestValue = 99.99;
-		String formattedSummaryTestValue = String.format(Locale.US, "%.2f%%", summaryTestValue);
-
-		// Schreibe das Ergebnis zusammen mit rankingLossTime in die Datei lossTime_RankingValue.csv
-		try (BufferedWriter writer = Files.newBufferedWriter(summaryTestValuePath)) {
-			//	writer.write("Dimension;Value\n"); // Header
-			writer.write(String.format("SummaryTestRanking;%s\n", summaryTestValue)); // Ranking
-		}
-
-		System.out.println("SummaryTestRanking: " + summaryTestValue);
-
-		AgentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(summaryTestValuePath);
-*/
-
-/*
+//eventuell die Ranking Berechnung auslagern? Dann Code schlanker und Berechnung nur einmal, nicht in jeder Dimensions-Analysis-Klasse
 
 		Path testAgentStats = output.getPath("test_stats_perAgent.csv");
 		try (BufferedReader agentBasedReader = Files.newBufferedReader(testAgentStats)) {

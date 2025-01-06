@@ -60,26 +60,19 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 	@Override
 	public Integer call() throws Exception {
 
-		//Path outputAgentLiveabilityCSVPath = output.getPath("agentLiveabilityInfo.csv");
-		//generateLiveabilityData(outputAgentLiveabilityCSVPath);
 		generateLiveabilityData();
 
-
-		//Path categoryRankingCsvPath = output.getPath("summaryTiles.csv");
 		generateSummaryTilesFile();
 
 		return 0;
 	}
 
 	// method to introduce the liveabilityInfo.csv and fill it with the person ids
-
-		public void generateLiveabilityData( ) throws IOException {
+	public void generateLiveabilityData( ) throws IOException {
 
 	//	Path outputAgentLiveabilityCSVPath = output.getPath("agentLiveabilityInfo.csv");
-
 	//	Path outputAgentLiveabilityCSVPath = getValidOutputDirectory().resolve("analysis/analysis/agentLiveabilityInfo.csv");
-
-			//Path personsCsvPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv.gz"));
+	//Path personsCsvPath = Path.of(input.getPath("berlin-v6.3.output_persons.csv.gz"));
 	//	Path personsCsvPath = Path.of("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/berlin-v6.3.output_persons.csv");
 
 		if (!Files.exists(personsCsvPath)) {
@@ -132,9 +125,7 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 
 	public  void extendAgentLiveabilityInfoCsvWithAttribute(Map additionalData, String newAttributeName) throws IOException {
 		//Path inputCsvPath = output.getPath("agentLiveabilityInfo.csv");
-	//	Path tempOutputPath = inputCsvPath.resolveSibling("agentLiveabilityInfo_updated.csv");
-
-
+		//	Path tempOutputPath = inputCsvPath.resolveSibling("agentLiveabilityInfo_updated.csv");
 
 		try (BufferedReader reader = Files.newBufferedReader(outputAgentLiveabilityCSVPath);
 			 BufferedWriter writer = Files.newBufferedWriter(tempOutputPath)) {
@@ -172,7 +163,7 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 
 	public void generateSummaryTilesFile() throws IOException {
 
-	//	Path categoryRankingCsvPath = output.getPath("summaryTiles.csv");
+		//	Path categoryRankingCsvPath = output.getPath("summaryTiles.csv");
 
 		// Wenn die Datei existiert, wird sie gelöscht
 		if (Files.exists(categoryRankingCsvPath)) {
@@ -190,8 +181,10 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 		}
 	}
 
-	public void extendSummaryTilesCsvWithAttribute(String RankingValue, String CategoryName) throws IOException {
-	//	Path inputSummaryTileCsvPath = output.getPath("summaryTiles.csv");
+//	public void extendSummaryTilesCsvWithAttribute(String RankingValue, String CategoryName, String IconPath) throws IOException {
+		public void extendSummaryTilesCsvWithAttribute(String RankingValue, String CategoryName) throws IOException {
+
+			//	Path inputSummaryTileCsvPath = output.getPath("summaryTiles.csv");
 	//	Path tempSummaryTilesOutputPath = inputSummaryTileCsvPath.resolveSibling("summaryTiles_updated.csv");
 
 			try (CSVReader tilesReader = new CSVReader(new FileReader(categoryRankingCsvPath.toFile()));
@@ -205,18 +198,17 @@ public class AgentLiveabilityInfo implements MATSimAppCommand {
 					continue;
 				}
 				tilesWriter.writeNext(nextLine);
-
 			}
 
-			tilesWriter.writeNext(new String[]{CategoryName, RankingValue});
+//			tilesWriter.writeNext(new String[]{CategoryName, RankingValue, IconPath});
+				tilesWriter.writeNext(new String[]{CategoryName, RankingValue});
 
 
-		} catch (CsvValidationException e) {
+			} catch (CsvValidationException e) {
 			throw new RuntimeException(e);
 		}
 		// Rewrite original file by temp file
 		Files.move(tempSummaryTilesOutputPath, categoryRankingCsvPath, StandardCopyOption.REPLACE_EXISTING);
 
 	}
-
 }

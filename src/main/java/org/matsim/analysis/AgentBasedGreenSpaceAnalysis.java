@@ -77,7 +77,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	// constants for paths
 	private final Path inputPersonsCSVPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv");
 	//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
-	private final Path accessPointShpPath = getValidOutputDirectory().resolve("test_accessPoints.shp");
+	private final Path accessPointShpPath = getValidOutputDirectory().resolve("relevante_accessPoints.shp");
 	private final Path outputPersonsCSVPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_stats_perAgent.csv");
 	private final Path outputGreenSpaceUtilizationPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_utilization.csv");
 	private final Path outputRankingValueCSVPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_RankingValue.csv");
@@ -273,6 +273,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(distancePerAgent, "MinGreenSpaceEuclideanDistance");
 			agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(utilizationPerAgent, "GreenSpaceUtilization (m²/person)");
 
+		//	agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace", "https://github.com/simwrapper/simwrapper/blob/master/public/images/tile-icons/emoji_transportation.svg");
 			agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace");
 
 		} catch (IOException | CsvValidationException e) {

@@ -27,7 +27,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 
 public class AgentBasedLossTimeDashboard implements Dashboard {
 
-	public double priority(){return -1;}
+	public double priority(){return -3;}
 
 	public void configure(Header header, Layout layout) {
 

@@ -11,6 +11,8 @@ import org.matsim.simwrapper.viz.Tile;
 
 public class LiveabilitySummaryDashboard implements Dashboard {
 
+	public double priority() {return 2;}
+
 	//Definiere und erstelle Übersichtsseite
 
 	@Override
@@ -38,17 +40,7 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 	}
 }
 /*
-
-@Override
-public void configure(Header header, Layout layout) {
-
-	header.title = "Stuck Agents";
-	header.description = "Analyze agents that are 'stuck' i.e. could not finish their daily plan.";
-
-	layout.row("first").el(Tile.class, (viz, data) -> {
-		viz.dataset = data.compute(StuckAgentAnalysis.class, "stuck_agents.csv");
-		viz.height = 0.1;
-	});
+Library for Simwrapper Dashboard Outputs
 
 	layout.row("second")
 		.el(Plotly.class, (viz, data) -> {
@@ -60,12 +52,10 @@ public void configure(Header header, Layout layout) {
 				.text("Mode")
 				.x("Agents")
 			);
-
 		})
 		.el(Table.class, (viz, data) -> {
 			viz.title = "Stuck Agents";
 			viz.description = "per Mode";
-
 			viz.dataset = data.compute(StuckAgentAnalysis.class, "stuck_agents_per_mode.csv");
 		});
 
@@ -92,12 +82,6 @@ public void configure(Header header, Layout layout) {
 		viz.description = "per Link (Top 20)";
 		viz.dataset = data.compute(StuckAgentAnalysis.class, "stuck_agents_per_link.csv");
 	});
-}
-
-@Override
-public double priority() {
-	return -1;
-}
 }
 }
 */
