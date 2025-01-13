@@ -56,9 +56,9 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 	requireRunDirectory = true,
 	requires = {
 		"berlin-v6.3.output_persons.csv",
-		"test_accessPoints.shp",
+		"relevante_accessPoints.shp",
 		//"berlin_allGreenSpacesLarger1ha.shp"
-		"allGreenSpaces_min1ha.shp"
+	//	"allGreenSpaces_min1ha.shp"
 	},
 	produces = {
 		"greenSpace_stats_perAgent.csv",

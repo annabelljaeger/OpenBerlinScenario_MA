@@ -55,14 +55,14 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 
 		//for work on code purposes to activate the two contribs
 		//sw.addDashboard(new EmissionsDashboard());
-		sw.addDashboard(new NoiseDashboard());
+		//sw.addDashboard(new NoiseDashboard());
 
 		// calling the seperate liveability-dimension dashboards and thereby activating them
-		sw.addDashboard( new AgentBasedLossTimeDashboard());
+		//sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 	//	sw.addDashboard( new AgentBasedSafetyDashboard());
-		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
+		//sw.addDashboard( new AgentBasedGreenSpaceDashboard());
 		sw.addDashboard( new AgentBasedAccessibilityDashboard());
 		sw.addDashboard( new LiveabilitySummaryDashboard());
 

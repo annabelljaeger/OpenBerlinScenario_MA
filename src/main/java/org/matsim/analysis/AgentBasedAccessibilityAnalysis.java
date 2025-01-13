@@ -65,8 +65,7 @@ import java.util.*;
 import java.util.zip.GZIPInputStream;
 
 import static org.apache.commons.lang3.BooleanUtils.TRUE;
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 @CommandLine.Command(
 	name = "accessibility-analysis",
@@ -102,11 +101,14 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 	private Network network;
 	private org.matsim.pt.transitSchedule.api.TransitSchedule TransitSchedule;
 	private AccessibilityConfigGroup accConfig;
+	private TransitRouter transitRouter;
 
 	private final Path CONFIG_FILE = ApplicationUtils.matchInput("config.xml", getValidOutputDirectory());
 	private final Path tripsCsvPath = ApplicationUtils.matchInput("trips.csv.gz", getValidOutputDirectory());
-	private final Path outputReisezeitvergleichPath = ApplicationUtils.matchInput("reisezeitvergleich_perTrip.csv", getValidLiveabilityOutputDirectory());
-	private final Path outputRankingValuePath = ApplicationUtils.matchInput("ptAndAccessibility_RankingValue.csv", getValidLiveabilityOutputDirectory());
+	private final Path outputReisezeitvergleichPath = getValidLiveabilityOutputDirectory().resolve("reisezeitvergleich_perTrip.csv");
+	private final Path outputRankingValuePath = getValidLiveabilityOutputDirectory().resolve("ptAndAccessibility_RankingValue.csv");
+	private final Path areaShpPath = getValidInputDirectory().resolve("/area/area.shp");
+	private final Path accessibilityOutputPath = getValidLiveabilityOutputDirectory().resolve("/accessibilityOutputData");
 
 	private static final Logger LOG = LogManager.getLogger(AgentBasedAccessibilityAnalysis.class);
 
@@ -118,9 +120,17 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 	@Override
 	public Integer call() throws Exception {
 
-		runAccessibilityContrib();
+		initializeScenario();
+
+//		try {
+//			runAccessibilityContrib();
+//		} catch (Exception e) {
+//			throw new RuntimeException(e);
+//		}
 
 		AgentLiveabilityInfo agentLiveabilityInfo = new AgentLiveabilityInfo();
+
+		initializeSwissRailRaptor();
 
 		//use CSVParser for reading the trips.csv.gz file and CSVWriter for writing the output files
 		try (InputStream fileStream = new FileInputStream(tripsCsvPath.toFile());
@@ -136,17 +146,16 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 			int trueEntries = 0;
 			int totalEntries = 0;
 
-			initializeScenario();
+
 			//um zu Testzwecken mit einer begrenzten Anzahl an Trips zu starten:
-//			int limit = 600;
-//			int count = 0;
+			int limit = 6;
+			int count = 0;
 
 			//read trips input file line by line, extract the content and use for iterations over all trips (instead of other for or while-loop)
 			for (CSVRecord tripRecord : tripParser) {
-//				if (count >= limit) {
-//					break;
-//				}
-
+				if (count >= limit) {
+					break;
+				}
 
 				String personId = tripRecord.get("person");
 				String tripId = tripRecord.get("trip_id");
@@ -257,7 +266,7 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 					totalEntries++;
 				}
 
-//				count++;
+				count++;
 
 			}
 
@@ -297,10 +306,27 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 			}
 		}
 
+		try {
+			runAccessibilityContrib();
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
+
 		return 0;
 	}
 
 	public void runAccessibilityContrib() {
+//initialize einmal für alle zu Beginn
+	//	initializeScenario();
+
+		accConfig.setComputingAccessibilityForMode(Modes4Accessibility.freespeed, false);
+		accConfig.setTileSize_m(500);
+		//shp übergeben
+		accConfig.setShapeFileCellBasedAccessibility(String.valueOf(areaShpPath));
+		accConfig.setTimeOfDay(12 * 60 * 60.);
+		accConfig.setComputingAccessibilityForMode(Modes4Accessibility.pt, true);
+		config.controller().setOutputDirectory(String.valueOf(accessibilityOutputPath));
+
 		List<String> activityTypes = AccessibilityUtils.collectAllFacilityOptionTypes(scenario);
 		LOG.info("The following activity types were found: " + activityTypes);
 
@@ -319,15 +345,26 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 		return raptor;
 	}
 
+	public void initializeSwissRailRaptor(){
+		RaptorParameters raptorParams = RaptorUtils.createParameters(config);
+		this.transitRouter = this.createTransitRouter(TransitSchedule, config, network);
+
+	}
+
 		//Facilities übergeben (wenn facility in trips vorhanden: nutze Facility; wenn nicht:aus Coord und Link mit LinkWrapperFacilityWithSpecificCoord)
 	private int calculatePtTravelTime(Facility start, Facility end, String time) {
+	//initialize einmal oben für alle zu Beginn
+		//	initializeScenario();
 
-		initializeScenario();
+		//verschoben in eigene Methode für Vermeidung von Wiederholung
+//		RaptorParameters raptorParams = RaptorUtils.createParameters(config);
+//		TransitRouter router = this.createTransitRouter(TransitSchedule, config, network);
 
-		RaptorParameters raptorParams = RaptorUtils.createParameters(config);
-		TransitRouter router = this.createTransitRouter(TransitSchedule, config, network);
+		if (transitRouter == null) {
+			throw new IllegalStateException("TransitRouter has not been initialized. Call initializeSwissRailRaptor first.");
+		}
 
-		List<? extends PlanElement> planElements = router.calcRoute(DefaultRoutingRequest.withoutAttributes(start, end, timeToSeconds(time), (Person)null));
+		List<? extends PlanElement> planElements = transitRouter.calcRoute(DefaultRoutingRequest.withoutAttributes(start, end, timeToSeconds(time), (Person)null));
 
 		if (planElements == null) {
 			System.out.println("No route found for " + start + " and " + end);
@@ -343,38 +380,10 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 			}
 
 			return (int) ptTravelTime;
-			//	return 99;
 		}
 	}
-//		//FEHLER: "LEGS" IS NULL
-//		TransitPassengerRoute ptRoute = (TransitPassengerRoute)((Leg)legs.get(1)).getRoute();
-//		double actualTravelTime = (double)0.0F;
-//		double distance = (double)0.0F;
-//		double expectedTravelTime;
-//		for(PlanElement leg : legs) {
-//			PrintStream var10000 = System.out;
-//			String var10001 = String.valueOf(leg);
-//			var10000.println(var10001 + " " + ((Leg)leg).getRoute().getDistance());
-//			actualTravelTime += ((Leg)leg).getTravelTime().seconds();
-//			distance += ((Leg)leg).getRoute().getDistance();
-//		}
-//
-//		TransitStopFacility facility = (TransitStopFacility) TransitSchedule.getFacilities().get(Id.create("6", TransitStopFacility.class));
-//		if (facility != null) {
-//			expectedTravelTime = 1740.0 + CoordUtils.calcEuclideanDistance(
-//				facility.getCoord(), toCoord) / raptorParams.getBeelineWalkSpeed();
-//			System.out.println("Travel Time is:" + expectedTravelTime);
-//
-//		} else {
-////			throw new IllegalArgumentException("Facility with ID '6' not found.");
-////		}
-//
 
 
-	//	double expectedTravelTime = (double)1740.0F + CoordUtils.calcEuclideanDistance(((TransitStopFacility).schedule.getFacilities().get(Id.create("6", TransitStopFacility.class))).getCoord(), toCoord) / raptorParams.getBeelineWalkSpeed();
-
-
-//
 //		//Kopie aus RunSwissRailRaptorExample:
 ////					String configFilename = "C:\\Users\\annab\\MatSim for MA\\Output_Cluster\\OBS_Base\\output_OBS_Base\\berlin-v6.3-10pct\\berlin-v6.3.output_config.xml";
 ////					Config config = ConfigUtils.loadConfig(configFilename);
@@ -416,9 +425,6 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 //		}
 
 
-//	private int calculateCarTravelTime(Coord start, Coord end, String time) {
-//		return 99;
-//	}
 
 	private void initializeScenario() {
 		if (this.scenario == null) {
@@ -428,7 +434,10 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 			this.network = scenario.getNetwork();
 			this.TransitSchedule = scenario.getTransitSchedule();
 			this.accConfig = ConfigUtils.addOrGetModule(config, AccessibilityConfigGroup.class );
-			accConfig.setComputingAccessibilityForMode(Modes4Accessibility.freespeed, true);
+//			accConfig.setComputingAccessibilityForMode(Modes4Accessibility.freespeed, true);
+//			accConfig.setTileSize_m(500);
+//		//shp übergeben
+//			accConfig.setShapeFileCellBasedAccessibility();
 		}
 
 	}
@@ -439,7 +448,7 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 //
 //		// Netzwerk und TravelTimeCalculator aus dem Szenario
 //		Network network = scenario.getNetwork();
-		initializeScenario();
+	//	initializeScenario();
 		TravelTimeCalculator travelTimeCalculator = TravelTimeCalculator.create(network, config.travelTimeCalculator());
 		TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
 
