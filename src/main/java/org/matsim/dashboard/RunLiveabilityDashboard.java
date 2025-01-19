@@ -14,6 +14,7 @@ import java.nio.file.Paths;
 
 public class RunLiveabilityDashboard implements MATSimAppCommand {
 
+	// input and output paths can either be provided via the command line or below as an absolute path (beginner friendly)
 	@CommandLine.Option(names = "--inputDirectory", description = "Path to the input directory")
 	private static Path inputDirectory;
 	@CommandLine.Option(names = "--outputDirectory",description = "Path to the output directory")
@@ -21,7 +22,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	@CommandLine.Option(names = "--outputLiveabilityDirectory",description = "Path to the liveability output directory")
 	private static Path outputLiveabilityDirectory;
 
-	// option to insert standard input and output paths for users
+	// option to insert standard input and output (general output and liveability analysis output) paths for users
 	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/input_OBS_Base");
 	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
 	private static final Path DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/analysis/analysis");
@@ -37,7 +38,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		new RunLiveabilityDashboard().execute(args);
 	}
 
-	// call method calling the config, AgentLiveabilityInfo-Class and all the liveability-Dimension-Dashboards
+	// call method calling the config, AgentLiveabilityInfoCollection-Class and all the liveability-Dimension-Dashboards
 	@Override
 	public Integer call() throws Exception {
 
@@ -47,8 +48,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		Config config = ConfigUtils.loadConfig(configPath.toString());
 		SimWrapper sw = SimWrapper.create(config);
 
-
-		//for work on code purposes to activate the two contribs
+		//for work on code purposes to activate the two contribs - temporary
 		//sw.addDashboard(new EmissionsDashboard());
 		//sw.addDashboard(new NoiseDashboard());
 
@@ -56,7 +56,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		//sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
-	//	sw.addDashboard( new AgentBasedSafetyDashboard());
+		//sw.addDashboard( new AgentBasedSafetyDashboard());
 		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
 		sw.addDashboard( new AgentBasedAccessibilityDashboard());
 		sw.addDashboard( new LiveabilitySummaryDashboard());
@@ -67,20 +67,20 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		return 0;
 	}
 
+	// deciding whether path given as absolute path or via command line is used for the input path
 	public static Path getValidInputDirectory() {
-		// Standardpfad verwenden, falls noch nicht gesetzt
 		validInputDirectory = (inputDirectory != null) ? inputDirectory : (DEFAULT_INPUT_DIRECTORY);
 		return validInputDirectory;
 	}
 
+	// deciding whether path given as absolute path or via command line is used for the output path
 	public static Path getValidOutputDirectory() {
-		// Standardpfad verwenden, falls noch nicht gesetzt
 		validOutputDirectory = (outputDirectory != null) ? outputDirectory : (DEFAULT_OUTPUT_DIRECTORY);
 		return validOutputDirectory;
 	}
 
+	// deciding whether path given as absolute path or via command line is used for the analysis output path
 	public static Path getValidLiveabilityOutputDirectory() {
-		// Standardpfad verwenden, falls noch nicht gesetzt
 		validLiveabilityOutputDirectory = (outputLiveabilityDirectory != null) ? outputLiveabilityDirectory : (DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY);
 		return validLiveabilityOutputDirectory;
 	}
