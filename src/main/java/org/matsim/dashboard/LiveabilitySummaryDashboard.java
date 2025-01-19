@@ -1,12 +1,9 @@
 package org.matsim.dashboard;
 
-import org.matsim.analysis.AgentBasedLossTimeAnalysis;
-import org.matsim.analysis.AgentLiveabilityInfo;
 import org.matsim.analysis.LiveabilitySummaryAnalysis;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
-import org.matsim.simwrapper.viz.PieChart;
 import org.matsim.simwrapper.viz.Tile;
 
 public class LiveabilitySummaryDashboard implements Dashboard {

@@ -13,36 +13,24 @@ import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.api.core.v01.Scenario;
-import org.matsim.api.core.v01.TransportMode;
 import org.matsim.application.CommandSpec;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
 import org.matsim.contrib.accessibility.run.RunAccessibilityExample;
-import org.matsim.core.config.Config;
-import org.matsim.core.config.ConfigGroup;
-import org.matsim.core.config.ConfigUtils;
-import org.matsim.core.controler.AbstractModule;
 import org.matsim.core.controler.Controler;
-import org.matsim.core.controler.OutputDirectoryHierarchy;
-import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.utils.geometry.CoordUtils;
 import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.core.utils.gis.GeoFileReader;
 import org.matsim.core.utils.io.IOUtils;
-import org.matsim.facilities.ActivityFacilities;
-import org.matsim.legacy.run.RunBerlinScenario;
 import picocli.CommandLine;
 import org.matsim.contrib.accessibility.*;
-import org.matsim.contrib.accessibility.utils.VisualizationUtils;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
-import static java.lang.Double.NaN;
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidInputDirectory;
 import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 @CommandLine.Command(
@@ -56,7 +44,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 	requireRunDirectory = true,
 	requires = {
 		"berlin-v6.3.output_persons.csv",
-		"relevante_accessPoints.shp",
+		"test_accessPoints.shp",
 		//"berlin_allGreenSpacesLarger1ha.shp"
 	//	"allGreenSpaces_min1ha.shp"
 	},
@@ -77,7 +65,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	// constants for paths
 	private final Path inputPersonsCSVPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv");
 	//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
-	private final Path accessPointShpPath = getValidOutputDirectory().resolve("relevante_accessPoints.shp");
+	private final Path accessPointShpPath = getValidOutputDirectory().resolve("test_accessPoints.shp");
 	private final Path outputPersonsCSVPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_stats_perAgent.csv");
 	private final Path outputGreenSpaceUtilizationPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_utilization.csv");
 	private final Path outputRankingValueCSVPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_RankingValue.csv");
@@ -98,7 +86,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 //		Path outputGreenSpaceUtilizationPath = output.getPath("greenSpace_utilization.csv");
 //		Path outputRankingValueCSVPath = output.getPath("greenSpace_RankingValue.csv");
 
-		AgentLiveabilityInfo agentLiveabilityInfo = new AgentLiveabilityInfo();
+		AgentLiveabilityInfoCollection agentLiveabilityInfoCollection = new AgentLiveabilityInfoCollection();
 
 		Collection<SimpleFeature> accessPointFeatures = GeoFileReader.getAllFeatures(IOUtils.resolveFileOrResource(String.valueOf(accessPointShpPath)));
 
@@ -270,11 +258,11 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 //			agentCSVWriter.writeNext(new String[]{AgentEntry.getKey(), AgentEntry.getValue(), String.valueOf(distancePerAgent.get(AgentEntry.getKey())), String.valueOf(utilizationPerGreenSpace.get(AgentEntry.getValue()))});
 
 
-			agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(distancePerAgent, "MinGreenSpaceEuclideanDistance");
-			agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(utilizationPerAgent, "GreenSpaceUtilization (m²/person)");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(distancePerAgent, "MinGreenSpaceEuclideanDistance");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(utilizationPerAgent, "GreenSpaceUtilization (m²/person)");
 
 		//	agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace", "https://github.com/simwrapper/simwrapper/blob/master/public/images/tile-icons/emoji_transportation.svg");
-			agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace");
+			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace");
 
 		} catch (IOException | CsvValidationException e) {
 			throw new RuntimeException(e);

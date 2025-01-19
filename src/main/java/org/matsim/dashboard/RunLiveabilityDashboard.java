@@ -1,16 +1,11 @@
 package org.matsim.dashboard;
 
-import org.matsim.analysis.AgentBasedLossTimeAnalysis;
-import org.matsim.analysis.AgentLiveabilityInfo;
-import org.matsim.analysis.LiveabilitySummaryAnalysis;
+import org.matsim.analysis.AgentLiveabilityInfoCollection;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.MATSimAppCommand;
-import org.matsim.application.options.OutputOptions;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.simwrapper.*;
-import org.matsim.simwrapper.dashboard.EmissionsDashboard;
-import org.matsim.simwrapper.dashboard.NoiseDashboard;
 import picocli.CommandLine;
 
 import java.io.IOException;
@@ -46,7 +41,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	@Override
 	public Integer call() throws Exception {
 
-		new AgentLiveabilityInfo().execute();
+		new AgentLiveabilityInfoCollection().execute();
 
 		Path configPath = ApplicationUtils.matchInput("config.xml", getValidOutputDirectory());
 		Config config = ConfigUtils.loadConfig(configPath.toString());
@@ -62,7 +57,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 	//	sw.addDashboard( new AgentBasedSafetyDashboard());
-		//sw.addDashboard( new AgentBasedGreenSpaceDashboard());
+		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
 		sw.addDashboard( new AgentBasedAccessibilityDashboard());
 		sw.addDashboard( new LiveabilitySummaryDashboard());
 

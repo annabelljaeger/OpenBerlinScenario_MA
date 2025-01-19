@@ -23,13 +23,8 @@ import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
 import org.matsim.contrib.accessibility.AccessibilityConfigGroup;
-import org.matsim.contrib.accessibility.AccessibilityModule;
-import org.matsim.contrib.accessibility.AccessibilityUtils;
-import org.matsim.contrib.accessibility.Modes4Accessibility;
-import org.matsim.contrib.accessibility.run.RunAccessibilityExample;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
-import org.matsim.core.controler.Controler;
 import org.matsim.core.router.DefaultRoutingRequest;
 import org.matsim.core.router.DijkstraFactory;
 import org.matsim.core.router.LinkWrapperFacilityWithSpecificCoord;
@@ -38,19 +33,12 @@ import org.matsim.core.router.util.LeastCostPathCalculator;
 import org.matsim.core.router.util.TravelDisutility;
 import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.scenario.ScenarioUtils;
-import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
-import org.matsim.core.utils.geometry.CoordUtils;
 import org.matsim.facilities.ActivityFacilities;
 import org.matsim.facilities.ActivityFacility;
-import org.matsim.facilities.FacilitiesUtils;
 import org.matsim.facilities.Facility;
-import org.matsim.modechoice.InformedModeChoiceConfigGroup;
 import org.matsim.pt.router.TransitRouter;
-import org.matsim.pt.routes.TransitPassengerRoute;
-import org.matsim.pt.transitSchedule.api.TransitRoute;
 import org.matsim.pt.transitSchedule.api.TransitSchedule;
-import org.matsim.pt.transitSchedule.api.TransitStopFacility;
 import org.matsim.vehicles.Vehicle;
 import org.matsim.vehicles.Vehicles;
 import picocli.CommandLine;
@@ -58,9 +46,6 @@ import picocli.CommandLine;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.zip.GZIPInputStream;
 
@@ -128,7 +113,7 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 //			throw new RuntimeException(e);
 //		}
 
-		AgentLiveabilityInfo agentLiveabilityInfo = new AgentLiveabilityInfo();
+		AgentLiveabilityInfoCollection agentLiveabilityInfoCollection = new AgentLiveabilityInfoCollection();
 
 		initializeSwissRailRaptor();
 
@@ -148,7 +133,7 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 
 
 			//um zu Testzwecken mit einer begrenzten Anzahl an Trips zu starten:
-			int limit = 6;
+			int limit = 20;
 			int count = 0;
 
 			//read trips input file line by line, extract the content and use for iterations over all trips (instead of other for or while-loop)
@@ -258,6 +243,9 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 						String.format("%.2f", reisezeitvergleich), String.valueOf(tripTravTimeComparisonRankingValue)
 					});
 
+					//Map erforderlich um agentLiveability zu nutzen
+					//agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(reisezeitvergleich, "ptCarTravelTimeComparison");
+
 
 				} else {
 					reisezeitVergleichsWriter.writeNext(new String[]{
@@ -265,6 +253,7 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 					trueEntries++;
 					totalEntries++;
 				}
+
 
 				count++;
 
@@ -301,20 +290,20 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 				ptQualityStatsWriter.writeNext(new String[]{"TravelTimeComparison", String.valueOf(rankingPtQuality)});
 
 //				agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingPtQuality, "PtQuality", "https://github.com/simwrapper/simwrapper/blob/master/public/images/tile-icons/directions_bus.svg");
-				agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingPtQuality, "PtQuality");
+				agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingPtQuality, "PtQuality");
 
 			}
 		}
 
-		try {
-			runAccessibilityContrib();
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
+//		try {
+//			runAccessibilityContrib();
+//		} catch (Exception e) {
+//			throw new RuntimeException(e);
+//		}
 
 		return 0;
 	}
-
+/*
 	public void runAccessibilityContrib() {
 //initialize einmal für alle zu Beginn
 	//	initializeScenario();
@@ -338,7 +327,7 @@ public class AgentBasedAccessibilityAnalysis implements MATSimAppCommand {
 		}
 		controler.run();
 	}
-
+*/
 	private SwissRailRaptor createTransitRouter(TransitSchedule schedule, Config config, Network network) {
 		SwissRailRaptorData data = SwissRailRaptorData.create(schedule, (Vehicles)null, RaptorUtils.createStaticConfig(config), network, (OccupancyData)null);
 		SwissRailRaptor raptor = (new SwissRailRaptor.Builder(data, config)).build();

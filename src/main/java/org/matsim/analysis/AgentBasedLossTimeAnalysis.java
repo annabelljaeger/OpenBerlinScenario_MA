@@ -1,7 +1,5 @@
 package org.matsim.analysis;
 
-import com.opencsv.CSVReader;
-import com.opencsv.CSVWriter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -13,8 +11,6 @@ import org.matsim.application.CommandSpec;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
-import org.matsim.core.config.Config;
-import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.algorithms.NetworkCleaner;
 import org.matsim.core.network.io.MatsimNetworkReader;
@@ -101,7 +97,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 //        Path outputRankingAgentStatsPath = output.getPath("lossTime_stats_perAgent.csv");
 //		Path outputRankingValuePath = output.getPath("lossTime_RankingValue.csv");
 
-		AgentLiveabilityInfo agentLiveabilityInfo = new AgentLiveabilityInfo();
+		AgentLiveabilityInfoCollection agentLiveabilityInfoCollection = new AgentLiveabilityInfoCollection();
 
 //		CSVReader csvReader = new CSVReader(new FileReader(inputLegsCsvFile));
 //
@@ -140,8 +136,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			//defining maps for further csv-Writer tasks
 			Map<String, Long> cumulativeLossTime = new HashMap<>();
 			Map<String, Long> failedRoutingOccurances = new HashMap<>();
-			Map<String, Long> sumTravTimePerAgent = new HashMap<>();
-			Map<String, Long> sumLossTimePerAgent = new HashMap<>();
+			Map<String, Double> sumTravTimePerAgent = new HashMap<>();
+			Map<String, Double> sumLossTimePerAgent = new HashMap<>();
 			Map<String, Set<String>> modePerPerson = new HashMap<>();
 
 			// defining column-headers (; as separator) for the new legsLossTime_csv
@@ -153,16 +149,16 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 //				// parse entries and split in the value-cells (legs.csv is separated by ;)
 //				String[] values = line.split(";");
 
-//			int limit = 600;
-//			int count = 0;
+	//		int limit = 600;
+	//		int count = 0;
 
 			for (CSVRecord legRecord : legsParser) {
-		//		legsParser.stream().limit(500).forEach(leg -> {
+				legsParser.stream().limit(500).forEach(leg -> {
 
 
-//				if (count >= limit) {
-//					break;
-//				}
+	//			if (count >= limit) {
+	//				break;
+	//			}
 
 
 //				// collection of values from existing legs.csv to take over to the new legsLossTime.csv
@@ -201,7 +197,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 						travTimeString = "PT" + timeParts[0] + "H" + timeParts[1] + "M" + timeParts[2] + "S";
 					} else {
 						System.out.println("Ungültiges Zeitformat: " + travTimeString);
-						continue;
+				//		continue;
 					}
 					Duration travTime = Duration.parse(travTimeString);
 					long hours = travTime.toHours();
@@ -258,8 +254,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					}
 
 					// calculate sum of travel time and of loss time per agent. overall loss time sum and mode per person info
-					sumLossTimePerAgent.put(person, sumLossTimePerAgent.getOrDefault(person, 0L) + lossTimeInSeconds);
-					sumTravTimePerAgent.put(person, sumTravTimePerAgent.getOrDefault((Object) person, 0L) + travTimeInSeconds);
+					sumLossTimePerAgent.put(person, sumLossTimePerAgent.getOrDefault(person, 0.0) + lossTimeInSeconds);
+					sumTravTimePerAgent.put(person, sumTravTimePerAgent.getOrDefault((Object) person, 0.0) + travTimeInSeconds);
 					modePerPerson.computeIfAbsent(person, k -> new HashSet<>()).add(mode);
 
 					if (lossTimeInSeconds != 0L) {
@@ -278,9 +274,9 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 						throw new RuntimeException(e);
 					}
 
-//					count++;
+		//			count++;
 
-			//	});
+				});
 			}
 
 					//HIER WEITER MIT CODE-ÜBERARBEITUNG UND KOMMENTIERUNG
@@ -304,8 +300,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 
 					for (String person : sumLossTimePerAgent.keySet()) {
-						double lossTimePerAgent = sumLossTimePerAgent.getOrDefault((Object) person, 0L);
-						double travTimePerAgent = sumTravTimePerAgent.getOrDefault((Object) person, 0L);
+						double lossTimePerAgent = sumLossTimePerAgent.getOrDefault((Object) person, 0.0);
+						double travTimePerAgent = sumTravTimePerAgent.getOrDefault((Object) person, 0.0);
 						double percentageLossTime = lossTimePerAgent / travTimePerAgent;
 						//	String modeUsed = modePerPerson.getOrDefault((Object) person, "");
 						String modeUsed = String.join(",", modePerPerson.getOrDefault(person, Set.of()));
@@ -316,8 +312,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 						agentBasedBw.write(String.format("%s;%f;%f;%f;%s;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus, modeUsed));
 					}
 
-					agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
-					agentLiveabilityInfo.extendAgentLiveabilityInfoCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
+					agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
+					agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
 
 
 				}
@@ -380,7 +376,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 						System.out.println("LossTimeRanking: " + formattedRankingLossTime);
 
 //						agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingLossTime, "LossTime", "https://github.com/simwrapper/simwrapper/blob/master/public/images/tile-icons/route.svg");
-						agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingLossTime, "LossTime");
+						agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingLossTime, "LossTime");
 
 
 					} catch (IOException e) {

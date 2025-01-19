@@ -57,8 +57,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	private final Map<String, Double> liveabilityMetrics = new LinkedHashMap<>();
 //	private final Map<String, String> bestPolicies = new LinkedHashMap<>();
 
+
 	public static void main(String[] args) {
-		System.out.println("ich bin hier: Liveability Summary Analysis");
 		new LiveabilitySummaryAnalysis().execute(args);
 	}
 
@@ -77,6 +77,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		try (CSVReader summaryTileReader = new CSVReader(new FileReader(inputSummaryTilesPath.toFile()));
 			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(outputOverallRankingPath.toFile()))) {
 
+			//HIER ICONS ALS OPTIONALE ERGÄNZUNG EINBAUEN UND DIREKT ÜBER NAMEN DER RANKINGKATEGORIEN SUCHEN UND EINFÜGEN
 			String[] nextLine;
 			while ((nextLine = summaryTileReader.readNext()) != null) {
 
