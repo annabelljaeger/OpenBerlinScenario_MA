@@ -28,6 +28,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 )
 
 @CommandSpec(
+//	group="liveability",
 	produces = {
 		"agentLiveabilityInfo.csv",
 		"summaryTiles.csv",
@@ -35,6 +36,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 	}
 )
 
+// utility class to generate csv-Files and write methods to extend those generated files for each dimension-analysis class
 public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 	// defining constants for paths
@@ -74,11 +76,13 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			 CSVParser personsParser = new CSVParser(personsReader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withDelimiter(';'));
 			 CSVWriter agentLiveabilityWriter = new CSVWriter(new FileWriter(outputAgentLiveabilityCSVPath.toFile()))) {
 
-					 agentLiveabilityWriter.writeNext(new String[]{"person"});
+					 agentLiveabilityWriter.writeNext(new String[]{"person", "home_x", "home_y"});
 
 					 for (CSVRecord record : personsParser) {
 						 String person = record.get("person");
-						 agentLiveabilityWriter.writeNext(new String[]{person});
+						 String homeX = record.get("home_x");
+						 String homeY = record.get("home_y");
+						 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
 					 }
 			}
 		System.out.println("Liveability-CSV generated under: " + outputAgentLiveabilityCSVPath);
@@ -192,7 +196,14 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		try (CSVReader indicatorReader = new CSVReader(new FileReader(outputIndicatorValuesCsvPath.toFile()));
 			 CSVWriter indicatorWriter = new CSVWriter(new FileWriter(tempIndicatorValuesCsvPath.toFile()))) {
 
-			while ((indicatorReader.readNext()) != null) {
+//			String[] header = indicatorReader.readNext();
+//			if (header == null) {
+//				indicatorWriter.writeNext(header);
+//			}
+
+			String[] line;
+			while ((line = indicatorReader.readNext()) != null) {
+				indicatorWriter.writeNext(line);
 				indicatorWriter.writeNext(new String[]{dimension, indicator, medianValue, limit, RankingValue, String.valueOf(weightOfIndicator)});
 			}
 

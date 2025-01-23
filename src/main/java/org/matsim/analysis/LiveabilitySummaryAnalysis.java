@@ -30,18 +30,14 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 
 @CommandSpec(
 	requireRunDirectory = true,
-//	requires = {
-//		"summaryTiles.csv"
-//	},
+//	group="liveability",
 	produces = {
-//		"summaryTiles_multiPolicy.csv",
-//		"liveability_details.csv",
-//		"summaryTestValue.csv",
-//		"test_stats_perAgent.csv",
-		"overallRankingTile.csv"
+		"overallRankingTile.csv",
+		"overviewIndicatorTable.csv"
 	}
 )
 
+// overall liveability ranking analysis class to calculate the overall ranking and generating the indicator overview table for the Overall Dashboard page
 public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 //	private final Logger log = LogManager.getLogger(LiveabilitySummaryAnalysis.class);
@@ -52,11 +48,14 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(LiveabilitySummaryAnalysis.class);
 
 	private final Path inputSummaryTilesPath = ApplicationUtils.matchInput("summaryTiles.csv", getValidLiveabilityOutputDirectory());
+	private final Path outputOverallRankingPath = getValidLiveabilityOutputDirectory().resolve("overallRankingTile.csv");
 
+	private final Path inputIndicatorValuesPath = ApplicationUtils.matchInput("rankingIndicatorValues.csv", getValidLiveabilityOutputDirectory());
+	//private final Path outputIndicatorValuesForDashboardPath = ApplicationUtils.matchInput("overviewIndicatorTable.csv", getValidLiveabilityOutputDirectory());
+
+	private final Path outputIndicatorValuesForDashboardPath = getValidLiveabilityOutputDirectory().resolve("overviewIndicatorTable.csv");
 
 	private final Map<String, Double> liveabilityMetrics = new LinkedHashMap<>();
-//	private final Map<String, String> bestPolicies = new LinkedHashMap<>();
-
 
 	public static void main(String[] args) {
 		new LiveabilitySummaryAnalysis().execute(args);
@@ -67,10 +66,6 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 	//	log.info("Starting LiveabilitySummaryAnalysis...");
 		System.out.println("Starting LiveabilitySummaryAnalysis...");
-
-		Path outputOverallRankingPath = output.getPath("overallRankingTile.csv");
-	//	Path inputSummaryTilesPath = output.getPath("analysis/analysis/summaryTiles.csv");
-	//	System.out.println(Paths.get(inputSummaryTilesPath.toUri()).toAbsolutePath());
 
 		Map<String, Double> RankingValueMap = new LinkedHashMap<>();
 
@@ -99,26 +94,43 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 			}
 
 			double overallRankingValue = RankingValueMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
-		//	double overallRankingValue = 2.0;
 			String formattedOverallRankingValue = String.format(Locale.US, "%.2f%%", overallRankingValue);
 
-		//	overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
-			//Test WErt damit csv erstellt wird
+		    // overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
 			overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
 
 			System.out.println("Der Gesamt-Rankingwert lautet " + formattedOverallRankingValue);
 
-	} catch(
-	IOException e)
+		} catch(
+		IOException e)
 
-	{
-		e.printStackTrace();
+		{
+			e.printStackTrace();
+		}
+
+
+		try (CSVReader rankingIndicatorReader = new CSVReader(new FileReader(inputIndicatorValuesPath.toFile()));
+		CSVWriter overviewIndicatorValuesWriter = new CSVWriter(new FileWriter(outputIndicatorValuesForDashboardPath.toFile()))) {
+
+			String[] nextLine;
+			while ((nextLine = rankingIndicatorReader.readNext()) != null) {
+
+				overviewIndicatorValuesWriter.writeNext(nextLine);
+
+			}
+
+			System.out.println("The table has been successfully copied " + outputIndicatorValuesForDashboardPath.toFile());
+		} catch(
+		IOException e)
+
+		{
+			e.printStackTrace();
+		}
+
+		//	log.info("LiveabilitySummaryAnalysis completed successfully.");
+		return 0;
 	}
 
-	//	log.info("LiveabilitySummaryAnalysis completed successfully.");
-
-		return 0;
-}
 
 	public static double convertPercentageToDouble(String percentageString) {
 		// Entferne das Prozentzeichen und parse den numerischen Teil
@@ -126,26 +138,6 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		return Double.parseDouble(numericPart);
 	}
 }
-
-	/*
-	//Mehrere Policys in einem Dashboard erstmal ausgeblendet - hat mehrere Schwierigkeiten, beginnend bei den verfügbaren Outputs
-	private void writeSummaryFileMultiPolicy() {
-		Path outputPath2 = output.getPath("summaryTiles_multiPolicy.csv");
-
-		try (CSVPrinter printer = new CSVPrinter(IOUtils.getBufferedWriter(outputPath2.toString()), CSVFormat.DEFAULT)) {
-			printer.printRecord("Category", "Percentage", "Best Policy");
-
-			for (Map.Entry<String, Double> entry : liveabilityMetrics.entrySet()) {
-				String policy = bestPolicies.getOrDefault(entry.getKey(), "N/A");
-				printer.printRecord(entry.getKey(), formatPercentage(entry.getValue()), policy);
-			}
-
-			log.info("Summary file written to {}", outputPath2);
-		} catch (IOException e) {
-			log.error("Error writing summary file: {}", e.getMessage());
-		}
-	}
-	*/
 
 /*
 //eventuell die Ranking Berechnung auslagern? Dann Code schlanker und Berechnung nur einmal, nicht in jeder Dimensions-Analysis-Klasse

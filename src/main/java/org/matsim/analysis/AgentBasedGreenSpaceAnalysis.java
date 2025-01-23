@@ -42,6 +42,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 
 @CommandSpec(
 	requireRunDirectory = true,
+//	group="liveability",
 	requires = {
 		"berlin-v6.3.output_persons.csv",
 		"test_accessPoints.shp",

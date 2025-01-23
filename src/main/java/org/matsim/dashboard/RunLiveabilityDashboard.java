@@ -2,16 +2,22 @@ package org.matsim.dashboard;
 
 import org.matsim.analysis.AgentLiveabilityInfoCollection;
 import org.matsim.application.ApplicationUtils;
+import org.matsim.application.CommandSpec;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.simwrapper.*;
+import org.matsim.simwrapper.dashboard.EmissionsDashboard;
 import picocli.CommandLine;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
+@CommandSpec(
+	group="liveability"
+
+)
 public class RunLiveabilityDashboard implements MATSimAppCommand {
 
 	// input and output paths can either be provided via the command line or below as an absolute path (beginner friendly)
@@ -31,6 +37,13 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	public static Path validInputDirectory;
 	public static Path validOutputDirectory;
 	public static Path validLiveabilityOutputDirectory;
+
+	// NUR FÜR EMISSIONS CONTRIB - KLAPPT NOCH NICHT MIT ECONFIG
+//	private static final String HBEFA_2020_PATH = "https://svn.vsp.tu-berlin.de/repos/public-svn/3507bb3997e5657ab9da76dbedbb13c9b5991d3e/0e73947443d68f95202b71a156b337f7f71604ae/";
+//	private static final String HBEFA_FILE_COLD_DETAILED = HBEFA_2020_PATH + "82t7b02rc0rji2kmsahfwp933u2rfjlkhfpi2u9r20.enc";
+//	private static final String HBEFA_FILE_WARM_DETAILED = HBEFA_2020_PATH + "944637571c833ddcf1d0dfcccb59838509f397e6.enc";
+//	private static final String HBEFA_FILE_COLD_AVERAGE = HBEFA_2020_PATH + "r9230ru2n209r30u2fn0c9rn20n2rujkhkjhoewt84202.enc" ;
+//	private static final String HBEFA_FILE_WARM_AVERAGE = HBEFA_2020_PATH + "7eff8f308633df1b8ac4d06d05180dd0c5fdf577.enc";
 
 
 	// main method to run this class with the given input via the CommandLine or the given Paths
@@ -53,12 +66,12 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		//sw.addDashboard(new NoiseDashboard());
 
 		// calling the seperate liveability-dimension dashboards and thereby activating them
-		//sw.addDashboard( new AgentBasedLossTimeDashboard());
+		sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 		//sw.addDashboard( new AgentBasedSafetyDashboard());
-		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
-		sw.addDashboard( new AgentBasedAccessibilityDashboard());
+	//	sw.addDashboard( new AgentBasedGreenSpaceDashboard());
+		//sw.addDashboard( new AgentBasedAccessibilityDashboard());
 		sw.addDashboard( new LiveabilitySummaryDashboard());
 
 		sw.generate(getValidOutputDirectory());
