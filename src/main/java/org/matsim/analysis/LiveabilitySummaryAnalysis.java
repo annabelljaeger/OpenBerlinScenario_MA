@@ -30,7 +30,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 
 @CommandSpec(
 	requireRunDirectory = true,
-//	group="liveability",
+	group="liveability",
 	produces = {
 		"overallRankingTile.csv",
 		"overviewIndicatorTable.csv"
@@ -48,6 +48,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(LiveabilitySummaryAnalysis.class);
 
 	private final Path inputSummaryTilesPath = ApplicationUtils.matchInput("summaryTiles.csv", getValidLiveabilityOutputDirectory());
+	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 	private final Path outputOverallRankingPath = getValidLiveabilityOutputDirectory().resolve("overallRankingTile.csv");
 
 	private final Path inputIndicatorValuesPath = ApplicationUtils.matchInput("rankingIndicatorValues.csv", getValidLiveabilityOutputDirectory());
@@ -67,46 +68,126 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	//	log.info("Starting LiveabilitySummaryAnalysis...");
 		System.out.println("Starting LiveabilitySummaryAnalysis...");
 
-		Map<String, Double> RankingValueMap = new LinkedHashMap<>();
+		Map<String, Double> overallRankingValuePerAgent = new LinkedHashMap<>();
 
-		try (CSVReader summaryTileReader = new CSVReader(new FileReader(inputSummaryTilesPath.toFile()));
+
+		try (CSVReader agentLiveabilityInfoReader = new CSVReader(new FileReader(inputAgentLiveabilityInfoPath.toFile()));
 			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(outputOverallRankingPath.toFile()))) {
 
-			//HIER ICONS ALS OPTIONALE ERGÄNZUNG EINBAUEN UND DIREKT ÜBER NAMEN DER RANKINGKATEGORIEN SUCHEN UND EINFÜGEN
-			String[] nextLine;
-			while ((nextLine = summaryTileReader.readNext()) != null) {
+			String[] header = agentLiveabilityInfoReader.readNext();
+			if (header == null) {throw new IOException("The csv file is empty.");}
 
-				if (nextLine.length < 2) {
-					System.err.println("Zeile hat nicht genügend Spalten: " + String.join(", ", nextLine));
-					continue; // Überspringe diese Zeile
-				}
-
-				String key = nextLine[0];
-				try {
-					double value = convertPercentageToDouble(nextLine[1]);
-
-				//	double value = Double.parseDouble(nextLine[1]);
-					RankingValueMap.put(key, value);
-					System.out.println("eingelesener Wert" + RankingValueMap.get(key));
-				} catch (NumberFormatException e) {
-					System.err.println("Could not parse " + nextLine[1] + " as double");
+			List<Integer> rankingValueColumnIndices = new ArrayList<>();
+			for (int i = 0; i < header.length; i++) {
+				if (header[i].startsWith("rankingValue_")){
+					rankingValueColumnIndices.add(i);
 				}
 			}
 
-			double overallRankingValue = RankingValueMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+			if (rankingValueColumnIndices.isEmpty()) {
+				throw new IllegalArgumentException("Keine Spalten mit 'rankingValue_' im Header gefunden.");
+			}
+
+			int totalRows = 0;
+			int matchingRows = 0;
+
+			String[] nextLine;
+			while ((nextLine = agentLiveabilityInfoReader.readNext()) != null) {
+
+				boolean allValuesValid = true;
+				boolean validAgent = true;
+				double highestRankingValue = -Double.MIN_VALUE;
+
+				// find out whether an agent has a valid ranking value for all indices
+				for(int columnIndex : rankingValueColumnIndices) {
+					String cellValue = nextLine[columnIndex]; // Der Wert der aktuellen Spalte
+					if (cellValue == null || cellValue.trim().isEmpty()) {
+						validAgent = false;
+						break;
+					}
+					double doubleValue = Double.parseDouble(cellValue);
+					if (doubleValue > highestRankingValue){
+						highestRankingValue = doubleValue;
+					}
+				}
+
+				if (!validAgent) {
+					continue;
+				}
+
+				overallRankingValuePerAgent.put(nextLine[0], highestRankingValue);
+
+
+				// Prüfe, ob alle Werte in den "rankingValue_"-Spalten kleiner oder gleich 0 sind
+				totalRows++;
+
+				if (highestRankingValue <= 0.0) {
+					matchingRows++;
+				}
+			}
+
+			// Berechne den Anteil
+			double overallRankingValue = (double) matchingRows / totalRows * 100;
+
+			//			double overallRankingValue = RankingValueMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
 			String formattedOverallRankingValue = String.format(Locale.US, "%.2f%%", overallRankingValue);
 
-		    // overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
 			overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
 
-			System.out.println("Der Gesamt-Rankingwert lautet " + formattedOverallRankingValue);
-
-		} catch(
-		IOException e)
-
-		{
-			e.printStackTrace();
 		}
+
+//		    // overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
+//			overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
+//
+//			System.out.println("Der Gesamt-Rankingwert lautet " + formattedOverallRankingValue);
+//
+//		} catch(
+//		IOException e)
+//
+//		{
+//			e.printStackTrace();
+//		}
+
+
+		//VORGÄNGERVERSION MIT BERECHNUNG DES OVERALL RANKINGS AUS DEN SUMMARY TILES DER DIMENSIONEN - AKTUALISIERT AUF BERECHNUNG AUS AGENTEN-GESAMTÜBERSICHT
+//		try (CSVReader summaryTileReader = new CSVReader(new FileReader(inputSummaryTilesPath.toFile()));
+//			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(outputOverallRankingPath.toFile()))) {
+//
+//			//HIER ICONS ALS OPTIONALE ERGÄNZUNG EINBAUEN UND DIREKT ÜBER NAMEN DER RANKINGKATEGORIEN SUCHEN UND EINFÜGEN
+//			String[] nextLine;
+//			while ((nextLine = summaryTileReader.readNext()) != null) {
+//
+//				if (nextLine.length < 2) {
+//					System.err.println("Zeile hat nicht genügend Spalten: " + String.join(", ", nextLine));
+//					continue; // Überspringe diese Zeile
+//				}
+//
+//				String key = nextLine[0];
+//				try {
+//					double value = convertPercentageToDouble(nextLine[1]);
+//
+//				//	double value = Double.parseDouble(nextLine[1]);
+//					RankingValueMap.put(key, value);
+//					System.out.println("eingelesener Wert" + RankingValueMap.get(key));
+//				} catch (NumberFormatException e) {
+//					System.err.println("Could not parse " + nextLine[1] + " as double");
+//				}
+//			}
+//
+//			double overallRankingValue = RankingValueMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
+//			String formattedOverallRankingValue = String.format(Locale.US, "%.2f%%", overallRankingValue);
+//
+//		    // overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
+//			overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
+//
+//			System.out.println("Der Gesamt-Rankingwert lautet " + formattedOverallRankingValue);
+//
+//		} catch(
+//		IOException e)
+//
+//		{
+//			e.printStackTrace();
+//		}
 
 
 		try (CSVReader rankingIndicatorReader = new CSVReader(new FileReader(inputIndicatorValuesPath.toFile()));

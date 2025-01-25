@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
 import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 @CommandLine.Command(
@@ -42,7 +43,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 
 @CommandSpec(
 	requireRunDirectory = true,
-//	group="liveability",
+	group="liveability",
 	requires = {
 		"berlin-v6.3.output_persons.csv",
 		"test_accessPoints.shp",
@@ -63,13 +64,17 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	@CommandLine.Mixin
 	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedGreenSpaceAnalysis.class);
 
+	// defining the limits
+	private final double limitEuclideanDistanceToGreenSpace = 500;
+	private final double limitGreenSpaceUtilization = 6;
+
 	// constants for paths
 	private final Path inputPersonsCSVPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv");
 	//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
 	private final Path accessPointShpPath = getValidOutputDirectory().resolve("test_accessPoints.shp");
-	private final Path outputPersonsCSVPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_stats_perAgent.csv");
-	private final Path outputGreenSpaceUtilizationPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_utilization.csv");
-	private final Path outputRankingValueCSVPath = getValidOutputDirectory().resolve("analysis/analysis/greenSpace_RankingValue.csv");
+	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
+	private final Path outputGreenSpaceUtilizationPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_utilization.csv");
+	private final Path outputRankingValueCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_RankingValue.csv");
 
 
 	public static void main(String[] args) {
@@ -110,6 +115,11 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			Map<String, Double> utilizationPerGreenSpace = new HashMap<>();
 			Map<String, Double> areaPerGreenSpace = new HashMap<>();
 			Map<String, Integer> nrOfPeoplePerGreenSpace = new HashMap<>();
+			Map<String, Double> limitDistanceToGreenSpace = new HashMap<>();
+			Map<String, Double> limitUtilizationOfGreenSpace = new HashMap<>();
+			Map<String, Double> greenSpaceUtilizationRankingValue = new HashMap<>();
+			Map<String, Double> distanceToGreenSpaceRankingValue = new HashMap<>();
+
 
 			for (SimpleFeature simpleFeature : accessPointFeatures) {
 				String osmId = (String) simpleFeature.getAttribute("osm_id");
@@ -165,6 +175,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 									distancePerAgent.put(id, shortestDistance);
 									closestGeometryName = (String) simpleFeature.getAttribute("osm_id");
 									greenSpaceIdPerAgent.put(id, closestGeometryName);
+									distanceToGreenSpaceRankingValue.put(id, (shortestDistance-limitEuclideanDistanceToGreenSpace)/limitEuclideanDistanceToGreenSpace);
 								}
 
 							} else {
@@ -177,6 +188,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 						Double meanDistance = (greenSpaceUtilization.get(closestGeometryName).get(1)*(nrOfPeople-1)+shortestDistance)/(nrOfPeople);
 
 						greenSpaceUtilization.put(closestGeometryName, Arrays.asList(nrOfPeople,meanDistance));
+
+
 
 						// Schreibe Ergebnisse in die Output-CSV
 					//	agentCSVWriter.writeNext(new String[]{id, closestGeometryName, String.valueOf(shortestDistance), String.valueOf(utilization)});
@@ -205,15 +218,26 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				greenSpaceUtilizationWriter.writeNext(new String[]{id, countAgentUtilization, meanDistance, utilization});
 			}
 
+			//perspektivisch so - dafür aber csv Parser mit personen IDS
+			//limitDistanceToGreenSpace.put(Arrays.toString(personRecord), limitEuclideanDistanceToGreenSpace);
+			//limitUtilizationOfGreenSpace.put(Arrays.toString(personRecord), limitGreenSpaceUtilization);
+
 			// Schreibe Ergebnisse pro Agent in die Output-CSV
 			for (Map.Entry<String, String> AgentEntry : greenSpaceIdPerAgent.entrySet()) {
 				agentCSVWriter.writeNext(new String[]{AgentEntry.getKey(), AgentEntry.getValue(), String.valueOf(distancePerAgent.get(AgentEntry.getKey())), String.valueOf(utilizationPerGreenSpace.get(AgentEntry.getValue()))});
 
 			}
 
+
+
+
 			Map<String, Double> utilizationPerAgent = new HashMap<>();
 			for (String Key : greenSpaceIdPerAgent.keySet()) {
 				utilizationPerAgent.put(Key, utilizationPerGreenSpace.get(greenSpaceIdPerAgent.get(Key)));
+			}
+
+			for (String Key : greenSpaceIdPerAgent.keySet()) {
+				greenSpaceUtilizationRankingValue.put(Key, (limitGreenSpaceUtilization-utilizationPerAgent.get(Key))/limitGreenSpaceUtilization);
 			}
 
 			Map<String, Boolean> greenSpaceRankingValuePerAgent = new HashMap<>();
@@ -259,8 +283,20 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 //			agentCSVWriter.writeNext(new String[]{AgentEntry.getKey(), AgentEntry.getValue(), String.valueOf(distancePerAgent.get(AgentEntry.getKey())), String.valueOf(utilizationPerGreenSpace.get(AgentEntry.getValue()))});
 
 
+			for (String Key : greenSpaceIdPerAgent.keySet()) {
+				limitUtilizationOfGreenSpace.put(Key, limitGreenSpaceUtilization);
+			}
+			for (String Key : greenSpaceIdPerAgent.keySet()) {
+				limitDistanceToGreenSpace.put(Key, limitEuclideanDistanceToGreenSpace);
+			}
+
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(distancePerAgent, "MinGreenSpaceEuclideanDistance");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(limitDistanceToGreenSpace, "limit_EuclideanDistanceToNearestGreenSpace");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(distanceToGreenSpaceRankingValue, "rankingValue_DistanceToGreenSpace");
+
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(utilizationPerAgent, "GreenSpaceUtilization (m²/person)");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(limitUtilizationOfGreenSpace, "limit_SpacePerAgentAtNearestGreenSpace");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(greenSpaceUtilizationRankingValue, "rankingValue_GreenSpaceUtilization");
 
 		//	agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace", "https://github.com/simwrapper/simwrapper/blob/master/public/images/tile-icons/emoji_transportation.svg");
 			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace");
@@ -291,4 +327,3 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		controler.run();
 	}
 }
-

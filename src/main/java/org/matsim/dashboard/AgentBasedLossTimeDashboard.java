@@ -23,11 +23,12 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.*;
 
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
 import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 public class AgentBasedLossTimeDashboard implements Dashboard {
 
-	public double priority(){return -3;}
+	public double priority(){return -2;}
 
 	public void configure(Header header, Layout layout) {
 
@@ -88,9 +89,12 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 				// Dataset hinzufügen
 				//Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
 
+
+				//ACHTUNG: AUFRUF KANN HIER NICHT KLAPPEN WEIL DATEI ZU DEM ZEITPUNKT NOCH NICHT VORHANDEN!! BERECHNUNG IN ANALYSKLASSE AUSLAGERN!!
+
 				// Dateipfad aus dem Dataset abrufen
 			//	String csvFilePath = "C:\\Users\\annab\\MatSim for MA\\Output_Cluster\\OBS_Base\\output_OBS_Base\\berlin-v6.3-10pct\\analysis\\analysis\\lossTime_stats_perAgent.csv";
-				String csvFilePath = String.valueOf(getValidOutputDirectory().resolve("analysis\\analysis\\lossTime_stats_perAgent.csv"));
+				String csvFilePath = String.valueOf(getValidLiveabilityOutputDirectory().resolve("lossTime_stats_perAgent.csv"));
 
 				// Layout definieren
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()

@@ -12,7 +12,7 @@ import org.matsim.simwrapper.viz.Tile;
 
 public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
-	public double priority(){return -4;}
+	public double priority(){return -3;}
 
 	@Override
 	public void configure(Header header, Layout layout) {

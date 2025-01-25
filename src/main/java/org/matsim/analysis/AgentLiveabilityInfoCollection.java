@@ -28,7 +28,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 )
 
 @CommandSpec(
-//	group="liveability",
+	group="liveability",
 	produces = {
 		"agentLiveabilityInfo.csv",
 		"summaryTiles.csv",
@@ -82,7 +82,14 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 						 String person = record.get("person");
 						 String homeX = record.get("home_x");
 						 String homeY = record.get("home_y");
-						 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
+
+						 // not universally transferable for other regions yet!
+						 String pointInBerlin = record.get("RegioStaR7");
+
+						 // the Liveability-Ranking is only useful for a defined study area, which in this case is the boarder of Berlin. In this case, this includes all points in the RegioStaR7 = 1 area.
+						 if ("1".equals(pointInBerlin)) {
+							 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
+						 }
 					 }
 			}
 		System.out.println("Liveability-CSV generated under: " + outputAgentLiveabilityCSVPath);

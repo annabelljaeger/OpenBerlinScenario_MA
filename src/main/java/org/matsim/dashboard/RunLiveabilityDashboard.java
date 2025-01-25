@@ -11,13 +11,14 @@ import org.matsim.simwrapper.dashboard.EmissionsDashboard;
 import picocli.CommandLine;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @CommandSpec(
 	group="liveability"
-
 )
+
 public class RunLiveabilityDashboard implements MATSimAppCommand {
 
 	// input and output paths can either be provided via the command line or below as an absolute path (beginner friendly)
@@ -25,13 +26,13 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	private static Path inputDirectory;
 	@CommandLine.Option(names = "--outputDirectory",description = "Path to the output directory")
 	private static Path outputDirectory;
-	@CommandLine.Option(names = "--outputLiveabilityDirectory",description = "Path to the liveability output directory")
-	private static Path outputLiveabilityDirectory;
+//	@CommandLine.Option(names = "--outputLiveabilityDirectory",description = "Path to the liveability output directory")
+//	private static Path outputLiveabilityDirectory;
 
 	// option to insert standard input and output (general output and liveability analysis output) paths for users
 	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/input_OBS_Base");
 	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
-	private static final Path DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/analysis/analysis");
+//	private static final Path DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/analysis/liveability");
 
 	// public static attributes - necessary to save the valid input and output directory paths
 	public static Path validInputDirectory;
@@ -49,11 +50,14 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	// main method to run this class with the given input via the CommandLine or the given Paths
 	public static void main(String[] args) throws IOException {
 		new RunLiveabilityDashboard().execute(args);
+
 	}
 
 	// call method calling the config, AgentLiveabilityInfoCollection-Class and all the liveability-Dimension-Dashboards
 	@Override
 	public Integer call() throws Exception {
+
+		createLiveabilityDirectory();
 
 		new AgentLiveabilityInfoCollection().execute();
 
@@ -80,6 +84,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		return 0;
 	}
 
+
 	// deciding whether path given as absolute path or via command line is used for the input path
 	public static Path getValidInputDirectory() {
 		validInputDirectory = (inputDirectory != null) ? inputDirectory : (DEFAULT_INPUT_DIRECTORY);
@@ -94,7 +99,25 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 
 	// deciding whether path given as absolute path or via command line is used for the analysis output path
 	public static Path getValidLiveabilityOutputDirectory() {
-		validLiveabilityOutputDirectory = (outputLiveabilityDirectory != null) ? outputLiveabilityDirectory : (DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY);
-		return validLiveabilityOutputDirectory;
+		if (validLiveabilityOutputDirectory == null) {
+			String groupName = RunLiveabilityDashboard.class.getAnnotation(CommandSpec.class).group();
+			validLiveabilityOutputDirectory = getValidOutputDirectory().resolve("analysis/"+groupName);
+		}
+	return validLiveabilityOutputDirectory;
 	}
+
+	public static void createLiveabilityDirectory() throws IOException {
+		Path baseOutputDirectory = getValidOutputDirectory();
+		String groupName = RunLiveabilityDashboard.class.getAnnotation(CommandSpec.class).group();
+		validLiveabilityOutputDirectory = baseOutputDirectory.resolve("analysis/" + groupName);
+		if (!Files.exists(validLiveabilityOutputDirectory)) {
+			Files.createDirectories(validLiveabilityOutputDirectory);
+		}
+	}
+
+		//vorherige getValidLiveability... Methode
+//	public static Path getValidLiveabilityOutputDirectory() {
+//		validLiveabilityOutputDirectory = (outputLiveabilityDirectory != null) ? outputLiveabilityDirectory : (DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY);
+//		return validLiveabilityOutputDirectory;
+//	}
 }
