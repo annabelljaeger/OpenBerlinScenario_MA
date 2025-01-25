@@ -17,7 +17,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOu
 
 public class LiveabilitySummaryDashboard implements Dashboard {
 
-	public double priority() {return 1;}
+	public double priority() {return 2;}
 
 	private static final String RANKING = "ranking";
 	private final Path xytMapInputPath = ApplicationUtils.matchInput("agentRankingForMap.xyt.csv", getValidLiveabilityOutputDirectory());
@@ -40,9 +40,9 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 				viz.title = "Ranking results map";
 				viz.description = "Here you can see the agents according to their liveability ranking depicted on their home location";
 				viz.height = 10.0;
-				viz.file = String.valueOf(xytMapInputPath);
-			//	viz.file = "analysis/liveability/agentRankingForMap.xyt.csv";
-				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP GGF: AUCH
+				viz.file = data.compute(LiveabilitySummaryAnalysis.class, "agentRankingForMap.xyt.csv");
+
+				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH
 			});
 
 		layout.row("Overall Ranking")

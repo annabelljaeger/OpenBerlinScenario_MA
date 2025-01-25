@@ -74,7 +74,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 		//sw.addDashboard( new AgentBasedSafetyDashboard());
-	//	sw.addDashboard( new AgentBasedGreenSpaceDashboard());
+		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
 		//sw.addDashboard( new AgentBasedAccessibilityDashboard());
 		sw.addDashboard( new LiveabilitySummaryDashboard());
 

@@ -3,16 +3,18 @@ package org.matsim.dashboard;
 import org.matsim.analysis.AgentBasedGreenSpaceAnalysis;
 import org.matsim.analysis.AgentBasedGreenSpaceAnalysisTest;
 import org.matsim.analysis.AgentBasedLossTimeAnalysis;
+import org.matsim.analysis.LiveabilitySummaryAnalysis;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
 import org.matsim.simwrapper.viz.Bar;
 import org.matsim.simwrapper.viz.TextBlock;
 import org.matsim.simwrapper.viz.Tile;
+import org.matsim.simwrapper.viz.XYTime;
 
 public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
-	public double priority(){return -3;}
+	public double priority(){return -1;}
 
 	@Override
 	public void configure(Header header, Layout layout) {
@@ -21,6 +23,17 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 		header.description = "A key indicator of spatial justice is the availability and accessibility of " +
 			"relaxing green spaces for relaxation and stress relief. Therefore the walking distance to the nearest " +
 			"green space as well as the amount of green space in this nearest area per Person is analysed.";
+
+		layout.row("GreenSpace Ranking Map")
+			.el(XYTime.class, (viz, data) -> {
+				viz.title = "GreenSpace ranking results map";
+				viz.description = "Here you can see the agents according to their green space ranking depicted on their home location";
+				viz.height = 10.0;
+				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTGreenSpaceMap.xyt.csv");
+
+
+				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH
+			});
 
 		layout.row("overall ranking result green space")
 			.el(Tile.class, (viz, data) -> {

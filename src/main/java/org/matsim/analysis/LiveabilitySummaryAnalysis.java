@@ -33,7 +33,8 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 	group="liveability",
 	produces = {
 		"overallRankingTile.csv",
-		"overviewIndicatorTable.csv"
+		"overviewIndicatorTable.csv",
+		"agentRankingForMap.xyt.csv"
 	}
 )
 
@@ -50,6 +51,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	private final Path inputSummaryTilesPath = ApplicationUtils.matchInput("summaryTiles.csv", getValidLiveabilityOutputDirectory());
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 	private final Path outputOverallRankingPath = getValidLiveabilityOutputDirectory().resolve("overallRankingTile.csv");
+	private final Path XYTMapOutputPath = getValidLiveabilityOutputDirectory().resolve("agentRankingForMap.xyt.csv");
 
 	private final Path inputIndicatorValuesPath = ApplicationUtils.matchInput("rankingIndicatorValues.csv", getValidLiveabilityOutputDirectory());
 	//private final Path outputIndicatorValuesForDashboardPath = ApplicationUtils.matchInput("overviewIndicatorTable.csv", getValidLiveabilityOutputDirectory());
@@ -69,10 +71,18 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		System.out.println("Starting LiveabilitySummaryAnalysis...");
 
 		Map<String, Double> overallRankingValuePerAgent = new LinkedHashMap<>();
+		Map<String, String> homeXCoordinatePerAgent = new LinkedHashMap<>();
+		Map<String, String> homeYCoordinatePerAgent = new LinkedHashMap<>();
 
-
+		// Prüfe, ob alle Werte in den "rankingValue_"-Spalten kleiner oder gleich 0 sind
 		try (CSVReader agentLiveabilityInfoReader = new CSVReader(new FileReader(inputAgentLiveabilityInfoPath.toFile()));
-			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(outputOverallRankingPath.toFile()))) {
+			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(outputOverallRankingPath.toFile()));
+			 CSVWriter XYTMapWriter = new CSVWriter(
+				new FileWriter(String.valueOf(XYTMapOutputPath)),
+				CSVWriter.DEFAULT_SEPARATOR,
+				CSVWriter.NO_QUOTE_CHARACTER, // Keine Anführungszeichen
+				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+				CSVWriter.DEFAULT_LINE_END)) {
 
 			String[] header = agentLiveabilityInfoReader.readNext();
 			if (header == null) {throw new IOException("The csv file is empty.");}
@@ -88,6 +98,9 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 				throw new IllegalArgumentException("Keine Spalten mit 'rankingValue_' im Header gefunden.");
 			}
 
+			XYTMapWriter.writeNext(new String[]{"# EPSG:25832"});
+			XYTMapWriter.writeNext(new String[]{"time", "x", "y", "value"});
+
 			int totalRows = 0;
 			int matchingRows = 0;
 
@@ -96,7 +109,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 				boolean allValuesValid = true;
 				boolean validAgent = true;
-				double highestRankingValue = -Double.MIN_VALUE;
+				double highestRankingValue=-Double.MIN_VALUE;
+				boolean isFirstIteration = true;
 
 				// find out whether an agent has a valid ranking value for all indices
 				for(int columnIndex : rankingValueColumnIndices) {
@@ -106,8 +120,9 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 						break;
 					}
 					double doubleValue = Double.parseDouble(cellValue);
-					if (doubleValue > highestRankingValue){
+					if (doubleValue > highestRankingValue || isFirstIteration){
 						highestRankingValue = doubleValue;
+						isFirstIteration = false;
 					}
 				}
 
@@ -116,14 +131,17 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 				}
 
 				overallRankingValuePerAgent.put(nextLine[0], highestRankingValue);
+				homeXCoordinatePerAgent.put(nextLine[0], nextLine[1]);
+				homeYCoordinatePerAgent.put(nextLine[0], nextLine[2]);
 
-
-				// Prüfe, ob alle Werte in den "rankingValue_"-Spalten kleiner oder gleich 0 sind
 				totalRows++;
 
 				if (highestRankingValue <= 0.0) {
 					matchingRows++;
 				}
+
+				XYTMapWriter.writeNext(new String[]{String.valueOf(0.0), nextLine[1], nextLine[2], String.valueOf(highestRankingValue)});
+
 			}
 
 			// Berechne den Anteil
@@ -133,6 +151,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 			String formattedOverallRankingValue = String.format(Locale.US, "%.2f%%", overallRankingValue);
 
 			overallRankingWriter.writeNext(new String[]{"Overall Ranking", formattedOverallRankingValue});
+
+
 
 		}
 
