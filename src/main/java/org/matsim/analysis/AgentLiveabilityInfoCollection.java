@@ -36,7 +36,9 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 	}
 )
 
-// utility class to generate csv-Files and write methods to extend those generated files for each dimension-analysis class
+/**
+ * utility class to generate csv-Files and write methods to extend those generated files for each dimension-analysis class
+  */
 public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 	// defining constants for paths

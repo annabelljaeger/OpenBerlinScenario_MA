@@ -1,5 +1,6 @@
 package org.matsim.analysis;
 
+import com.opencsv.CSVWriter;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
@@ -51,7 +52,8 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 		"output_legsLossTime_new.csv",
 		"summary_modeSpecificLegsLossTime.csv",
 		"lossTime_stats_perAgent.csv",
-		"lossTime_RankingValue.csv"
+		"lossTime_RankingValue.csv",
+		"XYTAgentBasedLossTimeMap.xyt.csv"
 	}
 )
 
@@ -74,8 +76,9 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 	private final Path outputCSVPath = getValidOutputDirectory().resolve("output_legsLossTime_new.csv");
 //	private final Path outputRankingAgentStatsPath = getValidOutputDirectory().resolve("analysis/analysis/lossTime_stats_perAgent.csv");
 	private final Path outputRankingAgentStatsPath = getValidLiveabilityOutputDirectory().resolve("lossTime_stats_perAgent.csv");
+	private final Path XYTLossTimeAgentMapPath = getValidLiveabilityOutputDirectory().resolve("XYTAgentBasedLossTimeMap.xyt.csv");
 
-	private final Path outputRankingValuePath = getValidOutputDirectory().resolve("lossTime_RankingValue.csv");
+	private final Path outputRankingValuePath = getValidLiveabilityOutputDirectory().resolve("lossTime_RankingValue.csv");
 
 	public static void main(String[] args) {
 		new AgentBasedLossTimeAnalysis().execute();
@@ -122,6 +125,19 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 //			String waitTime = row[columnIndexMap.get("waitTime")];
 //		}
 
+		//defining maps for further csv-Writer tasks
+		Map<String, List<String>> homeCoordinatesPerAgent = new HashMap<>();
+		Map<String, Long> cumulativeLossTime = new HashMap<>();
+		Map<String, Long> failedRoutingOccurances = new HashMap<>();
+		Map<String, Double> sumTravTimePerAgent = new HashMap<>();
+		Map<String, Double> sumLossTimePerAgent = new HashMap<>();
+		Map<String, Double> percentageLossTimePerAgent = new HashMap<>();
+		Map<String, Set<String>> modePerPerson = new HashMap<>();
+		Map<String, Double> limitValueMap = new HashMap<>();
+		Map<String, Double> overallLossTimeRankingValuePerAgent = new HashMap<>();
+		Map<String, Boolean> boolLossTimeRankingValuePerAgent = new HashMap<>();
+		Map<String, String> dimensionOverallRankingValue = new HashMap<>();
+
 		//read Input-legs.csv file and write new output files for loss time analysis
 
 		try (InputStream fileStream = new FileInputStream(inputLegsCsvFile.toFile());
@@ -141,15 +157,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			// read and skip header-line
 			//	String line = brInputLegs.readLine();
 
-			//defining maps for further csv-Writer tasks
-			Map<String, Long> cumulativeLossTime = new HashMap<>();
-			Map<String, Long> failedRoutingOccurances = new HashMap<>();
-			Map<String, Double> sumTravTimePerAgent = new HashMap<>();
-			Map<String, Double> sumLossTimePerAgent = new HashMap<>();
-			Map<String, Double> percentageLossTimePerAgent = new HashMap<>();
-			Map<String, Set<String>> modePerPerson = new HashMap<>();
-			Map<String, Double> limitValueMap = new HashMap<>();
-			Map<String, Double> relativeLossTimeRankingValue = new HashMap<>();
+
 
 			// defining column-headers (; as separator) for the new legsLossTime_csv
 			bwLegsLossTime.write("person;trip_id;mode;trav_time;fs_trav_time;loss_time;percent_lossTime;trav_time_hms;fs_trav_time_hms;loss_time_hms;dep_time;start_x;start_y;start_node_found;start_link;end_x;end_y;end_node_found;end_link\n");
@@ -159,6 +167,18 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			try (CSVParser inputPersonParser = new CSVParser(new FileReader(String.valueOf(agentLiveabilityInfoPath)), CSVFormat.DEFAULT.withFirstRecordAsHeader().withDelimiter(','))) {
 				for (CSVRecord personRecord : inputPersonParser) {
 					relevantPersons.add(personRecord.get("person"));
+
+					String person = personRecord.get("person");
+					String homeX = personRecord.get("home_x");
+					String homeY = personRecord.get("home_y");
+
+					List<String> homeCoordinates = new ArrayList<>();
+					// Füge die X- und Y-Koordinaten separat hinzu
+					homeCoordinates.add(homeX); // Index 0
+					homeCoordinates.add(homeY); // Index 1
+					// Schreibe die Liste in die Map
+					homeCoordinatesPerAgent.put(person, homeCoordinates);
+
 				}
 			}
 
@@ -260,8 +280,9 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 					limitValueMap.put(person, limitRelativeLossTime);
 
-					relativeLossTimeRankingValue.put(person, (percentLossTime-limitRelativeLossTime)/limitRelativeLossTime);
+					double lossTimeRankingValuePerAgent = (percentageLossTimePerAgent.get(person)-limitValueMap.get(person))/limitValueMap.get(person);
 
+					overallLossTimeRankingValuePerAgent.put(person, lossTimeRankingValuePerAgent);
 
 					if (lossTimeInSeconds != 0L) {
 						cumulativeLossTime.put(mode, cumulativeLossTime.getOrDefault(mode, 0L) + lossTimeInSeconds);
@@ -302,7 +323,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 
 				//Tabelle mit Summen pro Person - aus diesen können die Agentenbasierte True/False Werte gebildet werden und aus deren Summe der Ranking-Prozentsatz
 				try (BufferedWriter agentBasedBw = new BufferedWriter(Files.newBufferedWriter(outputRankingAgentStatsPath))) {
-					agentBasedBw.write("Person;lossTimePerAgent;travTimePerAgent;percentageLossTime;rankingStatus;modesUsed\n");
+					agentBasedBw.write("Person;lossTimePerAgent;travTimePerAgent;percentageLossTime;rankingStatus;rankingValue;modesUsed\n");
 
 
 					for (String person : sumLossTimePerAgent.keySet()) {
@@ -315,150 +336,122 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 						if (percentageLossTime < limitRelativeLossTime) {
 							rankingStatus = true;
 						}
-						agentBasedBw.write(String.format("%s;%f;%f;%f;%s;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus, modeUsed));
+						agentBasedBw.write(String.format("%s;%f;%f;%f;%s;%f;%s \n", person, lossTimePerAgent, travTimePerAgent, percentageLossTime, rankingStatus, overallLossTimeRankingValuePerAgent.get(person) ,modeUsed));
+						boolLossTimeRankingValuePerAgent.put(person, rankingStatus);
 					}
 
 					agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(sumLossTimePerAgent, "Loss Time");
 					agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(sumTravTimePerAgent, "Travel Time");
 					agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(percentageLossTimePerAgent, "percentageLossTime");
 					agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(limitValueMap, "limit_relativeLossTime");
-					agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(relativeLossTimeRankingValue, "rankingValue_relativeLossTime");
+					agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(overallLossTimeRankingValuePerAgent, "rankingValue_relativeLossTime");
 
 				}
 
-				// Summiere die Spalte loss_time aus der Datei output_legsLossTime_new.csv
-				try (BufferedReader reader2 = Files.newBufferedReader(outputCSVPath)) {
+				try {
+
+					// Summiere die Spalte loss_time aus der Datei output_legsLossTime_new.csv
 					long totalLossTimeInSeconds = 0;
-
-					// Überspringe die Header-Zeile
-					reader2.readLine();
-						String line = reader2.readLine();
-
-
-					// Iteriere über alle Zeilen der CSV
-					while ((line = reader2.readLine()) != null) {
-						String[] values = line.split(";");
-						String lossTimeValue = values[5]; // Spalte "loss_time"
-						if (!lossTimeValue.isEmpty()) {
-							totalLossTimeInSeconds += Long.parseLong(lossTimeValue); // Aufsummieren
+					try (Reader outputLegsReader = Files.newBufferedReader(outputCSVPath);
+						 CSVParser csvParser = new CSVParser(outputLegsReader, CSVFormat.DEFAULT.withDelimiter(';').withFirstRecordAsHeader())) {
+						for (CSVRecord record : csvParser) {
+							String lossTimeValue = record.get("loss_time");
+							if (!lossTimeValue.isEmpty()) {
+								totalLossTimeInSeconds += Long.parseLong(lossTimeValue);
+							}
 						}
 					}
 
-					// Konvertiere die Gesamtsumme in das Format HH:mm:ss
+					// oder Methode unten: Format Duration verwenden
 					Duration totalLossTime = Duration.ofSeconds(totalLossTimeInSeconds);
-					long hours = totalLossTime.toHours();
-					long minutes = totalLossTime.toMinutes() % 60;
-					long seconds = totalLossTime.getSeconds() % 60;
-					String formattedTotalLossTime = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+					String formattedTotalLossTime = String.format("%02d:%02d:%02d", totalLossTime.toHours(), totalLossTime.toMinutes() % 60, totalLossTime.getSeconds() % 60);
 
-					try (BufferedReader agentBasedReader = Files.newBufferedReader(outputRankingAgentStatsPath)) {
-						String entry;
-						int totalEntries = 0;
-						int trueEntries = 0;
+//					// behalten falls es nicht funktioniert
+//					// Konvertiere die Gesamtsumme in das Format HH:mm:ss
+//					Duration totalLossTime = Duration.ofSeconds(totalLossTimeInSeconds);
+//					long hours = totalLossTime.toHours();
+//					long minutes = totalLossTime.toMinutes() % 60;
+//					long seconds = totalLossTime.getSeconds() % 60;
+//					String formattedTotalLossTime = String.format("%02d:%02d:%02d", hours, minutes, seconds);
 
-						// Überspringen der Header-Zeile
-						agentBasedReader.readLine();
+					//modifiziert mit Boolean
+					double counterLossTimeOverall = 0;
+					// distance to GS Ranking Value berechnen
+					for (Map.Entry<String, Boolean> entry : boolLossTimeRankingValuePerAgent.entrySet()) {
+						String agentId = entry.getKey();
 
-						// Iteration über alle Zeilen
-						while ((entry = agentBasedReader.readLine()) != null) {
-							String[] values = entry.split(";");
-							// Prüfen, ob die Spalte "rankingStatus" auf True gesetzt ist
-							if (values.length > 4 && "true".equalsIgnoreCase(values[4].trim())) {
-								trueEntries++;
-							}
-							totalEntries++;
+						boolean overallLossTimeRankingValue = entry.getValue();
+
+						if (overallLossTimeRankingValue == true) {
+							counterLossTimeOverall++;
 						}
+					}
 
-						// Anteil der True-Einträge berechnen
-						double rankingLossTime = (totalEntries > 0) ? ((double) trueEntries / totalEntries) * 100 : 0.0;
-						String formattedRankingLossTime = String.format(Locale.US, "%.2f%%", rankingLossTime);
+//					//Sicherung wie es sein soll
+//					double counterLossTimeOverall = 0;
+//					// distance to GS Ranking Value berechnen
+//					for (Map.Entry<String, Double> entry : overallLossTimeRankingValuePerAgent.entrySet()) {
+//						String agentId = entry.getKey();
+//
+//						double overallLossTimeRankingValue = entry.getValue();
+//
+//						if (overallLossTimeRankingValue <= 0) {
+//							counterLossTimeOverall++;
+//						}
+//					}
 
-						// Schreibe das Ergebnis zusammen mit rankingLossTime in die Datei lossTime_RankingValue.csv
-						try (BufferedWriter writer = Files.newBufferedWriter(outputRankingValuePath)) {
-							//	writer.write("Dimension;Value\n"); // Header
-							writer.write(String.format("LossTimeRanking;%s\n", formattedRankingLossTime)); // Ranking
-							writer.write(String.format("LossTimeSum(h:m:s);%s\n", formattedTotalLossTime)); // Summe der Verlustzeit
-						}
+					// calculate overall ranking value
+					double lossTimeRankingValue = counterLossTimeOverall / overallLossTimeRankingValuePerAgent.size();
+					String formattedRankingValueLossTime = String.format(Locale.US, "%.2f%%", lossTimeRankingValue * 100);
+					dimensionOverallRankingValue.put("Loss Time", formattedRankingValueLossTime);
+
+
+					// output dateien erzeugen für GS Dashboard-Seite
+					try (CSVWriter LTTileWriter = new CSVWriter(new FileWriter(outputRankingValuePath.toFile()));
+						 CSVWriter XYTAgentMapWriter = new CSVWriter(new FileWriter(String.valueOf(XYTLossTimeAgentMapPath)),
+							 CSVWriter.DEFAULT_SEPARATOR,
+							 CSVWriter.NO_QUOTE_CHARACTER, // Keine Anführungszeichen
+							 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+							 CSVWriter.DEFAULT_LINE_END)) {
+
+						LTTileWriter.writeNext(new String[]{"LossTimeRanking", formattedRankingValueLossTime});
+						LTTileWriter.writeNext(new String[]{"LossTimeSum(h:m:s)", formattedTotalLossTime});
 
 						System.out.println("LossTimeSum (HH:mm:ss): " + formattedTotalLossTime);
-						System.out.println("LossTimeRanking: " + formattedRankingLossTime);
+						System.out.println("LossTimeRanking: " + formattedRankingValueLossTime);
+
+						//muss man das so schreiben? Prüfen im Output ob die zeilen darüber auch funktionieren, sonst anpassen
+//						writer.write(String.format("LossTimeRanking;%s\n", formattedRankingLossTime)); // Ranking
+//						writer.write(String.format("LossTimeSum(h:m:s);%s\n", formattedTotalLossTime)); // Summe der Verlustzeit
+
+						//median und mean folgen...
+						//	LTTileWriter.writeNext(new String[]{"MedianLossTime(h:m:s)", formattedMedianDistance});
+						//LTTileWriter.writeNext(new String[]{"AverageLossTime(h:m:s)", formattedAvgUtilization});
+
+						XYTAgentMapWriter.writeNext(new String[]{"# EPSG:25832"});
+						XYTAgentMapWriter.writeNext(new String[]{"time", "x", "y", "value"});
+
+						for (Map.Entry<String, Double> entry : overallLossTimeRankingValuePerAgent.entrySet()) {
+							String agentName = entry.getKey();
+							XYTAgentMapWriter.writeNext(new String[]{String.valueOf(0.0), homeCoordinatesPerAgent.get(agentName).get(0), homeCoordinatesPerAgent.get(agentName).get(1), String.valueOf(overallLossTimeRankingValuePerAgent.get(agentName))});
+						}
 
 //						agentLiveabilityInfo.extendSummaryTilesCsvWithAttribute(formattedRankingLossTime, "LossTime", "https://github.com/simwrapper/simwrapper/blob/master/public/images/tile-icons/route.svg");
-						agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingLossTime, "LossTime");
+						agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingValueLossTime, "LossTime");
 
-						agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Loss Time", "relative Loss Time", String.valueOf(totalLossTime), "15 %", String.valueOf(rankingLossTime), 1);
+						agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Loss Time", "relative Loss Time", String.valueOf(totalLossTime), "15 %", String.valueOf(dimensionOverallRankingValue.get("Loss Time")), 1);
 
-
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-
-					return 0;
-
-				}
-
-		}
-	}
-
-/*
-				try (BufferedReader legsLossTimeReader = Files.newBufferedReader(outputCSVPath)) {
-					String lines;
-					Long sumLossTime = 0L;
-					// Überspringen der Header-Zeile
-					agentBasedReader.readLine();
-					// Iteration über alle Zeilen
-					while ((entry = agentBasedReader.readLine()) != null) {
-						String[] values = entry.split(";");
-
-						sumLossTime += (Long) values[5];
-						// Prüfen, ob die Spalte "rankingStatus" auf True gesetzt ist
-						if (values.length > 4 && "true".equalsIgnoreCase(values[4].trim())) {
-							trueEntries++;
-						}
-						totalEntries++;
-					}
-
-					// Ergebnis in die Datei schreiben
-					try (BufferedWriter lossTimeRankingBw = Files.newBufferedWriter(outputRankingValuePath)) {
-						//	lossTimeRankingBw.write("Dimension;RankingPercentage\n");
-
-					String dimension = "LossTimeAgentRanking";
-					// Prozentsatz formatieren und schreiben (z. B. 12.34%)
-					String formattedRankingLossTime = String.format(Locale.US, "%.2f%%", rankingLossTime);
-				//	lossTimeRankingBw.write(String.format("%s;%s\n", dimension, formattedRankingLossTime));
-				//	System.out.println("Info: Loss Time Ranking Wert ist "+formattedRankingLossTime);
-
-//						String sum = "LossTimeSum";
-
-//						lossTimeRankingBw.write(String.format("%s;%s\n", sum, sumLossTime));
-//						System.out.println("Info: Loss Time Gesamtsumme ist " + sumLossTime);
+						return 0;
 					}
 
 				} catch (IOException e) {
-					e.printStackTrace();
+					throw new RuntimeException(e);
+				} catch (NumberFormatException e) {
+					throw new RuntimeException(e);
 				}
+
 			}
-				try (CSVParser parser = new CSVParser(Files.newBufferedReader(outputCSVPath), CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
-					Long sumLossTime = 0L;
-
-					for (CSVRecord record : parser) {
-						String value = record.get("loss_time");
-						sumLossTime += Long.parseLong(value);
-					}
-					// Wandelt die Sekunden in LocalTime um (nur für positive Werte)
-					Duration sumLossTimeHMS = Duration.ofSeconds(sumLossTime);
-					long hours_lt = sumLossTimeHMS.toHours();
-					long minutes_lt = sumLossTimeHMS.toMinutes() % 60;
-					long seconds_lt = sumLossTimeHMS.getSeconds() % 60;
-					String formattedSumLossTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
-
-*/
-
-
-
-
-
-
+		}
 
 
 	// Netzwerk laden
@@ -467,10 +460,6 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 		new MatsimNetworkReader(network).readFile(networkFile);
 		return network;
 	}
-
-
-
-
 
 	// Berechnung der Reisezeit auf der Strecke (FreeSpeed-Modus)
 	private static double calculateFreeSpeedTravelTime(Network network, Coord point1, Coord point2, String mode, long InputTravTimeInSeconds) {
@@ -548,6 +537,27 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 	}
 		return sum;
 	}
+
+	private static Duration parseTime(String timeString) {
+		if (timeString != null && timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
+			String[] parts = timeString.split(":");
+			return Duration.ofHours(Long.parseLong(parts[0]))
+				.plusMinutes(Long.parseLong(parts[1]))
+				.plusSeconds(Long.parseLong(parts[2]));
+		}
+		throw new IllegalArgumentException("Ungültiges Zeitformat: " + timeString);
+	}
+
+	private static String formatDuration(Duration duration) {
+		long hours = duration.toHours();
+		long minutes = duration.toMinutes() % 60;
+		long seconds = duration.getSeconds() % 60;
+		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
+	}
+
+}
+
+
 /*
 	public double getRankingLossTime() throws IOException {
 		double ranklossTime = 0.0;
@@ -575,21 +585,58 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 		return ranklossTime;
 	}
 */
-	private static Duration parseTime(String timeString) {
-		if (timeString != null && timeString.matches("\\d{2}:\\d{2}:\\d{2}")) {
-			String[] parts = timeString.split(":");
-			return Duration.ofHours(Long.parseLong(parts[0]))
-				.plusMinutes(Long.parseLong(parts[1]))
-				.plusSeconds(Long.parseLong(parts[2]));
-		}
-		throw new IllegalArgumentException("Ungültiges Zeitformat: " + timeString);
-	}
 
-	private static String formatDuration(Duration duration) {
-		long hours = duration.toHours();
-		long minutes = duration.toMinutes() % 60;
-		long seconds = duration.getSeconds() % 60;
-		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
-	}
 
-}
+/*
+				try (BufferedReader legsLossTimeReader = Files.newBufferedReader(outputCSVPath)) {
+					String lines;
+					Long sumLossTime = 0L;
+					// Überspringen der Header-Zeile
+					agentBasedReader.readLine();
+					// Iteration über alle Zeilen
+					while ((entry = agentBasedReader.readLine()) != null) {
+						String[] values = entry.split(";");
+
+						sumLossTime += (Long) values[5];
+						// Prüfen, ob die Spalte "rankingStatus" auf True gesetzt ist
+						if (values.length > 4 && "true".equalsIgnoreCase(values[4].trim())) {
+							trueEntries++;
+						}
+						totalEntries++;
+					}
+
+					// Ergebnis in die Datei schreiben
+					try (BufferedWriter lossTimeRankingBw = Files.newBufferedWriter(outputRankingValuePath)) {
+						//	lossTimeRankingBw.write("Dimension;RankingPercentage\n");
+
+					String dimension = "LossTimeAgentRanking";
+					// Prozentsatz formatieren und schreiben (z. B. 12.34%)
+					String formattedRankingLossTime = String.format(Locale.US, "%.2f%%", rankingLossTime);
+				//	lossTimeRankingBw.write(String.format("%s;%s\n", dimension, formattedRankingLossTime));
+				//	System.out.println("Info: Loss Time Ranking Wert ist "+formattedRankingLossTime);
+
+//						String sum = "LossTimeSum";
+
+//						lossTimeRankingBw.write(String.format("%s;%s\n", sum, sumLossTime));
+//						System.out.println("Info: Loss Time Gesamtsumme ist " + sumLossTime);
+					}
+
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+				try (CSVParser parser = new CSVParser(Files.newBufferedReader(outputCSVPath), CSVFormat.DEFAULT.withFirstRecordAsHeader())) {
+					Long sumLossTime = 0L;
+
+					for (CSVRecord record : parser) {
+						String value = record.get("loss_time");
+						sumLossTime += Long.parseLong(value);
+					}
+					// Wandelt die Sekunden in LocalTime um (nur für positive Werte)
+					Duration sumLossTimeHMS = Duration.ofSeconds(sumLossTime);
+					long hours_lt = sumLossTimeHMS.toHours();
+					long minutes_lt = sumLossTimeHMS.toMinutes() % 60;
+					long seconds_lt = sumLossTimeHMS.getSeconds() % 60;
+					String formattedSumLossTime = String.format("%02d:%02d:%02d", hours_lt, minutes_lt, seconds_lt);
+
+*/

@@ -29,10 +29,9 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.title = "GreenSpace ranking results map";
 				viz.description = "Here you can see the agents according to their green space ranking depicted on their home location";
 				viz.height = 10.0;
-				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTGreenSpaceMap.xyt.csv");
+				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
 
-
-				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH
+				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
 			});
 
 		layout.row("overall ranking result green space")

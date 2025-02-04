@@ -1,5 +1,6 @@
 package org.matsim.dashboard;
 
+import org.matsim.analysis.AgentBasedGreenSpaceAnalysis;
 import org.matsim.analysis.AgentBasedLossTimeAnalysis;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
@@ -34,6 +35,16 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 
 		header.title = "Loss Time";
 		header.description = "Detailed Loss Time Analysis";
+
+		layout.row("LossTime Ranking Map")
+			.el(XYTime.class, (viz, data) -> {
+				viz.title = "LossTime ranking results map";
+				viz.description = "Here you can see the agents according to their loss time ranking depicted on their home location";
+				viz.height = 10.0;
+				viz.file = data.compute(AgentBasedLossTimeAnalysis.class, "XYTAgentBasedLossTimeMap.xyt.csv");
+
+				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
+			});
 
 		layout.row("overall ranking result loss time")
 			.el(Tile.class, (viz, data) -> {
