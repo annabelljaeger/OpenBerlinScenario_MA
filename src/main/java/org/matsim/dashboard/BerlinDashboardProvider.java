@@ -33,6 +33,9 @@ public class BerlinDashboardProvider implements DashboardProvider {
 			new TrafficCountsDashboard()
 				.withModes(TransportMode.car, Set.of(TransportMode.car))
 				.withModes(TransportMode.truck, Set.of(TransportMode.truck, "freight"))
+//			new AgentBasedLossTimeDashboard(),
+//			new AgentBasedGreenSpaceDashboard(),
+//			new LiveabilitySummaryDashboard()
 		);
 	}
 
