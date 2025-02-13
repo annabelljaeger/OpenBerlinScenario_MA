@@ -50,7 +50,6 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	// main method to run this class with the given input via the CommandLine or the given Paths
 	public static void main(String[] args) throws IOException {
 		new RunLiveabilityDashboard().execute(args);
-
 	}
 
 	// call method calling the config, AgentLiveabilityInfoCollection-Class and all the liveability-Dimension-Dashboards
@@ -84,7 +83,6 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		return 0;
 	}
 
-
 	// deciding whether path given as absolute path or via command line is used for the input path
 	public static Path getValidInputDirectory() {
 		validInputDirectory = (inputDirectory != null) ? inputDirectory : (DEFAULT_INPUT_DIRECTORY);
@@ -115,9 +113,4 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		}
 	}
 
-		//vorherige getValidLiveability... Methode
-//	public static Path getValidLiveabilityOutputDirectory() {
-//		validLiveabilityOutputDirectory = (outputLiveabilityDirectory != null) ? outputLiveabilityDirectory : (DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY);
-//		return validLiveabilityOutputDirectory;
-//	}
 }

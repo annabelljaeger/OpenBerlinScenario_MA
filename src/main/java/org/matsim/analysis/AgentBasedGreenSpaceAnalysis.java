@@ -73,8 +73,12 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	@CommandLine.Mixin
 	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedGreenSpaceAnalysis.class);
 
-	//WEG FINDEN DAS AUS CONFIG AUSZULESEN!!!
+	//Weg finden, hier oben aus der Config die sample size auszulesen!!! --> siehe in call methode (klappt nicht hier oben)
 	double sampleSize = 0.1;
+//	Config config = ConfigUtils.loadConfig(ApplicationUtils.matchInput("config.xml", input.getRunDirectory()).toAbsolutePath().toString());
+//	SimWrapperConfigGroup simwrapper = ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class);
+//	this.sampleSize = simwrapper.sampleSize;
+
 	// defining the limits
 	private final double limitEuclideanDistanceToGreenSpace = 500;
 	private final double limitGreenSpaceUtilization = 6; // ATTENTION: THIS IS FOR THE 100% REALITY CASE - FOR SMALLER SAMPLES (E.G. 10pct), THIS HAS TO BE ADAPTED ACCORDINGLY

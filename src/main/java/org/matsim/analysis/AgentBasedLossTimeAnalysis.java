@@ -77,7 +77,6 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 //	private final Path outputRankingAgentStatsPath = getValidOutputDirectory().resolve("analysis/analysis/lossTime_stats_perAgent.csv");
 	private final Path outputRankingAgentStatsPath = getValidLiveabilityOutputDirectory().resolve("lossTime_stats_perAgent.csv");
 	private final Path XYTLossTimeAgentMapPath = getValidLiveabilityOutputDirectory().resolve("XYTAgentBasedLossTimeMap.xyt.csv");
-
 	private final Path outputRankingValuePath = getValidLiveabilityOutputDirectory().resolve("lossTime_RankingValue.csv");
 
 	public static void main(String[] args) {
@@ -148,15 +147,6 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 			CSVParser legsParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withDelimiter(';'));
 			// CSVWriter reisezeitVergleichsWriter = new CSVWriter(new FileWriter(outputReisezeitvergleichPath.toFile()));
 			//CSVWriter ptQualityStatsWriter = new CSVWriter(new FileWriter(outputRankingValuePath.toFile()))) {
-
-			//	try (BufferedReader brInputLegs = new BufferedReader(new FileReader(String.valueOf(inputLegsCsvFile)));
-
-			// writing new csv with added legs loss time information
-//			 BufferedWriter bwLegsLossTime = new BufferedWriter(Files.newBufferedWriter(outputCSVPath))) {
-
-			// read and skip header-line
-			//	String line = brInputLegs.readLine();
-
 
 
 			// defining column-headers (; as separator) for the new legsLossTime_csv
@@ -319,8 +309,6 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 					}
 				}
 
-				//	try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(inputLegsCsvFile)));
-
 				//Tabelle mit Summen pro Person - aus diesen können die Agentenbasierte True/False Werte gebildet werden und aus deren Summe der Ranking-Prozentsatz
 				try (BufferedWriter agentBasedBw = new BufferedWriter(Files.newBufferedWriter(outputRankingAgentStatsPath))) {
 					agentBasedBw.write("Person;lossTimePerAgent;travTimePerAgent;percentageLossTime;rankingStatus;rankingValue;modesUsed\n");
@@ -444,9 +432,7 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 						return 0;
 					}
 
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				} catch (NumberFormatException e) {
+				} catch (IOException | NumberFormatException e) {
 					throw new RuntimeException(e);
 				}
 
