@@ -48,7 +48,9 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	private final Path outputIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("rankingIndicatorValues.csv");
 	private final Path tempIndicatorValuesCsvPath = getValidOutputDirectory().resolve("rankingIndicatorValues.csv");
 
-	private final Path personsCsvPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv.gz");
+//	private final Path personsCsvPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv.gz");
+	private final Path personsCsvPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
+
 	private final Path outputCategoryRankingCsvPath = getValidLiveabilityOutputDirectory().resolve("summaryTiles.csv");
 	private final Path tempSummaryTilesOutputPath = getValidLiveabilityOutputDirectory().resolve("summaryTiles_tmp.csv");
 
