@@ -2,13 +2,9 @@ package org.matsim.analysis;
 
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
-import org.apache.commons.csv.CSVRecord;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
+import org.matsim.application.Dependency;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
@@ -19,7 +15,6 @@ import java.nio.file.Path;
 import java.util.*;
 
 import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 @CommandLine.Command(
 	name = "liveabilitySummary-analysis",
@@ -31,11 +26,16 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 @CommandSpec(
 	requireRunDirectory = true,
 	group="liveability",
+	dependsOn = {
+				@Dependency(value = AgentLiveabilityInfoCollection.class, files = "agentLiveabilityInfo.csv"),
+				@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overallRankingTile.csv"),
+	},
 	produces = {
 		"overallRankingTile.csv",
 		"overviewIndicatorTable.csv",
 		"agentRankingForMap.xyt.csv"
 	}
+
 )
 
 // overall liveability ranking analysis class to calculate the overall ranking and generating the indicator overview table for the Overall Dashboard page
@@ -49,7 +49,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(LiveabilitySummaryAnalysis.class);
 
 	private final Path inputSummaryTilesPath = ApplicationUtils.matchInput("summaryTiles.csv", getValidLiveabilityOutputDirectory());
-	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
+//	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 	private final Path outputOverallRankingPath = getValidLiveabilityOutputDirectory().resolve("overallRankingTile.csv");
 	private final Path XYTMapOutputPath = getValidLiveabilityOutputDirectory().resolve("agentRankingForMap.xyt.csv");
 
@@ -75,8 +75,13 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		Map<String, String> homeYCoordinatePerAgent = new LinkedHashMap<>();
 
 		// Prüfe, ob alle Werte in den "rankingValue_"-Spalten kleiner oder gleich 0 sind
-		try (CSVReader agentLiveabilityInfoReader = new CSVReader(new FileReader(inputAgentLiveabilityInfoPath.toFile()));
-			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(outputOverallRankingPath.toFile()));
+		String inputAgentLiveabilityInfoPath = input.getPath(AgentLiveabilityInfoCollection.class,"agentLiveabilityInfo.csv");
+
+		try (CSVReader agentLiveabilityInfoReader = new CSVReader(new FileReader(inputAgentLiveabilityInfoPath));
+
+//			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(outputOverallRankingPath.toFile()));
+			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(output.getPath("overallRankingTile.csv").toFile()));
+
 			 CSVWriter XYTMapWriter = new CSVWriter(
 				new FileWriter(String.valueOf(XYTMapOutputPath)),
 				CSVWriter.DEFAULT_SEPARATOR,

@@ -20,7 +20,7 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 	public double priority() {return 2;}
 
 	private static final String RANKING = "ranking";
-	private final Path xytMapInputPath = ApplicationUtils.matchInput("agentRankingForMap.xyt.csv", getValidLiveabilityOutputDirectory());
+//	private final Path xytMapInputPath = ApplicationUtils.matchInput("agentRankingForMap.xyt.csv", getValidLiveabilityOutputDirectory());
 //	private final List<String> dirs;
 //	private final Integer noRuns;
 //
