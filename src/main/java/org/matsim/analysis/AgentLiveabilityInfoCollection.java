@@ -10,6 +10,8 @@ import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
 import org.matsim.application.Dependency;
 import org.matsim.application.MATSimAppCommand;
+import org.matsim.application.options.InputOptions;
+import org.matsim.application.options.OutputOptions;
 import picocli.CommandLine;
 
 import java.io.*;
@@ -45,6 +47,11 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
  * utility class to generate csv-Files and write methods to extend those generated files for each dimension-analysis class
   */
 public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
+
+	@CommandLine.Mixin
+	private final InputOptions input = InputOptions.ofCommand(AgentLiveabilityInfoCollection.class);
+	@CommandLine.Mixin
+	private final OutputOptions output = OutputOptions.ofCommand(AgentLiveabilityInfoCollection.class);
 
 	// defining constants for paths
 	private final Path outputAgentLiveabilityCSVPath = getValidLiveabilityOutputDirectory().resolve("agentLiveabilityInfo.csv");

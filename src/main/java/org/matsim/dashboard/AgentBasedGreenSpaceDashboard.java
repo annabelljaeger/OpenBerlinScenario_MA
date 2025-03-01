@@ -1,15 +1,22 @@
 package org.matsim.dashboard;
 
-import org.matsim.analysis.AgentBasedGreenSpaceAnalysis;
-import org.matsim.analysis.AgentBasedGreenSpaceAnalysisTest;
-import org.matsim.analysis.AgentBasedLossTimeAnalysis;
-import org.matsim.analysis.LiveabilitySummaryAnalysis;
+import org.jaitools.numeric.Histogram;
+import org.matsim.analysis.*;
+import org.matsim.application.ApplicationUtils;
+import org.matsim.application.prepare.network.CreateGeoJsonNetwork;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
 import org.matsim.simwrapper.viz.*;
+import tech.tablesaw.plotly.components.Axis;
+import tech.tablesaw.plotly.traces.BarTrace;
+import tech.tablesaw.plotly.traces.HistogramTrace;
+import tech.tablesaw.plotly.traces.Trace;
 
 import java.awt.*;
+
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidInputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
@@ -23,24 +30,47 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 			"relaxing green spaces for relaxation and stress relief. Therefore the walking distance to the nearest " +
 			"green space as well as the amount of green space in this nearest area per Person is analysed.";
 
-		layout.row("GreenSpace Ranking Map")
-			.el(XYTime.class, (viz, data) -> {
-				viz.title = "GreenSpace ranking results map";
-				viz.description = "Here you can see the agents according to their green space ranking depicted on their home location";
-				viz.height = 10.0;
-				viz.buckets = 5;
-				viz.radius = 5.0;
-				viz.colorRamp = "virdis";
-				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
+		//Entwurf: Kartendarstellung als xyt-Map - besser: SHP, daher siehe unten
+//		layout.row("GreenSpace Ranking Map")
+//			.el(XYTime.class, (viz, data) -> {
+//				viz.title = "GreenSpace ranking results map";
+//				viz.description = "Here you can see the agents according to their green space ranking depicted on their home location";
+//				viz.height = 10.0;
+//				viz.buckets = 5;
+//				viz.radius = 5.0;
+//				viz.colorRamp = "viridis";
+//				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
+//
+//				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
+//			});
 
-				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
+		layout.row("Green Space Deviations Shp")
+			.el(MapPlot.class, (viz, data) -> {
+				viz.title = "GreenSpace Index Results Map";
+				viz.height = 10.0;
+
+				viz.setShape(String.valueOf(ApplicationUtils.matchInput("allGreenSpaces_min1ha.shp", getValidOutputDirectory().resolve("analysis"))), "osm_id");
+				viz.addDataset("greenSpace_utilization", data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_utilization.csv"));
+
+				viz.display.fill.dataset = "greenSpace_utilization";
+				viz.display.fill.join = "osm_id";
+				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 3, false);
+
 			});
 
 		layout.row("Green Spaces Shp")
-				.el(MapPlot.class, (viz, data) -> {
-					viz.title = "Green Spaces Shp";
-					viz.addDataset("allGreenSpaces_min1ha.shp", String.valueOf(AgentBasedGreenSpaceAnalysis.class));
-				});
+			.el(MapPlot.class, (viz, data) -> {
+				viz.title = "Green Spaces Shp";
+				viz.height = 10.0;
+
+				viz.setShape(String.valueOf(ApplicationUtils.matchInput("allGreenSpaces_min1ha.shp", getValidInputDirectory())), "osm_id");
+				viz.addDataset("greenSpace_utilization", data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_utilization.csv"));
+
+				viz.display.fill.dataset = "greenSpace_utilization";
+				viz.display.fill.join = "osm_id";
+				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 3, false);
+
+			});
 
 		layout.row("overall ranking result green space")
 			.el(Tile.class, (viz, data) -> {
@@ -50,22 +80,64 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 					"of at least 1 ha of size within 500 m footpath of their home location. Furthermore those green spaces should " +
 					"offer at least 6 m² per person assigned to it (here: always choice of the nearest green space to the home location).";
 
-				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_RankingValue.csv");
+				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_TilesOverall.csv");
 				viz.height = 0.1;
 
 			});
 
-		layout.row("offene Tasks")
-			.el(TextBlock.class, (viz, data) -> {
-				viz.title = "Open Tasks";
-				viz.description = "diese Diagramme/Infos würde ich gerne noch erstellen - dauert aber gerade zu lang";
-				viz.content = "\t1. Tiles erweitern: Prozentsatz der nah genug Leute und Prozentsatz der utilization ausreichend Leute\n" +
-					"\t2. Median statt Mittelwert bei Distanz und Utilization (oder alle Infos in Tabelle und in Tiles nur Median\n";//+
-//					"\t7. Zusätzliche Infos-Tabelle\n" +
-//					"\t\ta. Wie viele Routen werden gar nicht richtig gefunden und somit geskippt (LossTime 0)?\n" +
-//					"\t\tb. Wie viele Agenten nutzen nur teleportierte Modi und erhalten somit automatisch den True-Wert?\n" +
-//					"\t\tc. Wie viele Agenten haben über X%/xMin (z.B. 100%/30 min) Verlustzeit - evtl. 2 Angaben, einmal > 100% und einmal mehr als 1 Std.\n";
+		layout.row("Stats per indicator - Tiles")
+			.el(Tile.class, (viz, data) -> {
+				viz.title = "Distance Indicator Details";
+				viz.description = "Displays how many agents have a green space within 500m of their home location. " +
+					"Also shows the average and mean distance that agents from the study area live away from green spaces.";
+				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_TilesDistance.csv");
+			})
+
+			.el(Tile.class, (viz, data) -> {
+				viz.title = "Utilization Indicator Details";
+				viz.description = "Displays how many agents have at least 6m² of space in the green space closest to their home location. " +
+					"Also shows the average and mean utilization that agents from the study area face when visiting their nearest green space.";
+				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_TilesUtilization.csv");
 
 			});
+
+		layout.row("Stats per indicator - Diagram")
+			.el(Plotly.class, (viz, data) -> {
+				viz.title = "Green Space Distance - Distribution of deviations";
+				viz.description = "tbc";
+
+				// Add the dataset
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_stats_perAgent.csv"));
+
+				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("GSDistanceDeviationFromLimit").nBinsX(200).build(),
+					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
+						.x("GSDistanceDeviationFromLimit"));
+
+				// Define the layout for the plot
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Deviation").build())
+					.yAxis(Axis.builder().title("Number of Agents").build())
+					.build();
+			})
+
+			.el(Plotly.class, (viz, data) -> {
+				viz.title = "Green Space Utilization - Distribution of deviations";
+				viz.description = "tbc";
+
+				// Add the dataset
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_stats_perAgent.csv"));
+
+				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("GSUtilizationDeviationFromLimit").nBinsX(200).build(),
+					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
+						.x("GSUtilizationDeviationFromLimit"));
+
+				// Define the layout for the plot
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Deviation").build())
+					.yAxis(Axis.builder().title("Number of Agents").build())
+					.build();
+			});
+
+
 	}
 }
