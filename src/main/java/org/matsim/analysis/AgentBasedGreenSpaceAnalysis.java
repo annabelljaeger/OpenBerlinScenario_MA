@@ -1,19 +1,13 @@
 package org.matsim.analysis;
 
-
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvValidationException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.geotools.api.feature.simple.SimpleFeatureType;
-import org.geotools.data.simple.*;
-import org.geotools.feature.simple.SimpleFeatureBuilder;
-import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
-//import org.opengis.feature.simple.SimpleFeature;
-//import org.opengis.feature.simple.SimpleFeatureType;
 import org.geotools.api.feature.simple.SimpleFeature;
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 import org.matsim.api.core.v01.Coord;
@@ -28,7 +22,8 @@ import org.matsim.core.config.ConfigUtils;
 import org.matsim.core.utils.geometry.CoordUtils;
 import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.core.utils.gis.GeoFileReader;
-import org.matsim.core.utils.gis.ShapeFileWriter;
+import org.matsim.core.utils.gis.GeoFileWriter;
+import org.matsim.core.utils.gis.PointFeatureFactory;
 import org.matsim.core.utils.io.IOUtils;
 import org.matsim.simwrapper.SimWrapperConfigGroup;
 import picocli.CommandLine;
@@ -44,7 +39,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 @CommandLine.Command(
 	name = "greenSpace-analysis",
-	description = "Green Space availability and accessibility Analysis",
+	description = "Green Space availability and accessibility Analysis. Required Input: persons.csv.gz, accessPoints (to be generated e.g. via QGIS - see ReadMe-File)",
 	mixinStandardHelpOptions = true,
 	showDefaultValues = true
 )
@@ -54,20 +49,21 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 	group="liveability",
 	dependsOn = {
 		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "agentLiveabilityInfo.csv"),
-		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overallRankingTile.csv"),
-//				@Dependency(value = AgentBasedGreenSpaceAnalysis.class, files =  "greenSpace_stats_perAgent.csv"),
+		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overallRankingTile.csv")
 	},
 	requires = {
-		"berlin-v6.3.output_persons.csv", //GGF. SPÄTER NICHT MEHR WENN NICHT ALLE PERSONEN EINGELESEN?
-		"test_accessPoints.shp",
-	//	"allGreenSpaces_min1ha.shp"
+		"output_persons.csv.gz",
+		"accessPoints.shp",
+		"allGreenSpaces_min1ha.shp"
 	},
 	produces = {
-		"XYTAgentBasedGreenSpaceMap.xyt.csv",
-		"greenSpace_RankingValue.csv",
+		"greenSpace_stats_perAgent.csv",
 		"greenSpace_utilization.csv",
-		"XYTGreenSpaceUtilizationMap.xyt.csv",
-		"greenSpace_stats_perAgent.csv"
+		"greenSpace_TilesOverall.csv",
+		"greenSpace_TilesDistance.csv",
+		"greenSpace_TilesUtilization.csv",
+		"XYTAgentBasedGreenSpaceMap.xyt.csv",
+		"XYTGreenSpaceUtilizationMap.xyt.csv"
 	}
 )
 
@@ -101,11 +97,14 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 	// output paths
 	private final Path XYTAgentBasedGreenSpaceMapPath = getValidLiveabilityOutputDirectory().resolve("XYTAgentBasedGreenSpaceMap.xyt.csv");
-	private final Path outputRankingValueCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_RankingValue.csv");
+	private final Path outputRankingValueCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_TilesOverall.csv");
+	private final Path outputUtilizationTilesCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_TilesUtilization.csv");
+	private final Path outputDistanceTilesCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_TilesDistance.csv");
 	private final Path outputGreenSpaceUtilizationPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_utilization.csv");
 	private final Path XYTGreenSpaceUtilizationMapPath = getValidLiveabilityOutputDirectory().resolve("XYTGreenSpaceUtilizationMap.xyt.csv");
 	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
 	private final Path outputGreenSpaceSHP = getValidLiveabilityOutputDirectory().resolve("greenSpaces_withUtilization.shp");
+	private final Path outputAgentGreenSpaceSHP = getValidLiveabilityOutputDirectory().resolve("greenSpaces_perAgentSHP.shp");
 
 	public static void main(String[] args) {
 		new AgentBasedGreenSpaceAnalysis().execute(args);
@@ -126,7 +125,9 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		Map<String, List<String>> homeCoordinatesPerAgent = new HashMap<>();
 		Map<String, List<Double>> greenSpaceUtilization = new HashMap<>();
 		Map<String, Double> distancePerAgent = new HashMap<>();
+		Map<String, Double> distancePerAgentInStudyArea = new HashMap<>();
 		Map<String, String> greenSpaceIdPerAgent = new HashMap<>();
+		Map<String, String> greenSpaceIdPerAgentInStudyArea = new HashMap<>();
 		Map<String, Double> utilizationPerGreenSpace = new HashMap<>();
 		Map<String, Double> utilizationPerAgent = new HashMap<>();
 		Map<String, Double> areaPerGreenSpace = new HashMap<>();
@@ -146,6 +147,20 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		//4a. agentenbezogen
 		//4b. gesamt/pro Grünfläche
 
+
+			 //prepping a map for all study area agents to be used for writing files and calculating index values
+		try (Reader studyAreaAgentReader = new FileReader(inputAgentLiveabilityInfoPath.toFile());
+			CSVParser studyAreaAgentParser = new CSVParser(studyAreaAgentReader, CSVFormat.DEFAULT.withFirstRecordAsHeader())){
+
+			for (CSVRecord record : studyAreaAgentParser) {
+				String id = record.get("person");
+				String homeX = record.get("home_x");
+				String homeY = record.get("home_y");
+				distancePerAgentInStudyArea.put(id, null);
+				greenSpaceIdPerAgentInStudyArea.put(id, null);
+			}
+		}
+
 		if (!Files.exists(inputPersonsCSVPath)) {
 			throw new IOException("Die Datei output_persons.csv.gz wurde nicht gefunden: " + inputPersonsCSVPath);
 		}
@@ -154,12 +169,15 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			 InputStream gzipStream = new GZIPInputStream(fileStream);
 			 Reader personsReader = new InputStreamReader(gzipStream);
 			 CSVParser personsParser = new CSVParser(personsReader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withDelimiter(';'));
-			 CSVWriter agentCSVWriter = new CSVWriter(new FileWriter(outputPersonsCSVPath.toFile()));
+			 CSVWriter agentCSVWriter = new CSVWriter(new FileWriter(String.valueOf(outputPersonsCSVPath)),
+				 CSVWriter.DEFAULT_SEPARATOR,
+				 CSVWriter.NO_QUOTE_CHARACTER, // Keine Anführungszeichen
+				 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+				 CSVWriter.DEFAULT_LINE_END);
 			 CSVWriter greenSpaceUtilizationWriter = new CSVWriter(new FileWriter(outputGreenSpaceUtilizationPath.toFile()))) {
 
-
 			// writing csv-headers
-			agentCSVWriter.writeNext(new String[]{"AgentID", "ClosestGreenSpace", "DistanceToGreenSpace", "UtilizationOfGreenSpace [m²/person]"});
+			agentCSVWriter.writeNext(new String[]{"AgentID", "ClosestGreenSpace", "DistanceToGreenSpace", "UtilizationOfGreenSpace [m²/person]", "GSDistanceDeviationFromLimit", "GSUtilizationDeviationFromLimit"});
 			greenSpaceUtilizationWriter.writeNext(new String[]{"osm_id", "nrOfPeople", "meanDistance", "utilization [m²/person]"});
 
 			// processing green space features
@@ -194,7 +212,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 					continue; // skip those agents without valid home coordinates or outside the RegioStaR7 zones 1 and 2
 				}
 
-				processPerson(id, homeX, homeY, accessPointFeatures, greenSpaceIdPerAgent, distancePerAgent, nrOfPeoplePerGreenSpace, greenSpaceUtilization);
+				processPerson(id, homeX, homeY, accessPointFeatures, greenSpaceIdPerAgent, greenSpaceIdPerAgentInStudyArea, distancePerAgent, distancePerAgentInStudyArea, nrOfPeoplePerGreenSpace, greenSpaceUtilization);
 			}
 
 			// Nutzung und Auslastung pro Grünfläche berechnen
@@ -209,14 +227,16 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				String utilization = utilizationPerGreenSpace.get(id).toString();
 				greenSpaceUtilizationWriter.writeNext(new String[]{id, count, meanDistance, utilization});
 			}
-			for (Map.Entry<String, String> entry : greenSpaceIdPerAgent.entrySet()) {
+			for (Map.Entry<String, String> entry : greenSpaceIdPerAgentInStudyArea.entrySet()) {
 				String agentId = entry.getKey();
 				String nearestGreenSpaceId = entry.getValue();
 				utilizationPerAgent.put(agentId, utilizationPerGreenSpace.get(nearestGreenSpaceId));
 				agentCSVWriter.writeNext(new String[]{
 					agentId, nearestGreenSpaceId,
 					String.valueOf(distancePerAgent.get(agentId)),
-					String.valueOf(utilizationPerGreenSpace.get(nearestGreenSpaceId))
+					String.valueOf(utilizationPerGreenSpace.get(nearestGreenSpaceId)),
+					String.valueOf((distancePerAgent.get(agentId) - limitEuclideanDistanceToGreenSpace) / limitEuclideanDistanceToGreenSpace),
+					String.valueOf((limitGreenSpaceUtilizationSampleSizeAdjusted - utilizationPerAgent.get(agentId)) / limitGreenSpaceUtilizationSampleSizeAdjusted)
 				});
 			}
 		} catch (IOException e) {
@@ -228,6 +248,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		double counterOverall = 0;
 		double counterDistance = 0;
 		double counterUtilization = 0;
+		double counter50PercentUnderLimit = 0;
+		double counter50PercentOverLimit = 0;
 		// distance to GS Ranking Value berechnen
 		for (Map.Entry<String, Double> entry : distancePerAgent.entrySet()) {
 			String agentId = entry.getKey();
@@ -252,6 +274,14 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				counterOverall++;
 			}
 
+			if(overallGreenSpaceRankingValue <= -0.5){
+				counter50PercentUnderLimit++;
+			}
+
+			if(overallGreenSpaceRankingValue <= 0.5){
+				counter50PercentOverLimit++;
+			}
+
 			limitDistanceToGreenSpace.put(agentId, limitEuclideanDistanceToGreenSpace);
 			limitUtilizationOfGreenSpace.put(agentId, limitGreenSpaceUtilization);
 		}
@@ -260,6 +290,14 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		double greenSpaceRankingValue = counterOverall / greenSpaceUtilizationRankingValuePerAgent.size();
 		String formattedRankingGreenSpace = String.format(Locale.US, "%.2f%%", greenSpaceRankingValue * 100);
 		dimensionOverallRankingValue.put("Green Space", formattedRankingGreenSpace);
+
+		double greenSpace50PercentUnderLimitIndexValue = counter50PercentUnderLimit / greenSpaceUtilizationRankingValuePerAgent.size();
+		String formatted50PercentUnderLimitIndexGreenSpace = String.format(Locale.US, "%.2f%%", greenSpace50PercentUnderLimitIndexValue * 100);
+		//dimension50PercentUnderLimitIndexValue.put("Green Space", formattedRankingGreenSpace);
+
+		double greenSpace50PercentOVerLimitIndexValue = counter50PercentOverLimit / greenSpaceUtilizationRankingValuePerAgent.size();
+		String formatted50PercentOverLimitIndexGreenSpace = String.format(Locale.US, "%.2f%%", greenSpace50PercentOVerLimitIndexValue * 100);
+		//dimensionOverallRankingValue.put("Green Space", formattedRankingGreenSpace);
 
 		double greenSpaceDistanceRankingValue = counterDistance / greenSpaceUtilizationRankingValuePerAgent.size();
 		String formattedDistanceRankingGreenSpace = String.format(Locale.US, "%.2f%%", greenSpaceDistanceRankingValue * 100);
@@ -321,6 +359,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 		// output dateien erzeugen für GS Dashboard-Seite
 		try (CSVWriter GSTileWriter = new CSVWriter(new FileWriter(outputRankingValueCSVPath.toFile()));
+			 CSVWriter DistanceTileWriter = new CSVWriter(new FileWriter(outputDistanceTilesCSVPath.toFile()));
+			 CSVWriter UtilizationTileWriter = new CSVWriter(new FileWriter(outputUtilizationTilesCSVPath.toFile()));
 			 CSVWriter GSxytAgentMapWriter = new CSVWriter(new FileWriter(String.valueOf(XYTAgentBasedGreenSpaceMapPath)),
 				CSVWriter.DEFAULT_SEPARATOR,
 				CSVWriter.NO_QUOTE_CHARACTER, // Keine Anführungszeichen
@@ -332,11 +372,17 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
 				CSVWriter.DEFAULT_LINE_END)) {
 
-			GSTileWriter.writeNext(new String[]{"GreenSpaceRanking", formattedRankingGreenSpace});
-			GSTileWriter.writeNext(new String[]{"AverageDistance(m)", formattedAvgDistance});
-			GSTileWriter.writeNext(new String[]{"MedianDistance(m)", formattedMedianDistance});
-			GSTileWriter.writeNext(new String[]{"AverageUtilization(m²/Person)", formattedAvgUtilization});
-			GSTileWriter.writeNext(new String[]{"MedianUtilization(m²/person)", formattedMedianUtilization});
+			GSTileWriter.writeNext(new String[]{"GreenSpace50%underLimit", formatted50PercentUnderLimitIndexGreenSpace});
+			GSTileWriter.writeNext(new String[]{"GreenSpaceWithinLimit", formattedRankingGreenSpace});
+			GSTileWriter.writeNext(new String[]{"GreenSpace50%overLimit", formatted50PercentOverLimitIndexGreenSpace});
+
+			UtilizationTileWriter.writeNext(new String[]{"UtilizationWithinLimit", formattedRankingUtilizationGreenSpace});
+			UtilizationTileWriter.writeNext(new String[]{"AverageUtilization(m²/person)", formattedAvgUtilization});
+			UtilizationTileWriter.writeNext(new String[]{"MedianUtilization(m²/person)", formattedMedianUtilization});
+
+			DistanceTileWriter.writeNext(new String[]{"DistanceWithinLimit", formattedDistanceRankingGreenSpace});
+			DistanceTileWriter.writeNext(new String[]{"AverageDistance(m)", formattedAvgDistance});
+			DistanceTileWriter.writeNext(new String[]{"MedianDistance(m)", formattedMedianDistance});
 
 			GSxytAgentMapWriter.writeNext(new String[]{"# EPSG:25832"});
 			GSxytAgentMapWriter.writeNext(new String[]{"time", "x", "y", "value"});
@@ -345,43 +391,99 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				String agentName = entry.getKey();
 				GSxytAgentMapWriter.writeNext(new String[]{String.valueOf(0.0), homeCoordinatesPerAgent.get(agentName).get(0), homeCoordinatesPerAgent.get(agentName).get(1), String.valueOf(GreenSpaceOverallRankingValuePerAgent.get(entry.getKey()))});
 			}
+		}
 
 
-			// Einlesen der Shapefile mit GeoFileReader
-			Collection<SimpleFeature> featureCollection = GeoFileReader.getAllFeatures(String.valueOf(inputGreenSpaceShpPath));
+		// Erstelle den Builder für den Feature-Typ
+		PointFeatureFactory.Builder featureFactoryBuilder = new PointFeatureFactory.Builder();
+		featureFactoryBuilder.setName("AgentFeatures")
+			.setCrs(config.getCoordinateSystem())
+			.addAttribute("homeCoordinates", String.class)
+			.addAttribute("greenSpaceUtilizationRanking", Double.class)
+			.addAttribute("distanceToGreenSpaceRanking", Double.class)
+			.addAttribute("greenSpaceOverallRanking", Double.class);
 
-			// Definieren eines neuen FeatureTypes mit einem zusätzlichen Attribut "road_type"
-			SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
-			typeBuilder.setName("UpdatedFeature");
-			typeBuilder.add("osm_id", Long.class);  // OSM-ID als bestehendes Attribut
-			typeBuilder.add("utilization", Double.class);  // Neues Attribut
-			typeBuilder.setSuperType((SimpleFeatureType) featureCollection);
-			SimpleFeatureType newFeatureType = typeBuilder.buildFeatureType();
+		// Erzeuge den PointFeatureFactory mit den definierten Attributen
+		PointFeatureFactory featureFactory = featureFactoryBuilder.create();
 
-			// Feature Builder für das neue Feature-Format
-			SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(newFeatureType);
+		// Erstelle eine Sammlung für die Features
+		Collection<SimpleFeature> featureCollection = new java.util.ArrayList<>();
 
-			// Neue Feature-Sammlung mit aktualisierten Attributen
-			List<SimpleFeature> updatedFeatures = new ArrayList<>();
+		// Erstelle SimpleFeature für jeden Agenten und füge es zur Sammlung hinzu
+		for (String agentId : homeCoordinatesPerAgent.keySet()) {
+			// Beispiel: Erstelle eine Koordinate aus den Koordinaten für den Agenten
+			List<String> coordinates = homeCoordinatesPerAgent.get(agentId);
+			double x = (coordinates.get(0).isEmpty() || coordinates.get(0).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(0));
+			double y = (coordinates.get(1).isEmpty() || coordinates.get(1).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(1));
 
-			try (SimpleFeatureIterator iterator = featureCollection.features()) {
-				while (iterator.hasNext()) {
-					SimpleFeature feature = iterator.next();
-					Long osmId = (Long) feature.getAttribute("osm_id");  // Annahme: "osm_id" existiert in der Shapefile
+			Coord coord = new Coord(x, y);
+			//Coord coord = new Coord(coordinates.get(0).isEmpty() ? 0.0 : Double.parseDouble(coordinates.get(0)), Double.parseDouble(coordinates.get(1)));
+			Coordinate coordinate = new Coordinate(coord.getX(), coord.getY());
 
-					// Neuen Feature Builder setzen
-					featureBuilder.init(feature);
-					featureBuilder.set("utilization", utilizationPerGreenSpace.getOrDefault(osmId, -1.0));
+			Object[] attributes = new Object[]{
+				String.join(",", coordinates),
+				greenSpaceUtilizationRankingValuePerAgent.get(agentId),
+				distanceToGreenSpaceRankingValuePerAgent.get(agentId),
+				GreenSpaceOverallRankingValuePerAgent.get(agentId)
+			};
 
-					// Neues Feature hinzufügen
-					updatedFeatures.add(featureBuilder.buildFeature(null));
-				}
-			}
+			// Erstelle das SimpleFeature mit den Attributen und der ID
+			SimpleFeature feature = featureFactory.createPoint(coordinate, attributes,agentId);
 
-			// Schreiben der neuen Shapefile mit aktualisierten Features
-			ShapeFileWriter.writeGeometries(updatedFeatures, String.valueOf(outputGreenSpaceSHP));
-			System.out.println("Neue Shapefile wurde erfolgreich erstellt: " + outputGreenSpaceSHP);
-	}
+//			// Erstelle die Attributwerte für den Agenten
+//			Map<String, Object> attributeValues = new HashMap<>();
+//			attributeValues.put("homeCoordinates", String.join(",", coordinates));
+//			attributeValues.put("greenSpaceUtilizationRanking", greenSpaceUtilizationRankingValuePerAgent.get(agentId));
+//			attributeValues.put("distanceToGreenSpaceRanking", distanceToGreenSpaceRankingValuePerAgent.get(agentId));
+//			attributeValues.put("greenSpaceOverallRanking", GreenSpaceOverallRankingValuePerAgent.get(agentId));
+//
+//			// Erstelle das SimpleFeature mit den Attributen und der ID
+//			SimpleFeature feature = featureFactory.createPoint(coordinate, attributeValues, agentId);
+
+			// Füge das Feature zur FeatureCollection hinzu
+			featureCollection.add(feature);
+		}
+
+		// Schreibt die FeatureCollection in eine Shapefile
+		GeoFileWriter.writeGeometries(featureCollection, String.valueOf(outputAgentGreenSpaceSHP));
+
+		System.out.println("Shapefile erfolgreich geschrieben!");
+
+//			// Einlesen der Shapefile mit GeoFileReader
+//			Collection<SimpleFeature> featureCollection = GeoFileReader.getAllFeatures(String.valueOf(inputGreenSpaceShpPath));
+//
+//			// Definieren eines neuen FeatureTypes mit einem zusätzlichen Attribut "road_type"
+//			SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
+//			typeBuilder.setName("UpdatedFeature");
+//			typeBuilder.add("osm_id", Long.class);  // OSM-ID als bestehendes Attribut
+//			typeBuilder.add("utilization", Double.class);  // Neues Attribut
+//			typeBuilder.setSuperType((SimpleFeatureType) featureCollection);
+//			SimpleFeatureType newFeatureType = typeBuilder.buildFeatureType();
+//
+//			// Feature Builder für das neue Feature-Format
+//			SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(newFeatureType);
+//
+//			// Neue Feature-Sammlung mit aktualisierten Attributen
+//			List<SimpleFeature> updatedFeatures = new ArrayList<>();
+//
+//			try (SimpleFeatureIterator iterator = featureCollection.features()) {
+//				while (iterator.hasNext()) {
+//					SimpleFeature feature = iterator.next();
+//					Long osmId = (Long) feature.getAttribute("osm_id");  // Annahme: "osm_id" existiert in der Shapefile
+//
+//					// Neuen Feature Builder setzen
+//					featureBuilder.init(feature);
+//					featureBuilder.set("utilization", utilizationPerGreenSpace.getOrDefault(osmId, -1.0));
+//
+//					// Neues Feature hinzufügen
+//					updatedFeatures.add(featureBuilder.buildFeature(null));
+//				}
+//			}
+//
+//			// Schreiben der neuen Shapefile mit aktualisierten Features
+//			ShapeFileWriter.writeGeometries(updatedFeatures, String.valueOf(outputGreenSpaceSHP));
+//			System.out.println("Neue Shapefile wurde erfolgreich erstellt: " + outputGreenSpaceSHP);
+//	}
 
 
 //		if (!Files.exists(inputGreenSpaceShpPath)) {
@@ -658,7 +760,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 //	}
 
 	private void processPerson(String id, String homeX, String homeY, Collection<SimpleFeature> features,
-							   Map<String, String> greenSpaceIdPerAgent, Map<String, Double> distancePerAgent,
+							   Map<String, String> greenSpaceIdPerAgent, Map<String, String> greenSpaceIdPerAgentInStudyArea, Map<String, Double> distancePerAgent, Map<String, Double> distancePerAgentInStudyArea,
 							   Map<String, Integer> nrOfPeoplePerGreenSpace, Map<String, List<Double>> greenSpaceUtilization) {
 		Coord homeCoord = new Coord(Double.parseDouble(homeX), Double.parseDouble(homeY));
 		double shortestDistance = Double.MAX_VALUE;
@@ -677,7 +779,9 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 		if (closestGreenSpace != null) {
 			greenSpaceIdPerAgent.put(id, closestGreenSpace);
+			greenSpaceIdPerAgentInStudyArea.put(id, closestGreenSpace);
 			distancePerAgent.put(id, shortestDistance);
+			distancePerAgentInStudyArea.put(id, shortestDistance);
 
 			nrOfPeoplePerGreenSpace.merge(closestGreenSpace, 1, Integer::sum);
 			updateGreenSpaceUtilization(greenSpaceUtilization, closestGreenSpace, shortestDistance);
