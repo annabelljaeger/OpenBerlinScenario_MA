@@ -31,8 +31,9 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 
 	// option to insert standard input and output (general output and liveability analysis output) paths for users
 	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/input_OBS_Base");
+//	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/10pct.absSpdLim2.777");
 	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
-//	private static final Path DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/analysis/liveability");
+	private static final Path DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/analysis/liveability");
 
 	// public static attributes - necessary to save the valid input and output directory paths
 	public static Path validInputDirectory;
@@ -70,7 +71,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		//sw.addDashboard(new NoiseDashboard());
 
 		// calling the seperate liveability-dimension dashboards and thereby activating them
-		sw.addDashboard( new AgentBasedLossTimeDashboard());
+	//	sw.addDashboard( new AgentBasedLossTimeDashboard());
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 		//sw.addDashboard( new AgentBasedSafetyDashboard());

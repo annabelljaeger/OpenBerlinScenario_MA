@@ -6,7 +6,9 @@ import com.opencsv.exceptions.CsvValidationException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
+import org.matsim.application.Dependency;
 import org.matsim.application.MATSimAppCommand;
 import picocli.CommandLine;
 
@@ -29,6 +31,9 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 
 @CommandSpec(
 	group="liveability",
+//	dependsOn = {
+//		@Dependency(value = AgentBasedGreenSpaceAnalysis.class, files =  "greenSpace_stats_perAgent.csv"),
+//	},
 	produces = {
 		"agentLiveabilityInfo.csv",
 		"summaryTiles.csv",

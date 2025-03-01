@@ -7,10 +7,9 @@ import org.matsim.analysis.LiveabilitySummaryAnalysis;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
-import org.matsim.simwrapper.viz.Bar;
-import org.matsim.simwrapper.viz.TextBlock;
-import org.matsim.simwrapper.viz.Tile;
-import org.matsim.simwrapper.viz.XYTime;
+import org.matsim.simwrapper.viz.*;
+
+import java.awt.*;
 
 public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
@@ -29,10 +28,19 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.title = "GreenSpace ranking results map";
 				viz.description = "Here you can see the agents according to their green space ranking depicted on their home location";
 				viz.height = 10.0;
+				viz.buckets = 5;
+				viz.radius = 5.0;
+				viz.colorRamp = "virdis";
 				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
 
 				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
 			});
+
+		layout.row("Green Spaces Shp")
+				.el(MapPlot.class, (viz, data) -> {
+					viz.title = "Green Spaces Shp";
+					viz.addDataset("allGreenSpaces_min1ha.shp", String.valueOf(AgentBasedGreenSpaceAnalysis.class));
+				});
 
 		layout.row("overall ranking result green space")
 			.el(Tile.class, (viz, data) -> {

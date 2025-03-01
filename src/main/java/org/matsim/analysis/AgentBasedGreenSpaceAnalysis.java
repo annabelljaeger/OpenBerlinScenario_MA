@@ -1,46 +1,46 @@
 package org.matsim.analysis;
 
 
-import com.opencsv.CSVParserBuilder;
 import com.opencsv.CSVReader;
-import com.opencsv.CSVReaderBuilder;
 import com.opencsv.CSVWriter;
 import com.opencsv.exceptions.CsvValidationException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.data.simple.*;
+import org.geotools.feature.simple.SimpleFeatureBuilder;
+import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
+//import org.opengis.feature.simple.SimpleFeature;
+//import org.opengis.feature.simple.SimpleFeatureType;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
 import org.matsim.api.core.v01.Coord;
-import org.matsim.api.core.v01.Scenario;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
+import org.matsim.application.Dependency;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
-import org.matsim.contrib.accessibility.run.RunAccessibilityExample;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
-import org.matsim.core.controler.Controler;
 import org.matsim.core.utils.geometry.CoordUtils;
 import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.core.utils.gis.GeoFileReader;
+import org.matsim.core.utils.gis.ShapeFileWriter;
 import org.matsim.core.utils.io.IOUtils;
 import org.matsim.simwrapper.SimWrapperConfigGroup;
 import picocli.CommandLine;
-import org.matsim.contrib.accessibility.*;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 @CommandLine.Command(
 	name = "greenSpace-analysis",
@@ -52,6 +52,11 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 @CommandSpec(
 	requireRunDirectory = true,
 	group="liveability",
+	dependsOn = {
+		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "agentLiveabilityInfo.csv"),
+		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overallRankingTile.csv"),
+//				@Dependency(value = AgentBasedGreenSpaceAnalysis.class, files =  "greenSpace_stats_perAgent.csv"),
+	},
 	requires = {
 		"berlin-v6.3.output_persons.csv", //GGF. SPÄTER NICHT MEHR WENN NICHT ALLE PERSONEN EINGELESEN?
 		"test_accessPoints.shp",
@@ -82,9 +87,11 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 	// constants for paths
 	// input paths
-	private final Path inputPersonsCSVPath = ApplicationUtils.matchInput("berlin-v6.3.output_persons.csv", getValidOutputDirectory());
+	private final Path inputPersonsCSVPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
 	//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
 	private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("test_accessPoints.shp", getValidOutputDirectory());
+//	private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("relevante_accessPoints.shp", getValidInputDirectory());
+	private final Path inputGreenSpaceShpPath = ApplicationUtils.matchInput("allGreenSpaces_min1ha.shp", getValidInputDirectory());
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 	//	Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
 
@@ -94,6 +101,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path outputGreenSpaceUtilizationPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_utilization.csv");
 	private final Path XYTGreenSpaceUtilizationMapPath = getValidLiveabilityOutputDirectory().resolve("XYTGreenSpaceUtilizationMap.xyt.csv");
 	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
+	private final Path outputGreenSpaceSHP = getValidLiveabilityOutputDirectory().resolve("greenSpaces_withUtilization.shp");
 
 	public static void main(String[] args) {
 		new AgentBasedGreenSpaceAnalysis().execute(args);
@@ -127,7 +135,6 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		Map<String, Double> GreenSpaceOverallRankingValuePerAgent = new HashMap<>();
 		Map<String, String> dimensionOverallRankingValue = new HashMap<>();
 
-
 		//1. nächste Grünfläche pro Agent bestimmen
 		//2. Auslastung pro Grünfläche
 		//3. Auslastung pro Agent
@@ -135,11 +142,17 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		//4a. agentenbezogen
 		//4b. gesamt/pro Grünfläche
 
-		try (CSVReader personsCsvReader = new CSVReaderBuilder(new FileReader(String.valueOf(inputPersonsCSVPath)))
-			.withCSVParser(new CSVParserBuilder().withSeparator(';').build())
-			.build();
+		if (!Files.exists(inputPersonsCSVPath)) {
+			throw new IOException("Die Datei output_persons.csv.gz wurde nicht gefunden: " + inputPersonsCSVPath);
+		}
+
+		try (InputStream fileStream = new FileInputStream(inputPersonsCSVPath.toFile());
+			 InputStream gzipStream = new GZIPInputStream(fileStream);
+			 Reader personsReader = new InputStreamReader(gzipStream);
+			 CSVParser personsParser = new CSVParser(personsReader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withDelimiter(';'));
 			 CSVWriter agentCSVWriter = new CSVWriter(new FileWriter(outputPersonsCSVPath.toFile()));
 			 CSVWriter greenSpaceUtilizationWriter = new CSVWriter(new FileWriter(outputGreenSpaceUtilizationPath.toFile()))) {
+
 
 			// writing csv-headers
 			agentCSVWriter.writeNext(new String[]{"AgentID", "ClosestGreenSpace", "DistanceToGreenSpace", "UtilizationOfGreenSpace [m²/person]"});
@@ -163,16 +176,14 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				}
 			}
 
-			//STATTDESSEN PARSER VERWENDEN?!?
-			String[] personRecord;
-			//personRecord = personsCsvReader.readNext();
-			while ((personRecord = personsCsvReader.readNext()) != null) {
-				String id = personRecord[0];
-				String homeX = personRecord[15];
-				String homeY = personRecord[16];
+			for (CSVRecord record : personsParser) {
+				String id = record.get("person");
+				String homeX = record.get("home_x");
+				String homeY = record.get("home_y");
 				homeCoordinatesPerAgent.put(id, Arrays.asList(homeX, homeY));
 
-				String RegioStaR7 = personRecord[5];
+				// not universally transferable for other regions yet!
+				String RegioStaR7 = record.get("RegioStaR7");
 
 				// Validierung der Koordinatenwerte
 				if (homeX == null || homeX.isEmpty() || homeY == null || homeY.isEmpty() || (!"1".equals(RegioStaR7) && !"2".equals(RegioStaR7) && !"3".equals(RegioStaR7) && !"4".equals(RegioStaR7))) {
@@ -204,7 +215,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 					String.valueOf(utilizationPerGreenSpace.get(nearestGreenSpaceId))
 				});
 			}
-		} catch (IOException | CsvValidationException e) {
+		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
 
@@ -331,9 +342,128 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				GSxytAgentMapWriter.writeNext(new String[]{String.valueOf(0.0), homeCoordinatesPerAgent.get(agentName).get(0), homeCoordinatesPerAgent.get(agentName).get(1), String.valueOf(GreenSpaceOverallRankingValuePerAgent.get(entry.getKey()))});
 			}
 
-			return 0;
-		}
+
+			// Einlesen der Shapefile mit GeoFileReader
+			Collection<SimpleFeature> featureCollection = GeoFileReader.getAllFeatures(String.valueOf(inputGreenSpaceShpPath));
+
+			// Definieren eines neuen FeatureTypes mit einem zusätzlichen Attribut "road_type"
+			SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
+			typeBuilder.setName("UpdatedFeature");
+			typeBuilder.add("osm_id", Long.class);  // OSM-ID als bestehendes Attribut
+			typeBuilder.add("utilization", Double.class);  // Neues Attribut
+			typeBuilder.setSuperType((SimpleFeatureType) featureCollection);
+			SimpleFeatureType newFeatureType = typeBuilder.buildFeatureType();
+
+			// Feature Builder für das neue Feature-Format
+			SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(newFeatureType);
+
+			// Neue Feature-Sammlung mit aktualisierten Attributen
+			List<SimpleFeature> updatedFeatures = new ArrayList<>();
+
+			try (SimpleFeatureIterator iterator = featureCollection.features()) {
+				while (iterator.hasNext()) {
+					SimpleFeature feature = iterator.next();
+					Long osmId = (Long) feature.getAttribute("osm_id");  // Annahme: "osm_id" existiert in der Shapefile
+
+					// Neuen Feature Builder setzen
+					featureBuilder.init(feature);
+					featureBuilder.set("utilization", utilizationPerGreenSpace.getOrDefault(osmId, -1.0));
+
+					// Neues Feature hinzufügen
+					updatedFeatures.add(featureBuilder.buildFeature(null));
+				}
+			}
+
+			// Schreiben der neuen Shapefile mit aktualisierten Features
+			ShapeFileWriter.writeGeometries(updatedFeatures, String.valueOf(outputGreenSpaceSHP));
+			System.out.println("Neue Shapefile wurde erfolgreich erstellt: " + outputGreenSpaceSHP);
 	}
+
+
+//		if (!Files.exists(inputGreenSpaceShpPath)) {
+//			throw new IOException("Shapefile existiert nicht: " + inputGreenSpaceShpPath);
+//		}
+//
+//		FileDataStore store = FileDataStoreFinder.getDataStore(inputGreenSpaceShpPath.toFile());
+//		SimpleFeatureSource featureSource = store.getFeatureSource();
+//		SimpleFeatureCollection collection = featureSource.getFeatures();
+//
+//		// Neues FeatureType-Schema mit den gewünschten Spalten erstellen
+//		SimpleFeatureTypeBuilder typeBuilder = new SimpleFeatureTypeBuilder();
+//		typeBuilder.setName("GreenSpaces");
+//		typeBuilder.setCRS(featureSource.getSchema().getCoordinateReferenceSystem()); // Behalte CRS
+//
+//		// Nur gewünschte Felder beibehalten
+//		typeBuilder.add("osm_id", String.class);
+//		typeBuilder.add("name", String.class);
+//		typeBuilder.add("area", Double.class);
+//
+//		// Neue Felder hinzufügen
+//		typeBuilder.add("median_distance", Double.class);
+//		typeBuilder.add("utilization", Double.class);
+//
+//		SimpleFeatureType newFeatureType = typeBuilder.buildFeatureType();
+//
+//		// Neuer Shapefile-Store
+//		DataStoreFactorySpi dataStoreFactory = new ShapefileDataStoreFactory();
+//		Map<String, Serializable> params = new HashMap<>();
+//		params.put("url", outputGreenSpaceSHP.toUri().toURL());
+//		params.put("create spatial index", Boolean.TRUE);
+//
+//		ShapefileDataStore newStore = (ShapefileDataStore) dataStoreFactory.createNewDataStore(params);
+//		newStore.createSchema(newFeatureType);
+//
+//		// Daten schreiben
+//		SimpleFeatureBuilder featureBuilder = new SimpleFeatureBuilder(newFeatureType);
+//		Transaction transaction = new DefaultTransaction("create");
+//
+//			SimpleFeatureType schema = featureSource.getSchema();
+//			System.out.println("Feature-Typ: " + schema.getTypeName());
+//			for (AttributeDescriptor descriptor : schema.getAttributeDescriptors()) {
+//				System.out.println("Attribut: " + descriptor.getLocalName() + " - Typ: " + descriptor.getType().getBinding());
+//			}
+//		try (SimpleFeatureWriter writer = (SimpleFeatureWriter) newStore.getFeatureWriterAppend(newStore.getTypeNames()[0], transaction)) {
+//			SimpleFeatureIterator iterator = collection.features();
+//			while (iterator.hasNext()) {
+//				SimpleFeature feature = iterator.next();
+//
+//				String osmId = (String) feature.getAttribute("osm_id");
+//				String name = (String) feature.getAttribute("name");
+//				Double area = (Double) feature.getAttribute("area");
+//
+//				double utilization = -1;
+//				// Werte aus der Map abrufen, falls vorhanden
+//				double nrofPeople = nrOfPeoplePerGreenSpace.containsKey(osmId) ? nrOfPeoplePerGreenSpace.get(osmId): -1;
+//				if (utilizationPerGreenSpace.containsKey(osmId)) {
+//					utilization = utilizationPerGreenSpace.get(osmId);
+//				}
+//
+//				// Neues Feature mit aktualisierten Attributen erstellen
+//				featureBuilder.add(osmId);
+//				featureBuilder.add(name);
+//				featureBuilder.add(area);
+//				featureBuilder.add(nrofPeople);
+//				featureBuilder.add(utilization);
+//
+//				SimpleFeature newFeature = featureBuilder.buildFeature(null);
+//				writer.write();
+//			}
+//			iterator.close();
+//			transaction.commit();
+//		} catch (Exception e) {
+//			transaction.rollback();
+//			e.printStackTrace();
+//		} finally {
+//			transaction.close();
+//			store.dispose();
+//			newStore.dispose();
+//		}
+//
+//		System.out.println("Neue Shapefile wurde erfolgreich erstellt: " + outputGreenSpaceSHP);
+//	}
+		return 0;
+	}
+
 
 //		try {
 //						Coord homeCoord = new Coord(Double.parseDouble(homeX), Double.parseDouble(homeY));
