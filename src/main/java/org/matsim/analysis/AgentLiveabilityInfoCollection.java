@@ -205,9 +205,13 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		}
 
 		// generating the empty csv-file with a prefilled header
-		try (CSVWriter writer = new CSVWriter(new FileWriter(outputIndicatorValuesCsvPath.toFile()))) {
+		try (CSVWriter indicatorTableWriter =  new CSVWriter(new FileWriter(String.valueOf(outputIndicatorValuesCsvPath)),
+					 CSVWriter.DEFAULT_SEPARATOR,
+					 CSVWriter.NO_QUOTE_CHARACTER, // without quotations
+					 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+					 CSVWriter.DEFAULT_LINE_END)) {
 
-			writer.writeNext(new String[]{"dimension","indicator","median value","limit","ranking value","weight of indicator"});
+			indicatorTableWriter.writeNext(new String[]{"dimension","indicator","median value","limit","ranking value","weight of indicator"});
 
 			System.out.println("The empty file rankingIndicatorValues.csv has been generated under: " + outputIndicatorValuesCsvPath);
 		}
