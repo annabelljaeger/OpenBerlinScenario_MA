@@ -6,13 +6,32 @@ import com.opencsv.exceptions.CsvValidationException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.geotools.api.data.FileDataStore;
+import org.geotools.api.data.FileDataStoreFinder;
+import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.simple.SimpleFeature;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.feature.FeatureIterator;
+import org.geotools.referencing.CRS;
+import org.locationtech.jts.geom.Geometry;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.io.WKTReader;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
 import org.matsim.application.Dependency;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
+import org.matsim.core.config.Config;
+import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.utils.gis.PointFeatureFactory;
 import picocli.CommandLine;
+
+import org.geotools.data.*;
+import org.geotools.data.simple.*;
+import org.apache.commons.csv.*;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -21,8 +40,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 @CommandLine.Command(
 	name = "Utility - Agent Liveability Info Collection",
@@ -62,14 +80,20 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 //	private final Path personsCsvPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv.gz");
 	private final Path personsCsvPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
+	private final Path studyAreaShpPath = ApplicationUtils.matchInput("studyArea.shp", getValidInputDirectory());
 
 	private final Path outputCategoryRankingCsvPath = getValidLiveabilityOutputDirectory().resolve("summaryTiles.csv");
 	private final Path tempSummaryTilesOutputPath = getValidLiveabilityOutputDirectory().resolve("summaryTiles_tmp.csv");
+
+	private Geometry studyAreaGeometry;
 
 	// method generates the csv-Files - the methods to extend the files are called in the dimension analysis classes
 	@Override
 	public Integer call() throws Exception {
 
+		Config config = ConfigUtils.loadConfig(ApplicationUtils.matchInput("config.xml", input.getRunDirectory()).toAbsolutePath().toString());
+
+		loadStudyArea(studyAreaShpPath.toString());
 		generateLiveabilityData();
 
 		generateSummaryTilesFile();
@@ -96,16 +120,20 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 					 for (CSVRecord record : personsParser) {
 						 String person = record.get("person");
-						 String homeX = record.get("home_x");
-						 String homeY = record.get("home_y");
+						 double homeX = Double.parseDouble(record.get("home_x"));
+						 double homeY = Double.parseDouble(record.get("home_y"));
 
-						 // not universally transferable for other regions yet!
-						 String pointInBerlin = record.get("RegioStaR7");
-
-						 // the Liveability-Ranking is only useful for a defined study area, which in this case is the boarder of Berlin. In this case, this includes all points in the RegioStaR7 = 1 area.
-						 if ("1".equals(pointInBerlin)) {
-							 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
+						 if (isInsideStudyArea(homeX, homeY)) {
+							 agentLiveabilityWriter.writeNext(new String[]{person, String.valueOf(homeX), String.valueOf(homeY)});
 						 }
+
+//						 // not universally transferable for other regions yet!
+//						 String pointInStudyArea = record.get("RegioStaR7");
+//
+//						 // the Liveability-Ranking is only useful for a defined study area, which in this case is the boarder of Berlin. In this case, this includes all points in the RegioStaR7 = 1 area.
+//						 if ("1".equals(pointInStudyArea)) {
+//							 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
+//						 }
 					 }
 			}
 		System.out.println("Liveability-CSV generated under: " + outputAgentLiveabilityCSVPath);
@@ -240,6 +268,34 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		// rewrite original file by temp file
 		Files.move(tempIndicatorValuesCsvPath, outputIndicatorValuesCsvPath, StandardCopyOption.REPLACE_EXISTING);
 
+	}
+
+	private void loadStudyArea(String shapefilePath) throws IOException {
+		File file = new File(shapefilePath);
+		FileDataStore store = FileDataStoreFinder.getDataStore(file);
+		SimpleFeatureSource featureSource = store.getFeatureSource();
+		SimpleFeatureCollection featureCollection = featureSource.getFeatures();
+
+		try (FeatureIterator<SimpleFeature> features = featureCollection.features()) {
+			if (features.hasNext()) {
+				SimpleFeature feature = features.next();
+				studyAreaGeometry = (Geometry) feature.getDefaultGeometry();
+			}
+		}
+
+		//PointFeatureFactory pointFactoryBuilder = new PointFeatureFactory.Builder().setCrs(CRS.decode(config.global().getCoordinateSystem)).create();
+	}
+
+	private boolean isInsideStudyArea(double x, double y) {
+
+		if (pointFactoryBuilder == null) {
+			throw new IllegalStateException("PointFeatureFactory wurde nicht initialisiert.");
+		}
+		Point point = geometryFactory.createPoint(new Coordinate(x, y));
+		return studyAreaGeometry != null && studyAreaGeometry.contains(point);
+
+		Point point = pointFactoryBuilder.createPoint(new Coordinate(x, y));
+		return studyAreaGeometry != null && studyAreaGeometry.contains(point);
 	}
 
 }
