@@ -37,11 +37,6 @@ import java.util.zip.GZIPInputStream;
 
 import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
-
-
-
-
-
 @CommandLine.Command(
 	name = "greenSpace-analysis",
 	description = "Green Space availability and accessibility Analysis. Required Input: persons.csv.gz, accessPoints (to be generated e.g. via QGIS - see ReadMe-File)",
@@ -58,8 +53,8 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 	},
 	requires = {
 		"output_persons.csv.gz",
-		"accessPoints.shp",
-		"allGreenSpaces_min1ha.shp"
+	//	"accessPoints.shp",
+	//	"allGreenSpaces_min1ha.shp"
 	},
 	produces = {
 		"greenSpace_stats_perAgent.csv",
@@ -68,7 +63,8 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 		"greenSpace_TilesDistance.csv",
 		"greenSpace_TilesUtilization.csv",
 		"XYTAgentBasedGreenSpaceMap.xyt.csv",
-		"XYTGreenSpaceUtilizationMap.xyt.csv"
+		"XYTGreenSpaceUtilizationMap.xyt.csv",
+		"greenSpace_perAgentGeofile.gpkg"
 	}
 )
 
@@ -100,6 +96,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path inputPersonsCSVPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
 	//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
 	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("test_accessPoints.shp", getValidOutputDirectory());
+	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("test_accessPoints.shp", getValidInputDirectory());
 	private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("zusammengefügteFiles_NEU_accessPoints.shp", getValidInputDirectory());
 	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("relevante_accessPoints.shp", getValidInputDirectory());
 	private final Path inputGreenSpaceShpPath = ApplicationUtils.matchInput("allGreenSpaces_min1ha.shp", getValidInputDirectory());
@@ -115,7 +112,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path XYTGreenSpaceUtilizationMapPath = getValidLiveabilityOutputDirectory().resolve("XYTGreenSpaceUtilizationMap.xyt.csv");
 	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
 	private final Path outputGreenSpaceSHP = getValidLiveabilityOutputDirectory().resolve("greenSpaces_withUtilization.shp");
-	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpaces_perAgentGeofile.gpkg");
+	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.gpkg");
 
 	public static void main(String[] args) {
 		new AgentBasedGreenSpaceAnalysis().execute(args);
@@ -330,7 +327,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 			// writing csv-headers for agent- and green space-based information-output files
 			agentCSVWriter.writeNext(new String[]{"AgentID", "home_x", "home_y", "ClosestGreenSpace", "DistanceToGreenSpace", "UtilizationOfGreenSpace [m²/person]", "GSDistanceDeviationFromLimit", "GSUtilizationDeviationFromLimit"});
-			greenSpaceUtilizationWriter.writeNext(new String[]{"osm_id", "nrOfPeople", "meanDistance", "utilization [m²/person]"});
+			greenSpaceUtilizationWriter.writeNext(new String[]{"osm_id", "nrOfPeople", "meanDistance", "utilization [m²/person]", "area", "areaCategory"});
 
 			// writing results in the csv files
 			for (Map.Entry<String, List<Double>> entry : greenSpaceUtilization.entrySet()) {
@@ -339,7 +336,21 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				Integer count = nrOfPeoplePerGreenSpace.get(id);
 				String meanDistance = String.valueOf(values.get(1));
 				String utilization = utilizationPerGreenSpace.get(id).toString();
-				greenSpaceUtilizationWriter.writeNext(new String[]{id, String.valueOf(count), meanDistance, utilization});
+				Double area = areaPerGreenSpace.get(id);
+				String areaCategory;
+				    if (area < 10000) {areaCategory = "< 1 ha";}
+					else if (area < 20000) {areaCategory = "01 - 02 ha";}
+					else if (area < 50000) {areaCategory = "02 - 05 ha";}
+					else if (area < 100000) {areaCategory = "05 - 10 ha";}
+					else if (area < 200000) {areaCategory = "10 - 20 ha";}
+					else {areaCategory = "> 20 ha";}
+//				if (area < 10000) {areaCategory = "a: < 1 ha";}
+//				else if (area < 20000) {areaCategory = "b: 1 - 2 ha";}
+//				else if (area < 50000) {areaCategory = "c: 2 - 5 ha";}
+//				else if (area < 100000) {areaCategory = "d: 5 - 10 ha";}
+//				else if (area < 200000) {areaCategory = "e: 10 - 20 ha";}
+//				else {areaCategory = "f: > 20 ha";}
+				greenSpaceUtilizationWriter.writeNext(new String[]{id, String.valueOf(count), meanDistance, utilization, String.valueOf(area), areaCategory});
 			}
 
 			for (Map.Entry<String, List<String>> entry : homeCoordinatesPerAgentInStudyArea.entrySet()) {
@@ -389,9 +400,12 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			GSxytAgentMapWriter.writeNext(new String[]{"# EPSG:25832"});
 			GSxytAgentMapWriter.writeNext(new String[]{"time", "x", "y", "value"});
 
-			for (Map.Entry<String, Double> entry : greenSpaceOverallRankingValuePerAgent.entrySet()) {
+			for (Map.Entry<String, List<String>> entry : homeCoordinatesPerAgentInStudyArea.entrySet()) {
 				String agentName = entry.getKey();
-				GSxytAgentMapWriter.writeNext(new String[]{String.valueOf(0.0), homeCoordinatesPerAgentInStudyArea.get(agentName).get(0), homeCoordinatesPerAgentInStudyArea.get(agentName).get(1), String.valueOf(greenSpaceOverallRankingValuePerAgent.get(entry.getKey()))});
+				GSxytAgentMapWriter.writeNext(new String[]{String.valueOf(0.0),
+					homeCoordinatesPerAgentInStudyArea.get(agentName).get(0),
+					homeCoordinatesPerAgentInStudyArea.get(agentName).get(1),
+					String.valueOf(greenSpaceOverallRankingValuePerAgent.get(entry.getKey()))});
 			}
 		}
 
