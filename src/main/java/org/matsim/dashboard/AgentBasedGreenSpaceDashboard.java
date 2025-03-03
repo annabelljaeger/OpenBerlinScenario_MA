@@ -19,8 +19,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidInputDirectory;
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.*;
+import static tech.tablesaw.plotly.components.Axis.CategoryOrder.ARRAY;
+import static tech.tablesaw.plotly.components.Axis.CategoryOrder.CATEGORY_ASCENDING;
 
 // This is the Class creating the Dashboard for the green space related analyses.
 // 1. Map of all agents with their deviation values from the set limit
@@ -54,17 +55,15 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 			});
 
 		// geofile based map - issue: visualization cannot be adapted here
-		layout.row("Green Space Deviations Shp")
+		layout.row("Green Space Deviations Geofile")
 			.el(MapPlot.class, (viz, data) -> {
 				viz.title = "GreenSpace Index Results Map";
 				viz.height = 10.0;
 
-				viz.setShape(String.valueOf(ApplicationUtils.matchInput("allGreenSpaces_min1ha.shp", getValidOutputDirectory().resolve("analysis"))), "osm_id");
-				viz.addDataset("greenSpace_utilization", data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_utilization.csv"));
+				viz.addDataset("greenSpace_perAgentGeofile.gpkg", data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_perAgentGeofile.gpkg"));
 
-				viz.display.fill.dataset = "greenSpace_utilization";
-				viz.display.fill.join = "osm_id";
-				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 3, false);
+				viz.display.fill.dataset = "greenSpaceOverallIndexValue";
+				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 6, false);
 
 			});
 
@@ -157,31 +156,20 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.title = "Green Space Area Distribution";
 				viz.description = "Distribution of green spaces by size categories";
 
-					// Dataset aus CSV-Datei laden
-					Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_utilization.csv"));
+				// Add the dataset
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_utilization.csv"));
 
-				// Erstelle ein Bar Chart mit Gruppenbildung
-				viz.addTrace(
-					BarTrace.builder()
-						.x("sizeCategory") // Die berechnete Kategorie-Spalte
-						.y("count") // Anzahl der Green Spaces pro Kategorie
-						.build(),
-					dataset.aggregate()
-						.groupBy(row -> {
-							double area = row.get("area"); // "area" ist die Spalte mit der Green Space Fläche
-							if (area < 1) return "<1 ha";
-							if (area < 2) return "1-2 ha";
-							if (area < 5) return "2-5 ha";
-							if (area < 10) return "5-10 ha";
-							if (area < 20) return "10-20 ha";
-							return ">20 ha";
-						})
-						.count()
-				);
+				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("areaCategory").build(),
+					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
+						.x("areaCategory"));
 
-				// Achsentitel definieren
-				viz.layout().xAxisTitle("Green Space Size Category");
-				viz.layout().yAxisTitle("Number of Green Spaces");
+				Axis.CategoryOrder categoryOrder = Axis.CategoryOrder.ARRAY;
+				// Define the layout for the plot
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Green Space Size").categoryOrder(CATEGORY_ASCENDING).build())
+					.yAxis(Axis.builder().title("Number of Green Spaces").build())
+					.build();
+
 			});
 	}
 }
