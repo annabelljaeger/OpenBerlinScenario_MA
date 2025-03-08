@@ -11,6 +11,7 @@ import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.Polygon;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
@@ -25,6 +26,7 @@ import org.matsim.core.utils.geometry.geotools.MGC;
 import org.matsim.core.utils.gis.GeoFileReader;
 import org.matsim.core.utils.gis.GeoFileWriter;
 import org.matsim.core.utils.gis.PointFeatureFactory;
+import org.matsim.core.utils.gis.PolygonFeatureFactory;
 import org.matsim.core.utils.io.IOUtils;
 import org.matsim.simwrapper.SimWrapperConfigGroup;
 import picocli.CommandLine;
@@ -97,11 +99,11 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
 	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("test_accessPoints.shp", getValidOutputDirectory());
 	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("test_accessPoints.shp", getValidInputDirectory());
-	private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("zusammengefügteFiles_NEU_accessPoints.shp", getValidInputDirectory());
+	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("zusammengefügteFiles_NEU_accessPoints.shp", getValidInputDirectory());
+	private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("accessPoints.shp", getValidInputDirectory());
 	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("relevante_accessPoints.shp", getValidInputDirectory());
 	private final Path inputGreenSpaceShpPath = ApplicationUtils.matchInput("allGreenSpaces_min1ha.shp", getValidInputDirectory());
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
-	//	Path greenSpaceShpPath = Path.of(input.getPath("allGreenSpaces_min1ha.shp"));
 
 	// output paths
 	private final Path XYTAgentBasedGreenSpaceMapPath = getValidLiveabilityOutputDirectory().resolve("XYTAgentBasedGreenSpaceMap.xyt.csv");
@@ -112,7 +114,9 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path XYTGreenSpaceUtilizationMapPath = getValidLiveabilityOutputDirectory().resolve("XYTGreenSpaceUtilizationMap.xyt.csv");
 	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
 	private final Path outputGreenSpaceSHP = getValidLiveabilityOutputDirectory().resolve("greenSpaces_withUtilization.shp");
-	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.gpkg");
+	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.shp");
+	private final Path outputGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_statsGeofile.shp");
+	private final Path outputGeofileAgentGS = getValidLiveabilityOutputDirectory().resolve("greenSpaceAndAgent_geofile.shp");
 
 	public static void main(String[] args) {
 		new AgentBasedGreenSpaceAnalysis().execute(args);
@@ -252,7 +256,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				double distanceDeviation = (distancePerAgent.get(agentId) - limitEuclideanDistanceToGreenSpace) / limitEuclideanDistanceToGreenSpace;
 				distanceToGreenSpaceDeviationValuePerAgent.put(agentId, distanceDeviation);
 
-				double utilizationDeviation = (utilizationPerAgent.get(agentId) - limitGreenSpaceUtilizationSampleSizeAdjusted) / limitGreenSpaceUtilizationSampleSizeAdjusted;
+				double utilizationDeviation = (utilizationPerAgent.get(agentId) - limitGreenSpaceUtilization) / limitGreenSpaceUtilization;
 				greenSpaceUtilizationDeviationValuePerAgent.put(agentId, utilizationDeviation);
 
 				double overallGreenSpaceDeviationValue = Math.max(distanceDeviation, utilizationDeviation);
@@ -338,8 +342,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				String utilization = utilizationPerGreenSpace.get(id).toString();
 				Double area = areaPerGreenSpace.get(id);
 				String areaCategory;
-				    if (area < 10000) {areaCategory = "< 1 ha";}
-					else if (area < 20000) {areaCategory = "01 - 02 ha";}
+				    //if (area < 10000) {areaCategory = "< 1 ha";}
+					if (area < 20000) {areaCategory = "01 - 02 ha";}
 					else if (area < 50000) {areaCategory = "02 - 05 ha";}
 					else if (area < 100000) {areaCategory = "05 - 10 ha";}
 					else if (area < 200000) {areaCategory = "10 - 20 ha";}
@@ -409,46 +413,94 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			}
 		}
 
-		//creating two shapefiles for the dashboard - one for the agents with its indicator deviation values and one for the green spaces
-		// creating the builder for the Point Features (Agents) in the Geofile
-		PointFeatureFactory pointFactoryBuilder = new PointFeatureFactory.Builder()
-			.setName("AgentFeatures")
-			.setCrs(CRS.decode(config.global().getCoordinateSystem()))
-			.addAttribute("nearestGreenSpaceID", String.class)
-			.addAttribute("greenSpaceUtilizationDeviation", Double.class)
-			.addAttribute("distanceToGreenSpaceDeviationValue", Double.class)
-			.addAttribute("greenSpaceOverallIndexValue", Double.class)
-			.create();
-
-		Collection<SimpleFeature> featureCollection = new ArrayList<SimpleFeature>();
-
-		// creating a SimpleFeature with attributes for every agent and adding them to the collection
-		for (String agentId : homeCoordinatesPerAgentInStudyArea.keySet()) {
-			List<String> coordinates = homeCoordinatesPerAgentInStudyArea.get(agentId);
-			double x = (coordinates.get(0).isEmpty() || coordinates.get(0).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(0));
-			double y = (coordinates.get(1).isEmpty() || coordinates.get(1).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(1));
-			Coord coord = new Coord(x, y);
-			Coordinate coordinate = new Coordinate(coord.getX(), coord.getY());
-			if (coordinates == null || coordinates.size() < 2 || coordinates.get(0).isEmpty() || coordinates.get(1).isEmpty()) {
-				continue; // skip false agents
-			}
-
-			Object[] attributes = new Object[]{
-				greenSpaceIdPerAgent.getOrDefault(agentId, null),
-				greenSpaceUtilizationDeviationValuePerAgent.getOrDefault(agentId, 0.0),
-				distanceToGreenSpaceDeviationValuePerAgent.getOrDefault(agentId, 0.0),
-				greenSpaceOverallRankingValuePerAgent.getOrDefault(agentId,0.0)
-			};
-
-			SimpleFeature feature = pointFactoryBuilder.createPoint(coordinate, attributes, null);
-			if (feature == null) {
-				System.err.println("Feature konnte nicht erstellt werden für Agent: " + agentId);
-			}
-			featureCollection.add(feature);
-			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
-
-		}
-
+//		//creating two shapefiles for the dashboard - one for the agents with its indicator deviation values and one for the green spaces
+//		// creating the builder for the Point Features (Agents) in the Geofile
+//		PointFeatureFactory pointFactoryBuilder = new PointFeatureFactory.Builder()
+//			.setName("AgentFeatures")
+//			.setCrs(CRS.decode(config.global().getCoordinateSystem()))
+//			.addAttribute("nearestGreenSpaceID", String.class)
+//			.addAttribute("greenSpaceUtilizationDeviation", Double.class)
+//			.addAttribute("distanceToGreenSpaceDeviationValue", Double.class)
+//			.addAttribute("greenSpaceOverallIndexValue", Double.class)
+//			.create();
+//
+//		Collection<SimpleFeature> featureCollection = new ArrayList<SimpleFeature>();
+//
+//		// creating a SimpleFeature with attributes for every agent and adding them to the collection
+//		for (String agentId : homeCoordinatesPerAgentInStudyArea.keySet()) {
+//			List<String> coordinates = homeCoordinatesPerAgentInStudyArea.get(agentId);
+//			double x = (coordinates.get(0).isEmpty() || coordinates.get(0).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(0));
+//			double y = (coordinates.get(1).isEmpty() || coordinates.get(1).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(1));
+//			Coord coord = new Coord(x, y);
+//			Coordinate coordinate = new Coordinate(coord.getX(), coord.getY());
+//			if (coordinates == null || coordinates.size() < 2 || coordinates.get(0).isEmpty() || coordinates.get(1).isEmpty()) {
+//				continue; // skip false agents
+//			}
+//
+//			Object[] attributes = new Object[]{
+//				greenSpaceIdPerAgent.getOrDefault(agentId, null),
+//				greenSpaceUtilizationDeviationValuePerAgent.getOrDefault(agentId, 0.0),
+//				distanceToGreenSpaceDeviationValuePerAgent.getOrDefault(agentId, 0.0),
+//				greenSpaceOverallRankingValuePerAgent.getOrDefault(agentId,0.0)
+//			};
+//
+//			SimpleFeature feature = pointFactoryBuilder.createPoint(coordinate, attributes, null);
+//			if (feature == null) {
+//				System.err.println("Feature konnte nicht erstellt werden für Agent: " + agentId);
+//			}
+//			featureCollection.add(feature);
+//			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
+//
+//		}
+//
+//		// Beispiel PolygonFeatureFactory erstellen
+//		PolygonFeatureFactory polygonFeatureFactory = new PolygonFeatureFactory.Builder()
+//			.setName("GreenSpaceFeatures")
+//			.setCrs(CRS.decode(config.global().getCoordinateSystem()))  // CRS aus Konfiguration
+//			.addAttribute("greenSpaceID", String.class)
+//			.addAttribute("greenSpaceUtilization", Double.class)
+//			.addAttribute("area", Double.class)
+//			.addAttribute("nrOfPeople", Integer.class)
+//			.create();
+//
+//
+//		// Angenommene bereits existierende GreenSpace-Collection
+//		Collection<SimpleFeature> existingGreenSpaceCollection = GeoFileReader.getAllFeatures(String.valueOf(inputGreenSpaceShpPath));
+//		// NewCollection
+//		Collection<SimpleFeature> polygonCollection = new ArrayList<SimpleFeature>();
+//
+//
+//		// Iteration über alle bestehenden Features, Geometrie und Attribute setzen
+//		for (SimpleFeature existingFeature : existingGreenSpaceCollection) {
+//			// Geometrie und existierende Attribute (greenSpaceID, area) übernehmen
+//			Polygon geometry = (Polygon) existingFeature.getDefaultGeometry();
+//			String greenSpaceID = (String) existingFeature.getAttribute("greenSpaceID");
+//			Double area = (Double) existingFeature.getAttribute("area");
+//
+//			// Werte aus Map1 und Map2 anhand der greenSpaceID holen
+//			Object[] attributes = new Object[]{
+//				greenSpaceID,
+//				area,
+//				utilizationPerGreenSpace.getOrDefault(greenSpaceID, 0.0),
+//				nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceID,0)
+//			};
+//
+//			// Das neue Feature in die Sammlung einfügen
+//			SimpleFeature feature = polygonFeatureFactory.createPolygon(geometry, new Object[]{}, null);
+//			if (feature == null) {
+//				System.err.println("Feature konnte nicht erstellt werden für Agent: " + greenSpaceID);
+//			}
+//			polygonCollection.add(feature);
+//		}
+//
+//		GeoFileWriter.writeGeometries(polygonCollection, String.valueOf(outputGreenSpaceGeofile));
+//
+//		Collection<SimpleFeature> mergedCollection = new ArrayList<>();
+//		mergedCollection.addAll(polygonCollection);
+//		mergedCollection.addAll(featureCollection);
+//
+//		GeoFileWriter.writeGeometries(mergedCollection, String.valueOf(outputGeofileAgentGS));
+//
 //		PolygonFeatureFactory polygonFeatureFactory = new PolygonFeatureFactory.Builder()
 //			.setName("GreenSpaceFeatures")
 //			.setCrs(CRS.decode(config.global().getCoordinateSystem()))
@@ -491,11 +543,11 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 //			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
 //
 //		}
-
-		// writing the FeatureCollection into a gpkg (because shp was not working)
-		GeoFileWriter.writeGeometries(featureCollection, String.valueOf(outputAgentGreenSpaceGeofile));
-
-		System.out.println("Shapefile erfolgreich geschrieben!");
+//
+//		// writing the FeatureCollection into a gpkg (because shp was not working)
+//		GeoFileWriter.writeGeometries(featureCollection, String.valueOf(outputAgentGreenSpaceGeofile));
+//
+//		System.out.println("Shapefile erfolgreich geschrieben!");
 
 		// end of call method
 		return 0;
@@ -562,7 +614,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		for (Map.Entry<String, Double> entry : areaPerGreenSpace.entrySet()) {
 			String greenSpaceId = entry.getKey();
 			double area = entry.getValue();
-			int peopleCount = nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceId, 0);
+			double peopleCount = nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceId, 0)/sampleSize;
 			utilizationPerGreenSpace.put(greenSpaceId, area > 0 ? peopleCount / area : 0);
 		}
 	}

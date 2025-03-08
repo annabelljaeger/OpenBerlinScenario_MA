@@ -16,8 +16,10 @@ import org.geotools.feature.FeatureIterator;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.io.WKTReader;
+import org.matsim.api.core.v01.Coord;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
 import org.matsim.application.Dependency;
@@ -86,12 +88,11 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	private final Path tempSummaryTilesOutputPath = getValidLiveabilityOutputDirectory().resolve("summaryTiles_tmp.csv");
 
 	private Geometry studyAreaGeometry;
+	private final GeometryFactory geometryFactory = new GeometryFactory();
 
 	// method generates the csv-Files - the methods to extend the files are called in the dimension analysis classes
 	@Override
 	public Integer call() throws Exception {
-
-		Config config = ConfigUtils.loadConfig(ApplicationUtils.matchInput("config.xml", input.getRunDirectory()).toAbsolutePath().toString());
 
 		loadStudyArea(studyAreaShpPath.toString());
 		generateLiveabilityData();
@@ -120,12 +121,31 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 					 for (CSVRecord record : personsParser) {
 						 String person = record.get("person");
-						 double homeX = Double.parseDouble(record.get("home_x"));
-						 double homeY = Double.parseDouble(record.get("home_y"));
+						 String homeX = (record.get("home_x"));
+						 String homeY = (record.get("home_y"));
 
-						 if (isInsideStudyArea(homeX, homeY)) {
-							 agentLiveabilityWriter.writeNext(new String[]{person, String.valueOf(homeX), String.valueOf(homeY)});
-						 }
+						 System.out.println("Prüfe Person " + person + " mit Koordinaten: (" + homeX + ", " + homeY + ")");
+
+
+						 if (homeX != null && !homeX.isEmpty() && homeY != null && !homeY.isEmpty()) {
+							 try {
+								 double x = Double.parseDouble(homeX);
+								 double y = Double.parseDouble(homeY);
+								 if (isInsideStudyArea(x, y)) {
+									 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
+								 }
+							 } catch (NumberFormatException e) {
+								 System.err.println("Ungültige Koordinaten für Person " + person + ": " + homeX + ", " + homeY);
+							 }
+
+//						 double x = Double.parseDouble(homeX);
+//						 double y = Double.parseDouble(homeY);
+//						 Coord coord = new Coord(x, y);
+//						 Coordinate coordinate = new Coordinate(coord.getX(), coord.getY());
+//
+//						 if (isInsideStudyArea(coordinate)) {
+//							 agentLiveabilityWriter.writeNext(new String[]{person, String.valueOf(homeX), String.valueOf(homeY)});
+//						 }
 
 //						 // not universally transferable for other regions yet!
 //						 String pointInStudyArea = record.get("RegioStaR7");
@@ -134,6 +154,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 //						 if ("1".equals(pointInStudyArea)) {
 //							 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
 //						 }
+						 }
 					 }
 			}
 		System.out.println("Liveability-CSV generated under: " + outputAgentLiveabilityCSVPath);
@@ -283,19 +304,24 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			}
 		}
 
+		System.out.println("Geladene Study Area Geometrie: " + studyAreaGeometry);
+
 		//PointFeatureFactory pointFactoryBuilder = new PointFeatureFactory.Builder().setCrs(CRS.decode(config.global().getCoordinateSystem)).create();
 	}
 
 	private boolean isInsideStudyArea(double x, double y) {
-
-		if (pointFactoryBuilder == null) {
-			throw new IllegalStateException("PointFeatureFactory wurde nicht initialisiert.");
-		}
 		Point point = geometryFactory.createPoint(new Coordinate(x, y));
-		return studyAreaGeometry != null && studyAreaGeometry.contains(point);
 
-		Point point = pointFactoryBuilder.createPoint(new Coordinate(x, y));
-		return studyAreaGeometry != null && studyAreaGeometry.contains(point);
+//		private boolean isInsideStudyArea(Coordinate coordinate) {
+//
+//			Point point = geometryFactory.createPoint(coordinate);
+		boolean inside = studyAreaGeometry != null && studyAreaGeometry.contains(point);
+		System.out.println("Person an (" + x + ", " + y + ") ist " + (inside ? "innerhalb" : "außerhalb") + " der Study Area.");
+		return inside;
+
+
+	//	return studyAreaGeometry != null && studyAreaGeometry.contains(point);
+
 	}
 
 }
