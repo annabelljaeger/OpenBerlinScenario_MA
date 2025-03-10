@@ -21,7 +21,7 @@ import java.nio.file.Paths;
 
 public class RunLiveabilityDashboard implements MATSimAppCommand {
 
-	// input and output paths can either be provided via the command line or below as an absolute path (beginner friendly)
+	// input and output paths can either be provided via the command line or below as an absolute path (beginner-friendly)
 	@CommandLine.Option(names = "--inputDirectory", description = "Path to the input directory")
 	private static Path inputDirectory;
 	@CommandLine.Option(names = "--outputDirectory",description = "Path to the output directory")
