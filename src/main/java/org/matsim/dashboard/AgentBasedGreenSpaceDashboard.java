@@ -48,12 +48,13 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.height = 10.0;
 				viz.buckets = 6;
 				viz.radius = 15.0;
-				//viz.setColorRamp(new double[]{30.0, 40.0, 50.0, 60.0, 70.0}, new String[]{"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27"});
-				viz.setBreakpoints(-0.5, 0.0, 0.5, 1.0, 1.5);
+				//viz.setBreakpoints(-0.5, 0.0, 0.5, 1.0, 1.5; "#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27");
 				viz.colorRamp = "viridis";
 				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
 
 				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
+				//viz.setColorRamp(new double[]{30.0, 40.0, 50.0, 60.0, 70.0}, new String[]{"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27"});
+
 			});
 
 
@@ -155,9 +156,12 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.title = "GreenSpace Index Results Map";
 				viz.height = 10.0;
 
-				viz.setShape("greenSpace_perAgentGeofile.gpkg", data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_perAgentGeofile.gpkg"));
+				viz.setShape("greenSpace_perAgentGeofile.gpkg"
+				//	,
+				//	data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_perAgentGeofile.gpkg")
+				);
 
-				viz.display.fill.dataset = "greenSpaceOverallIndexValue";
+				//viz.display.fill.dataset = "greenSpaceOverallIndexValue";
 				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 6, false);
 
 			});

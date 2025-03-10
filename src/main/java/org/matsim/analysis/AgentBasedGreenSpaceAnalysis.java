@@ -8,10 +8,8 @@ import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.referencing.CRS;
-import org.locationtech.jts.geom.Coordinate;
-import org.locationtech.jts.geom.Geometry;
-import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.geom.Polygon;
+import org.jetbrains.annotations.NotNull;
+import org.locationtech.jts.geom.*;
 import org.matsim.api.core.v01.Coord;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
@@ -30,6 +28,8 @@ import org.matsim.core.utils.gis.PolygonFeatureFactory;
 import org.matsim.core.utils.io.IOUtils;
 import org.matsim.simwrapper.SimWrapperConfigGroup;
 import picocli.CommandLine;
+import org.apache.commons.io.FileUtils;
+
 
 import java.io.*;
 import java.nio.file.Path;
@@ -114,7 +114,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path XYTGreenSpaceUtilizationMapPath = getValidLiveabilityOutputDirectory().resolve("XYTGreenSpaceUtilizationMap.xyt.csv");
 	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
 	private final Path outputGreenSpaceSHP = getValidLiveabilityOutputDirectory().resolve("greenSpaces_withUtilization.shp");
-	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.shp");
+	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.gpkg");
 	private final Path outputGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_statsGeofile.shp");
 	private final Path outputGeofileAgentGS = getValidLiveabilityOutputDirectory().resolve("greenSpaceAndAgent_geofile.shp");
 
@@ -413,141 +413,96 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			}
 		}
 
-//		//creating two shapefiles for the dashboard - one for the agents with its indicator deviation values and one for the green spaces
-//		// creating the builder for the Point Features (Agents) in the Geofile
-//		PointFeatureFactory pointFactoryBuilder = new PointFeatureFactory.Builder()
-//			.setName("AgentFeatures")
-//			.setCrs(CRS.decode(config.global().getCoordinateSystem()))
-//			.addAttribute("nearestGreenSpaceID", String.class)
-//			.addAttribute("greenSpaceUtilizationDeviation", Double.class)
-//			.addAttribute("distanceToGreenSpaceDeviationValue", Double.class)
-//			.addAttribute("greenSpaceOverallIndexValue", Double.class)
-//			.create();
-//
-//		Collection<SimpleFeature> featureCollection = new ArrayList<SimpleFeature>();
-//
-//		// creating a SimpleFeature with attributes for every agent and adding them to the collection
-//		for (String agentId : homeCoordinatesPerAgentInStudyArea.keySet()) {
-//			List<String> coordinates = homeCoordinatesPerAgentInStudyArea.get(agentId);
-//			double x = (coordinates.get(0).isEmpty() || coordinates.get(0).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(0));
-//			double y = (coordinates.get(1).isEmpty() || coordinates.get(1).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(1));
-//			Coord coord = new Coord(x, y);
-//			Coordinate coordinate = new Coordinate(coord.getX(), coord.getY());
-//			if (coordinates == null || coordinates.size() < 2 || coordinates.get(0).isEmpty() || coordinates.get(1).isEmpty()) {
-//				continue; // skip false agents
-//			}
-//
-//			Object[] attributes = new Object[]{
-//				greenSpaceIdPerAgent.getOrDefault(agentId, null),
-//				greenSpaceUtilizationDeviationValuePerAgent.getOrDefault(agentId, 0.0),
-//				distanceToGreenSpaceDeviationValuePerAgent.getOrDefault(agentId, 0.0),
-//				greenSpaceOverallRankingValuePerAgent.getOrDefault(agentId,0.0)
-//			};
-//
-//			SimpleFeature feature = pointFactoryBuilder.createPoint(coordinate, attributes, null);
-//			if (feature == null) {
-//				System.err.println("Feature konnte nicht erstellt werden für Agent: " + agentId);
-//			}
-//			featureCollection.add(feature);
-//			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
-//
-//		}
-//
-//		// Beispiel PolygonFeatureFactory erstellen
-//		PolygonFeatureFactory polygonFeatureFactory = new PolygonFeatureFactory.Builder()
-//			.setName("GreenSpaceFeatures")
-//			.setCrs(CRS.decode(config.global().getCoordinateSystem()))  // CRS aus Konfiguration
-//			.addAttribute("greenSpaceID", String.class)
-//			.addAttribute("greenSpaceUtilization", Double.class)
-//			.addAttribute("area", Double.class)
-//			.addAttribute("nrOfPeople", Integer.class)
-//			.create();
-//
-//
-//		// Angenommene bereits existierende GreenSpace-Collection
-//		Collection<SimpleFeature> existingGreenSpaceCollection = GeoFileReader.getAllFeatures(String.valueOf(inputGreenSpaceShpPath));
-//		// NewCollection
-//		Collection<SimpleFeature> polygonCollection = new ArrayList<SimpleFeature>();
-//
-//
-//		// Iteration über alle bestehenden Features, Geometrie und Attribute setzen
-//		for (SimpleFeature existingFeature : existingGreenSpaceCollection) {
-//			// Geometrie und existierende Attribute (greenSpaceID, area) übernehmen
-//			Polygon geometry = (Polygon) existingFeature.getDefaultGeometry();
-//			String greenSpaceID = (String) existingFeature.getAttribute("greenSpaceID");
-//			Double area = (Double) existingFeature.getAttribute("area");
-//
-//			// Werte aus Map1 und Map2 anhand der greenSpaceID holen
-//			Object[] attributes = new Object[]{
-//				greenSpaceID,
-//				area,
-//				utilizationPerGreenSpace.getOrDefault(greenSpaceID, 0.0),
-//				nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceID,0)
-//			};
-//
-//			// Das neue Feature in die Sammlung einfügen
-//			SimpleFeature feature = polygonFeatureFactory.createPolygon(geometry, new Object[]{}, null);
-//			if (feature == null) {
-//				System.err.println("Feature konnte nicht erstellt werden für Agent: " + greenSpaceID);
-//			}
-//			polygonCollection.add(feature);
-//		}
-//
-//		GeoFileWriter.writeGeometries(polygonCollection, String.valueOf(outputGreenSpaceGeofile));
-//
-//		Collection<SimpleFeature> mergedCollection = new ArrayList<>();
-//		mergedCollection.addAll(polygonCollection);
-//		mergedCollection.addAll(featureCollection);
-//
-//		GeoFileWriter.writeGeometries(mergedCollection, String.valueOf(outputGeofileAgentGS));
-//
-//		PolygonFeatureFactory polygonFeatureFactory = new PolygonFeatureFactory.Builder()
-//			.setName("GreenSpaceFeatures")
-//			.setCrs(CRS.decode(config.global().getCoordinateSystem()))
-//			.addAttribute("greenSpaceID", String.class)
-//			.addAttribute("greenSpaceUtilization", Double.class)
-//			.addAttribute("area", Double.class)
-//			.addAttribute("nrOfPeople", Integer.class)
-//			.create();
-//
-//		// Erstelle eine Sammlung für die Features
-//		Collection<SimpleFeature> polygonCollection = new ArrayList<SimpleFeature>();
-//
-//		Collection<SimpleFeature> existingGreenSpaceCollection = GeoFileReader.getAllFeatures(greenSpaceShpInputPath);
-//
-//
-//		// Erstelle SimpleFeature für jeden Agenten und füge es zur Sammlung hinzu
-//		for (String greenSpaceId : greenSpaceUtilization.keySet()) {
-//
-//			List<String> coordinates = homeCoordinatesPerAgentInStudyArea.get(agentId);
-//			double x = (coordinates.get(0).isEmpty() || coordinates.get(0).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(0));
-//			double y = (coordinates.get(1).isEmpty() || coordinates.get(1).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(1));
-//			Coord coord = new Coord(x, y);
-//			Coordinate coordinate = new Coordinate(coord.getX(), coord.getY());
-//			if (coordinates == null || coordinates.size() < 2 || coordinates.get(0).isEmpty() || coordinates.get(1).isEmpty()) {
-//				continue; // skip false agents
-//			}
-//
-//			Object[] attributes = new Object[]{
-//				greenSpaceIdPerAgent.getOrDefault(agentId, null),
-//				greenSpaceUtilizationDeviationValuePerAgent.getOrDefault(agentId, 0.0),
-//				distanceToGreenSpaceDeviationValuePerAgent.getOrDefault(agentId, 0.0),
-//				greenSpaceOverallRankingValuePerAgent.getOrDefault(agentId,0.0)
-//			};
-//
-//			SimpleFeature feature = pointFactoryBuilder.createPoint(coordinate, attributes, null);
-//			if (feature == null) {
-//				System.err.println("Feature konnte nicht erstellt werden für Agent: " + agentId);
-//			}
-//			featureCollection.add(feature);
-//			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
-//
-//		}
-//
-//		// writing the FeatureCollection into a gpkg (because shp was not working)
-//		GeoFileWriter.writeGeometries(featureCollection, String.valueOf(outputAgentGreenSpaceGeofile));
-//
-//		System.out.println("Shapefile erfolgreich geschrieben!");
+		//creating two shapefiles for the dashboard - one for the agents with its indicator deviation values and one for the green spaces
+		// creating the builder for the Point Features (Agents) in the Geofile
+		PointFeatureFactory pointFactoryBuilder = new PointFeatureFactory.Builder()
+			.setName("AgentFeatures")
+			.setCrs(CRS.decode(config.global().getCoordinateSystem()))
+			.addAttribute("nearestGreenSpaceID", String.class)
+			.addAttribute("greenSpaceUtilizationDeviation", Double.class)
+			.addAttribute("distanceToGreenSpaceDeviationValue", Double.class)
+			.addAttribute("greenSpaceOverallIndexValue", Double.class)
+			.create();
+
+		Collection<SimpleFeature> featureCollection = new ArrayList<SimpleFeature>();
+
+		// creating a SimpleFeature with attributes for every agent and adding them to the collection
+		for (String agentId : homeCoordinatesPerAgentInStudyArea.keySet()) {
+			List<String> coordinates = homeCoordinatesPerAgentInStudyArea.get(agentId);
+			double x = (coordinates.get(0).isEmpty() || coordinates.get(0).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(0));
+			double y = (coordinates.get(1).isEmpty() || coordinates.get(1).equals("0")) ? 0.0 : Double.parseDouble(coordinates.get(1));
+			Coord coord = new Coord(x, y);
+			Coordinate coordinate = new Coordinate(coord.getX(), coord.getY());
+			if (coordinates == null || coordinates.size() < 2 || coordinates.get(0).isEmpty() || coordinates.get(1).isEmpty()) {
+				continue; // skip false agents
+			}
+
+			Object[] attributes = new Object[]{
+				greenSpaceIdPerAgent.getOrDefault(agentId, null),
+				greenSpaceUtilizationDeviationValuePerAgent.getOrDefault(agentId, 0.0),
+				distanceToGreenSpaceDeviationValuePerAgent.getOrDefault(agentId, 0.0),
+				greenSpaceOverallRankingValuePerAgent.getOrDefault(agentId,0.0)
+			};
+
+			SimpleFeature feature = pointFactoryBuilder.createPoint(coordinate, attributes, null);
+			if (feature == null) {
+				System.err.println("Feature konnte nicht erstellt werden für Agent: " + agentId);
+			}
+			featureCollection.add(feature);
+			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
+
+		}
+
+		// writing the FeatureCollection into a gpkg (because shp was not working)
+		AgentBasedGreenSpaceAnalysis.deleteExistingFile(String.valueOf(outputAgentGreenSpaceGeofile));
+		GeoFileWriter.writeGeometries(featureCollection, String.valueOf(outputAgentGreenSpaceGeofile));
+
+		AgentBasedGreenSpaceAnalysis.deleteExistingFile(String.valueOf(outputGreenSpaceGeofile));
+
+		// PolygonFeatureFactory erstellen
+		PolygonFeatureFactory polygonFeatureFactory = new PolygonFeatureFactory.Builder()
+			.setName("GreenSpaceFeatures")
+			.setCrs(CRS.decode(config.global().getCoordinateSystem()))  // CRS aus Konfiguration
+			.addAttribute("greenSpaceID", String.class)
+			.addAttribute("area", Double.class)
+			.addAttribute("greenSpaceUtilization", Double.class)
+			.addAttribute("nrOfPeople", Integer.class)
+			.create();
+
+
+		// Angenommene bereits existierende GreenSpace-Collection
+		Collection<SimpleFeature> existingGreenSpaceCollection = GeoFileReader.getAllFeatures(String.valueOf(inputGreenSpaceShpPath));
+		// NewCollection
+		Collection<SimpleFeature> polygonCollection = new ArrayList<SimpleFeature>();
+
+
+		// Iteration über alle bestehenden Features, Geometrie und Attribute setzen
+		for (SimpleFeature existingFeature : existingGreenSpaceCollection) {
+			// Geometrie und existierende Attribute (greenSpaceID, area) übernehmen
+			MultiPolygon geometry = (MultiPolygon) existingFeature.getDefaultGeometry();
+			String greenSpaceID = (String) existingFeature.getAttribute("osm_id");
+			Double area = (Double) existingFeature.getAttribute("area");
+
+			// Werte aus Map1 und Map2 anhand der greenSpaceID holen
+			Object[] attributes = new Object[]{
+				greenSpaceID,
+				area,
+				utilizationPerGreenSpace.getOrDefault(greenSpaceID, 0.0),
+				nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceID,0)
+			};
+
+			// Das neue Feature in die Sammlung einfügen
+			SimpleFeature feature = polygonFeatureFactory.createPolygon(geometry, attributes, null);
+			if (feature == null) {
+				System.err.println("Feature konnte nicht erstellt werden für Agent: " + greenSpaceID);
+			}
+			polygonCollection.add(feature);
+			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
+		}
+
+		GeoFileWriter.writeGeometries(polygonCollection, String.valueOf(outputGreenSpaceGeofile));
+
+		System.out.println("Shapefiles erfolgreich geschrieben!");
 
 		// end of call method
 		return 0;
@@ -616,6 +571,17 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			double area = entry.getValue();
 			double peopleCount = nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceId, 0)/sampleSize;
 			utilizationPerGreenSpace.put(greenSpaceId, area > 0 ? peopleCount / area : 0);
+		}
+	}
+
+	public static void deleteExistingFile(String filePath) {
+		File file = new File(filePath);
+		if (file.exists()) {
+			if (file.delete()) {
+				System.out.println("Bestehende Datei gelöscht: " + filePath);
+			} else {
+				System.err.println("Fehler beim Löschen der bestehenden Datei: " + filePath);
+			}
 		}
 	}
 
