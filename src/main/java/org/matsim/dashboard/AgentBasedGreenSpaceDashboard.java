@@ -57,7 +57,7 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
 				// This is how you can define custom breakpoints with custom colors
 				// Please do not define number of buckets  and colorRampe if you want to use custom breakpoints :)
-				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#000000"};
+				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27"};
 				viz.setBreakpoints(colors, -0.5, 0.0, 0.5, 1.0, 1.5);
 			});
 
