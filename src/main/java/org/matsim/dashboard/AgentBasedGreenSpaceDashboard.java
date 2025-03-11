@@ -46,18 +46,20 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.title = "GreenSpace ranking results map";
 				viz.description = "Here you can see the agents according to their green space ranking depicted on their home location";
 				viz.height = 10.0;
-				viz.buckets = 6;
+//				viz.buckets = 6;
 				viz.radius = 15.0;
 				//viz.setBreakpoints(-0.5, 0.0, 0.5, 1.0, 1.5; "#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27");
-				viz.colorRamp = "viridis";
+//				viz.colorRamp = "viridis";
 				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
 
 				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
 				//viz.setColorRamp(new double[]{30.0, 40.0, 50.0, 60.0, 70.0}, new String[]{"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27"});
 
+				// This is how you can define custom breakpoints with custom colors
+				// Please do not define number of buckets  and colorRampe if you want to use custom breakpoints :)
+				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#000000"};
+				viz.setBreakpoints(colors, -0.5, 0.0, 0.5, 1.0, 1.5);
 			});
-
-
 
 		layout.row("overall ranking result green space")
 			.el(Tile.class, (viz, data) -> {
