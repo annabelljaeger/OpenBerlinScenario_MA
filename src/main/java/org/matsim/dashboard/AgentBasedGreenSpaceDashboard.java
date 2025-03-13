@@ -46,14 +46,11 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.title = "GreenSpace ranking results map";
 				viz.description = "Here you can see the agents according to their green space ranking depicted on their home location";
 				viz.height = 10.0;
-				viz.buckets = 6;
 				viz.radius = 15.0;
-				//viz.setBreakpoints(-0.5, 0.0, 0.5, 1.0, 1.5; "#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27");
-				viz.colorRamp = "viridis";
 				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
 
-				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
-				//viz.setColorRamp(new double[]{30.0, 40.0, 50.0, 60.0, 70.0}, new String[]{"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27"});
+				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#000000"};
+				viz.setBreakpoints(colors, -0.5, 0.0, 0.5, 1.0, 1.5);
 
 			});
 
@@ -129,6 +126,44 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 					.build();
 			});
 
+		// map as xyt-Map - better: SHP for more interactive use of the data
+		layout.row("GreenSpace Indicator Maps")
+			.el(XYTime.class, (viz, data) -> {
+				viz.title = "GreenSpace distance index value map";
+				viz.description = "Here you can see the agents according to their green space distance index value depicted on their home location";
+				viz.height = 10.0;
+				viz.radius = 15.0;
+				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
+
+				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#000000"};
+				viz.setBreakpoints(colors, -0.5, 0.0, 0.5, 1.0, 1.5);
+
+			})
+			.el(XYTime.class, (viz, data) -> {
+				viz.title = "GreenSpace utilization index value map";
+				viz.description = "Here you can see the agents according to their green space utilization index value depicted on their home location";
+				viz.height = 10.0;
+				viz.radius = 15.0;
+				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
+
+				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#000000"};
+				viz.setBreakpoints(colors, -0.5, 0.0, 0.5, 1.0, 1.5);
+
+			});
+
+
+
+		layout.row("Green Space Flächen mit Breakpoint und Farbe")
+			.el(MapPlot.class, (viz, data) -> {
+				viz.title = "GreenSpace Flächen Utilizationt";
+				viz.height = 10.0;
+				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_statsGeofile.gpkg"));
+				viz.display.fill.dataset = "greenSpace_statsGeofile.gpkg";
+				viz.display.fill.columnName = "utilizationDeviationValue";
+				viz.display.fill.setColorRamp(ColorScheme.Viridis, 6, true, "-0.5, 0.0, 0.5, 1.0, 1.5");
+				viz.display.fill.join = "";
+			});
+
 		layout.row("Green Space info - size groups")
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Green Space Area Distribution";
@@ -149,35 +184,42 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 					.build();
 
 			});
+		// geofile based map - issue: visualization cannot be adapted here
+		layout.row("Green Space Deviations Geofile")
+			.el(MapPlot.class, (viz, data) -> {
+				viz.title = "GreenSpace Index Results Map";
+				viz.height = 10.0;
+				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_perAgentGeofile.gpkg"));
+				viz.display.fill.dataset = "greenSpace_perAgentGeofile.gpkg";
+				viz.display.fill.columnName = "greenSpaceOverallIndexValue";
+				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 6, false);
+				viz.display.fill.join = "";
+
+			});
+
+		layout.row("Green Space Deviations mit Breakpoint und Farbe nin Maß")
+			.el(MapPlot.class, (viz, data) -> {
+				viz.title = "GreenSpace Index Results Map - Farben selbst gesetzt";
+				viz.height = 10.0;
+				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_statsGeofile.gpkg"));
+				viz.display.fill.dataset = "greenSpace_statsGeofile.gpkg";
+				viz.display.fill.columnName = "greenSpaceUtilization";
+				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 6, false, "-0.5, 0.0, 0.5, 1.0, 1.5");
+				viz.display.fill.join = "";
+				viz.display.fill.fixedColors = new String[]{"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27"};
+			});
 
 		// geofile based map - issue: visualization cannot be adapted here
 		layout.row("Green Space Deviations Geofile")
 			.el(MapPlot.class, (viz, data) -> {
 				viz.title = "GreenSpace Index Results Map";
 				viz.height = 10.0;
-
-				viz.setShape("greenSpace_perAgentGeofile.gpkg"
-				//	,
-				//	data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_perAgentGeofile.gpkg")
-				);
-
-				//viz.display.fill.dataset = "greenSpaceOverallIndexValue";
-				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 6, false);
-
+				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_perAgentGeofile.gpkg"));
+				viz.display.fill.dataset = "greenSpace_perAgentGeofile.gpkg";
+				viz.display.fill.columnName = "greenSpaceOverallIndexValue";
+				viz.display.fill.setColorRamp(ColorScheme.Set1, 6, true, "-0.5, 0.0, 0.5, 1.0, 1.5");
+				viz.display.fill.join = "";
 			});
 
-		layout.row("Green Spaces Shp")
-			.el(MapPlot.class, (viz, data) -> {
-				viz.title = "Green Spaces Shp";
-				viz.height = 10.0;
-
-				viz.setShape(String.valueOf(ApplicationUtils.matchInput("allGreenSpaces_min1ha.shp", getValidInputDirectory())), "osm_id");
-				viz.addDataset("greenSpace_utilization", data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_utilization.csv"));
-
-				viz.display.fill.dataset = "greenSpace_utilization";
-				viz.display.fill.join = "osm_id";
-				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 3, false);
-
-			});
 	}
 }
