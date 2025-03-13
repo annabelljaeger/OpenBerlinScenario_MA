@@ -66,7 +66,8 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 		"greenSpace_TilesUtilization.csv",
 		"XYTAgentBasedGreenSpaceMap.xyt.csv",
 		"XYTGreenSpaceUtilizationMap.xyt.csv",
-		"greenSpace_perAgentGeofile.gpkg"
+		"greenSpace_perAgentGeofile.gpkg",
+		"greenSpace_statsGeofile.gpkg"
 	}
 )
 
@@ -115,7 +116,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
 	private final Path outputGreenSpaceSHP = getValidLiveabilityOutputDirectory().resolve("greenSpaces_withUtilization.shp");
 	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.gpkg");
-	private final Path outputGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_statsGeofile.shp");
+	private final Path outputGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_statsGeofile.gpkg");
 	private final Path outputGeofileAgentGS = getValidLiveabilityOutputDirectory().resolve("greenSpaceAndAgent_geofile.shp");
 
 	public static void main(String[] args) {
@@ -145,6 +146,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		Map<String, Double> areaPerGreenSpace = new HashMap<>();
 		Map<String, Integer> nrOfPeoplePerGreenSpace = new HashMap<>();
 		Map<String, Double> meanDistancePerGreenSpace = new HashMap<>();
+		Map<String, Double> greenSpaceUtilizationDeviationValuePerGreenSpace = new HashMap<>();
 		Map<String, Double> limitDistanceToGreenSpace = new HashMap<>();
 		Map<String, Double> limitUtilizationOfGreenSpace = new HashMap<>();
 		Map<String, Double> greenSpaceUtilizationDeviationValuePerAgent = new HashMap<>();
@@ -241,7 +243,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			}
 
 			// calculate utilization per Green Space
-			calculateGreenSpaceUtilization(areaPerGreenSpace, nrOfPeoplePerGreenSpace, utilizationPerGreenSpace);
+			calculateGreenSpaceUtilization(areaPerGreenSpace, nrOfPeoplePerGreenSpace, utilizationPerGreenSpace, greenSpaceUtilizationDeviationValuePerGreenSpace);
 
 			for(Map.Entry<String, String> entry : greenSpaceIdPerAgent.entrySet()) {
 				String agentID = entry.getKey();
@@ -318,13 +320,13 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			// handing results over to the superior SummaryDashboard files
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(distancePerAgent, "MinGreenSpaceEuclideanDistance");
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(limitDistanceToGreenSpace, "limit_EuclideanDistanceToNearestGreenSpace");
-			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(distanceToGreenSpaceDeviationValuePerAgent, "rankingValue_DistanceToGreenSpace");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(distanceToGreenSpaceDeviationValuePerAgent, "indexValue_DistanceToGreenSpace");
 
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(utilizationPerAgent, "GreenSpaceUtilization (m²/person)");
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(limitUtilizationOfGreenSpace, "limit_SpacePerAgentAtNearestGreenSpace");
-			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(greenSpaceUtilizationDeviationValuePerAgent, "rankingValue_GreenSpaceUtilization");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(greenSpaceUtilizationDeviationValuePerAgent, "indexValue_GreenSpaceUtilization");
 
-			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpace");
+			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpaceIndexValue");
 
 			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Green Space", "Distance to nearest green space", formattedMedianDistance, String.valueOf(limitEuclideanDistanceToGreenSpace), formattedDistanceRankingGreenSpace, 1);
 			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Green Space", "Utilization of Green Space", formattedMedianUtilization, String.valueOf(1/limitGreenSpaceUtilization), formattedRankingUtilizationGreenSpace, 1);
@@ -449,7 +451,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				System.err.println("Feature konnte nicht erstellt werden für Agent: " + agentId);
 			}
 			featureCollection.add(feature);
-			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
+			//System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
 
 		}
 
@@ -467,6 +469,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			.addAttribute("area", Double.class)
 			.addAttribute("greenSpaceUtilization", Double.class)
 			.addAttribute("nrOfPeople", Integer.class)
+			.addAttribute("utilizationDeviationValue", Double.class)
 			.create();
 
 
@@ -488,7 +491,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				greenSpaceID,
 				area,
 				utilizationPerGreenSpace.getOrDefault(greenSpaceID, 0.0),
-				nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceID,0)
+				nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceID,0),
+				greenSpaceUtilizationDeviationValuePerGreenSpace.getOrDefault(greenSpaceID, 0.0)
 			};
 
 			// Das neue Feature in die Sammlung einfügen
@@ -497,7 +501,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				System.err.println("Feature konnte nicht erstellt werden für Agent: " + greenSpaceID);
 			}
 			polygonCollection.add(feature);
-			System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
+			//System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
 		}
 
 		GeoFileWriter.writeGeometries(polygonCollection, String.valueOf(outputGreenSpaceGeofile));
@@ -565,12 +569,14 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	// calculating the utilization per green space by dividing the people by the area of the green space to receive the number of people per m² of green space
 	private void calculateGreenSpaceUtilization(Map<String, Double> areaPerGreenSpace,
 												Map<String, Integer> nrOfPeoplePerGreenSpace,
-												Map<String, Double> utilizationPerGreenSpace) {
+												Map<String, Double> utilizationPerGreenSpace,
+												Map<String, Double> greenSpaceUtilizationDeviationValuePerGreenSpace) {
 		for (Map.Entry<String, Double> entry : areaPerGreenSpace.entrySet()) {
 			String greenSpaceId = entry.getKey();
 			double area = entry.getValue();
 			double peopleCount = nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceId, 0)/sampleSize;
 			utilizationPerGreenSpace.put(greenSpaceId, area > 0 ? peopleCount / area : 0);
+			greenSpaceUtilizationDeviationValuePerGreenSpace.put(greenSpaceId, ((peopleCount*10/area)-limitGreenSpaceUtilization)/limitGreenSpaceUtilization);
 		}
 	}
 
@@ -604,8 +610,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				String homeY = nextLine[2];
 				String person = nextLine[0];
 
-				Double rankingValue = distancePerAgent.getOrDefault(person, 99.0);
-				XYTGreenSpaceMapWriter.writeNext(new String[]{"0.0", homeX, homeY, String.valueOf(rankingValue)});
+				Double indexValue = distancePerAgent.getOrDefault(person, 99.0);
+				XYTGreenSpaceMapWriter.writeNext(new String[]{"0.0", homeX, homeY, String.valueOf(indexValue)});
 			}
 		} catch (CsvValidationException e) {
 			throw new RuntimeException(e);

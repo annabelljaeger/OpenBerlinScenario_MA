@@ -46,7 +46,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 @CommandLine.Command(
 	name = "Utility - Agent Liveability Info Collection",
-	description = "create agentLiveabilityInfo.csv, summaryTiles.csv and rankingIndicatorValues.csv to collect the liveability values from the different dimensions",
+	description = "create agentLiveabilityInfo.csv, summaryTiles.csv and indexIndicatorValues.csv to collect the liveability values from the different dimensions",
 	mixinStandardHelpOptions = true,
 	showDefaultValues = true
 )
@@ -59,7 +59,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 	produces = {
 		"agentLiveabilityInfo.csv",
 		"summaryTiles.csv",
-		"rankingIndicatorValues.csv"
+		"indexIndicatorValues.csv"
 	}
 )
 
@@ -77,8 +77,8 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	private final Path outputAgentLiveabilityCSVPath = getValidLiveabilityOutputDirectory().resolve("agentLiveabilityInfo.csv");
 	private final Path tempAgentLiveabilityOutputPath = getValidLiveabilityOutputDirectory().resolve("agentLiveabilityInfo_tmp.csv");
 
-	private final Path outputIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("rankingIndicatorValues.csv");
-	private final Path tempIndicatorValuesCsvPath = getValidOutputDirectory().resolve("rankingIndicatorValues.csv");
+	private final Path outputIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("indexIndicatorValues.csv");
+	private final Path tempIndicatorValuesCsvPath = getValidOutputDirectory().resolve("indexIndicatorValues.csv");
 
 //	private final Path personsCsvPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv.gz");
 	private final Path personsCsvPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
@@ -244,13 +244,13 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		Files.move(tempSummaryTilesOutputPath, outputCategoryRankingCsvPath, StandardCopyOption.REPLACE_EXISTING);
 	}
 
-	// generates an empty rankingIndicatorValues.csv file for information from each analysis to be added
+	// generates an empty indexIndicatorValues.csv file for information from each analysis to be added
 	private void generateIndicatorFile() throws IOException {
 
 		// delete file if already existent
 		if (Files.exists(outputIndicatorValuesCsvPath)) {
 			Files.delete(outputIndicatorValuesCsvPath);
-			System.out.println("The file rankingIndicatorValues.csv already exists and has been replaced.");
+			System.out.println("The file indexIndicatorValues.csv already exists and has been replaced.");
 		}
 
 		// generating the empty csv-file with a prefilled header
@@ -262,26 +262,25 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 			indicatorTableWriter.writeNext(new String[]{"dimension","indicator","median value","limit","ranking value","weight of indicator"});
 
-			System.out.println("The empty file rankingIndicatorValues.csv has been generated under: " + outputIndicatorValuesCsvPath);
+			System.out.println("The empty file indexIndicatorValues.csv has been generated under: " + outputIndicatorValuesCsvPath);
 		}
 	}
 
-	// method to extend the rankingIndicatorValues.csv file with agent based information from the analysis classes of the dimensions (this is where they are called)
+	// method to extend the indexIndicatorValues.csv file with agent based information from the analysis classes of the dimensions (this is where they are called)
 	public void extendIndicatorValuesCsvWithAttribute(String dimension, String indicator, String medianValue, String limit, String RankingValue, double weightOfIndicator) throws IOException {
 
 		try (CSVReader indicatorReader = new CSVReader(new FileReader(outputIndicatorValuesCsvPath.toFile()));
-			 CSVWriter indicatorWriter = new CSVWriter(new FileWriter(tempIndicatorValuesCsvPath.toFile()))) {
-
-//			String[] header = indicatorReader.readNext();
-//			if (header == null) {
-//				indicatorWriter.writeNext(header);
-//			}
+			 CSVWriter indicatorWriter = new CSVWriter(new FileWriter(tempIndicatorValuesCsvPath.toFile()),  CSVWriter.DEFAULT_SEPARATOR,
+				 CSVWriter.NO_QUOTE_CHARACTER, // without quotations
+				 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+				 CSVWriter.DEFAULT_LINE_END)) {
 
 			String[] line;
 			while ((line = indicatorReader.readNext()) != null) {
 				indicatorWriter.writeNext(line);
-				indicatorWriter.writeNext(new String[]{dimension, indicator, medianValue, limit, RankingValue, String.valueOf(weightOfIndicator)});
 			}
+			indicatorWriter.writeNext(new String[]{dimension, indicator, medianValue, limit, RankingValue, String.valueOf(weightOfIndicator)});
+
 
 		} catch (CsvValidationException e) {
 			throw new RuntimeException(e);

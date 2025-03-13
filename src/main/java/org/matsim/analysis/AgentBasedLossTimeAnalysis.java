@@ -46,7 +46,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 	requireRunDirectory = true,
 	group="liveability",
 	requires = {
-		"berlin-v6.3.output_legs.csv.gz"
+		"output_legs.csv.gz"
 	},
 	produces = {
 		"output_legsLossTime_new.csv",
@@ -69,7 +69,8 @@ public class AgentBasedLossTimeAnalysis implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedLossTimeAnalysis.class);
 
 	// constants for paths
-	private final Path inputLegsCsvFile = getValidOutputDirectory().resolve("berlin-v6.3.output_legs.csv.gz") ;
+	//private final Path inputLegsCsvFile = getValidOutputDirectory().resolve("berlin-v6.3.output_legs.csv.gz") ;
+	private final Path inputLegsCsvFile = ApplicationUtils.matchInput("output_legs.csv.gz", getValidOutputDirectory());
 	private final Path agentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 
 	private final Path outputSummaryPath = getValidOutputDirectory().resolve("summary_modeSpecificLegsLossTime.csv");

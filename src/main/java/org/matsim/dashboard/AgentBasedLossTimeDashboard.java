@@ -186,6 +186,9 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 
 			});
 
+
+
+
 		layout.row("nicht mehr relevante Versuche")
 
 			.el(Plotly.class, (viz, data) -> {
