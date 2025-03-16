@@ -15,6 +15,7 @@ import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.config.groups.RoutingConfigGroup;
 import org.matsim.core.network.NetworkUtils;
 import org.matsim.core.network.algorithms.NetworkCleaner;
 import org.matsim.core.network.io.MatsimNetworkReader;
@@ -33,7 +34,6 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.*;
 
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.util.zip.GZIPInputStream;
 
@@ -60,23 +60,27 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 		"output_legsLossTime_new.csv",
 		"summary_modeSpecificLegsLossTime.csv",
 		"lossTime_stats_perAgent.csv",
-		"lossTime_RankingValue.csv",
-		"travelTime_XYTAgentBasedTravelTimeMap.xyt.csv",
+		"travelTime_XYTAgentBasedTrafficQualityMap.xyt.csv",
 		"travelTime_XYTAgentBasedLongestTripMap.xyt.csv",
-		"travelTime_XYTAgentBasedLossTimeMap.xyt.csv"
+		"travelTime_XYTAgentBasedLossTimeMap.xyt.csv",
+		"travelTime_TilesOverall.csv",
+		"travelTime_TilesLongestTrip.csv",
+		"travelTime_TilesLossTime.csv"
 	}
 )
 
-public class AgentBasedTravelTimeAnalysis implements MATSimAppCommand {
+public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 
 	//OFFEN: PRÜFEN WIE OFT DER DER WERT ÜBERSCHRITTEN WIRD UND DIE GESAMTLOSSTIME DABEI KLEINER ALS 2/3 MINUTEN IST - WENN DAS VIELE SIND
 	//MUSS EIN ZWEITER FAKTOR (MINIMALE ABSOLUTE LOSS TIME) ZUR EXKLUSION ERGÄNZT WERDEN
 
 	@CommandLine.Mixin
-	private final InputOptions input = InputOptions.ofCommand(AgentBasedTravelTimeAnalysis.class);
+	private final InputOptions input = InputOptions.ofCommand(AgentBasedTrafficQualityAnalysis.class);
 	@CommandLine.Mixin
-	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedTravelTimeAnalysis.class);
+	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedTrafficQualityAnalysis.class);
+
+	private static RoutingConfigGroup routingConfig;
 
 	//overwritten with config value at beginning of call method
 	double sampleSize = 0.1;
@@ -107,14 +111,13 @@ public class AgentBasedTravelTimeAnalysis implements MATSimAppCommand {
 	private final Path statsTravelTimePerAgentPath = getValidLiveabilityOutputDirectory().resolve("travelTime_stats_perAgent.csv");
 	private final Path XYTLossTimeAgentMapPath = getValidLiveabilityOutputDirectory().resolve("travelTime_XYTAgentBasedLossTimeMap.xyt.csv");
 	private final Path XYTLongestTripAgentMapPath = getValidLiveabilityOutputDirectory().resolve("travelTime_XYTAgentBasedLongestTripMap.xyt.csv");
-	private final Path XYTTravelTimeAgentMapPath = getValidLiveabilityOutputDirectory().resolve("travelTime_XYTAgentBasedTravelTimeMap.xyt.csv");
+	private final Path XYTTravelTimeAgentMapPath = getValidLiveabilityOutputDirectory().resolve("travelTime_XYTAgentBasedTrafficQualityMap.xyt.csv");
 	private final Path TilesTravelTimePath = getValidLiveabilityOutputDirectory().resolve("travelTime_TilesOverall.csv");
 	private final Path TilesLogestTripTimePath = getValidLiveabilityOutputDirectory().resolve("travelTime_TilesLongestTrip.csv");
 	private final Path TilesLossTimePath = getValidLiveabilityOutputDirectory().resolve("travelTime_TilesLossTime.csv");
-	private final Path outputRankingValuePath = getValidLiveabilityOutputDirectory().resolve("lossTime_RankingValue.csv");
 
 	public static void main(String[] args) {
-		new AgentBasedTravelTimeAnalysis().execute();
+		new AgentBasedTrafficQualityAnalysis().execute();
 	}
 
 	@Override
@@ -130,6 +133,7 @@ public class AgentBasedTravelTimeAnalysis implements MATSimAppCommand {
 		Config config = ConfigUtils.loadConfig(ApplicationUtils.matchInput("config.xml", input.getRunDirectory()).toAbsolutePath().toString());
 		SimWrapperConfigGroup simwrapper = ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class);
 		this.sampleSize = simwrapper.sampleSize;
+		this.routingConfig =  config.routing();
 
 		// initialising collections and data structures
 		AgentLiveabilityInfoCollection agentLiveabilityInfoCollection = new AgentLiveabilityInfoCollection();
@@ -165,7 +169,7 @@ public class AgentBasedTravelTimeAnalysis implements MATSimAppCommand {
 
 
 		// initializing counters for calculate only for some agents
-		int limit = -1; // set to -1 for no limit
+		int limit = 2000; // set to -1 for no limit
 		int count = 0;
 
 		// declaring other variables for later use
@@ -503,13 +507,13 @@ public class AgentBasedTravelTimeAnalysis implements MATSimAppCommand {
 			//Write Information in Agent Livability Info Collection
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(longestTripTravelTimePerAgent, "maxTravelTimePerTrip");
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(longestTripLimitPerAgent, "limit_maxTravelTimePerTrip");
-			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(longestTripIndexValuePerAgent, "rankingValue_maxTravelTimePerTrip");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(longestTripIndexValuePerAgent, "indexValue_maxTravelTimePerTrip");
 
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(lossTimePerAgent, "Loss Time");
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(travTimePerAgent, "Travel Time");
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(lossTimePercentagePerAgent, "percentageLossTime");
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(lossTimeLimitPerAgent, "limit_relativeLossTime");
-			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(lossTimeIndexValuePerAgent, "rankingValue_relativeLossTime");
+			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(lossTimeIndexValuePerAgent, "indexValue_relativeLossTime");
 
 			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedTravelTimeIndexValue, "Travel Time Index Value");
 
@@ -518,7 +522,7 @@ public class AgentBasedTravelTimeAnalysis implements MATSimAppCommand {
 
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTLossTimeAgentMapPath, lossTimeIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTLongestTripAgentMapPath, longestTripIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);
-			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTTravelTimeAgentMapPath, travTimePerAgent, homeCoordinatesPerAgentInStudyArea);
+			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTTravelTimeAgentMapPath, overallTravelTimeIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);
 
 			try (CSVWriter agentBasedWriter = new CSVWriter(new FileWriter(String.valueOf(statsTravelTimePerAgentPath)),
 				CSVWriter.DEFAULT_SEPARATOR,
@@ -567,30 +571,34 @@ public class AgentBasedTravelTimeAnalysis implements MATSimAppCommand {
 				}
 			}
 
+			// generating output files for the green space dashboard page
+			try (CSVWriter TQTileWriter = new CSVWriter(new FileWriter(TilesTravelTimePath.toFile()));
+				 CSVWriter LongestTripWriter = new CSVWriter(new FileWriter(TilesLogestTripTimePath.toFile()));
+				 CSVWriter LossTimeWriter = new CSVWriter(new FileWriter(TilesLossTimePath.toFile()))) {
 
+				TQTileWriter.writeNext(new String[]{"Traffic Quality: 50% under limit", formattedLongestTripIndexValue});
+				TQTileWriter.writeNext(new String[]{"Traffic Quality within limit", formattedTravelTimeIndexValue});
+				TQTileWriter.writeNext(new String[]{"Traffic Quality: 50% over limit", formattedLongestTripIndexValue});
 
+				LongestTripWriter.writeNext(new String[]{"Longest Trip Index Value", formattedLongestTripIndexValue});
+				LongestTripWriter.writeNext(new String[]{"Average Trip Duration", formattedTravelTimeIndexValue});
 
-
-			// output dateien erzeugen für travel time Dashboard-Seite
-			try (CSVWriter LTTileWriter = new CSVWriter(new FileWriter(outputRankingValuePath.toFile()),
-				CSVWriter.DEFAULT_SEPARATOR,
-				CSVWriter.NO_QUOTE_CHARACTER, // without quotation
-				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-				CSVWriter.DEFAULT_LINE_END))
-			{
-
-				LTTileWriter.writeNext(new String[]{"LossTimeRanking", formattedLossTimeIndexValue});
-				LTTileWriter.writeNext(new String[]{"LossTimeSum(h:m:s)", formattedSumTotalLossTime});
+				LossTimeWriter.writeNext(new String[]{"Loss Time Index Value", formattedLossTimeIndexValue});
+				LossTimeWriter.writeNext(new String[]{"Sum loss time (h:m:s)", formattedSumTotalLossTime});
 
 				System.out.println("LossTimeSum (HH:mm:ss): " + formattedSumTotalLossTime);
 				System.out.println("LossTimeRanking: " + formattedLossTimeIndexValue);
 
-
-				//median und mean folgen...
-				//	LTTileWriter.writeNext(new String[]{"MedianLossTime(h:m:s)", formattedMedianDistance});
-				//LTTileWriter.writeNext(new String[]{"AverageLossTime(h:m:s)", formattedAvgUtilization});
-
 			}
+
+			// output dateien erzeugen für travel time Dashboard-Seite
+//			try (CSVWriter LTTileWriter = new CSVWriter(new FileWriter(outputRankingValuePath.toFile()),
+//				CSVWriter.DEFAULT_SEPARATOR,
+//				CSVWriter.NO_QUOTE_CHARACTER, // without quotation
+//				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+//				CSVWriter.DEFAULT_LINE_END))
+//			{
+
 
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -612,21 +620,21 @@ public class AgentBasedTravelTimeAnalysis implements MATSimAppCommand {
 	}
 
 	// Calculate free speed travel time
+
+
 	private static double calculateFreeSpeedTravelTime(Network network, Coord point1, Coord point2, String mode, long InputTravTimeInSeconds) {
 		double travelTimeInSeconds = 0;
-		double beelineFactor = 1.3; // Factor for bike and walk
+		Map<String, Double> beelineDistanceFactors = routingConfig.getBeelineDistanceFactors();// beelineFactors
+		Map<String, Double> teleportedModeSpeeds = routingConfig.getTeleportedModeSpeeds(); // get average Speeds
 
 		switch (mode.toLowerCase()) {
 			case "bike":
 			case "walk":
 				double distance = CoordUtils.calcEuclideanDistance(point1, point2);
-
 				// use of beeline factor
-				distance *= beelineFactor;
+				distance *= beelineDistanceFactors.getOrDefault(mode, 1.3);
 
-				// define average speed
-				double averageSpeed = mode.equals("bike") ? 3.1388889 : 1.23; // 5 m/s for bike, 1.4 m/s for walk
-				travelTimeInSeconds = distance / averageSpeed;
+				travelTimeInSeconds = distance / teleportedModeSpeeds.getOrDefault(mode, 1.23);
 				break;
 
 			case "car":
