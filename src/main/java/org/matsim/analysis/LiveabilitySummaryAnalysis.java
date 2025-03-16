@@ -126,9 +126,10 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 				for(int columnIndex : rankingValueColumnIndices) {
 					String cellValue = nextLine[columnIndex]; // Der Wert der aktuellen Spalte
 					if (cellValue == null || cellValue.trim().isEmpty()) {
-						validAgent = false;
+//						validAgent = false;
 						break;
 					}
+
 					double doubleValue = Double.parseDouble(cellValue);
 					if (doubleValue > highestRankingValue || isFirstIteration){
 						highestRankingValue = doubleValue;

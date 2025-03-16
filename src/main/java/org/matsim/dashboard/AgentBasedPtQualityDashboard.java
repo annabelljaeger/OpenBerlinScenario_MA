@@ -6,7 +6,7 @@ import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
 import org.matsim.simwrapper.viz.Tile;
 
-public class AgentBasedAccessibilityDashboard implements Dashboard {
+public class AgentBasedPtQualityDashboard implements Dashboard {
 
 	public double priority() {return -2;}
 

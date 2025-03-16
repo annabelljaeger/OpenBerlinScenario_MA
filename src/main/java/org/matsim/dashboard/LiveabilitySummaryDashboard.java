@@ -49,7 +49,6 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
 			});
 
-
 		layout.row("Overall Ranking")
 			.el(Tile.class, (viz, data) -> {
 				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overallRankingTile.csv");
@@ -71,7 +70,7 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 		layout.row("Indicator Overview")
 			.el(Table.class, (viz, data) -> {
 				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overviewIndicatorTable.csv");
-				viz.height = 2.0;
+				viz.height = 6.0;
 			});
 	}
 }

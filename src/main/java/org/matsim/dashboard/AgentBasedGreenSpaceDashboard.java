@@ -25,12 +25,12 @@ import static tech.tablesaw.plotly.components.Axis.CategoryOrder.CATEGORY_ASCEND
 
 // This is the Class creating the Dashboard for the green space related analyses.
 // 1. Map of all agents with their deviation values from the set limit
-// 2. Tiles with details on overall fulfillment and indicator specific achievement values
-// 3. Distribution of the deviations for each indicator (distance and utilitzation) with zero being the limit, positive values exceeding the limit and negative ones for falling below
-// 4. additional information on the green spaces to see how big they are
+// 2. Tiles with details on overall fulfillment
+// 3. additional information on the green spaces to see how big they are
+// 4. Indicator specific achievement values & Distribution of the deviations for each indicator (distance and utilitzation) with zero being the limit, positive values exceeding the limit and negative ones for falling below
 public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
-	public double priority(){return -1;}
+	public double priority(){return -3;}
 
 	@Override
 	public void configure(Header header, Layout layout) {
@@ -40,10 +40,10 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 			"relaxing green spaces for relaxation and stress relief. Therefore the walking distance to the nearest " +
 			"green space as well as the amount of green space in this nearest area per Person is analysed.";
 
-		// map as xyt-Map - better: SHP for more interactive use of the data
+		// map as xyt-Map displaying the worst deviation from either of the two indicator deviation values as the dimension index value
 		layout.row("GreenSpace Index Value Map")
 			.el(XYTime.class, (viz, data) -> {
-				viz.title = "GreenSpace index value results map";
+				viz.title = "GreenSpace Index Value Map";
 				viz.description = "Here you can see the agents according to their green space index values depicted on their home location";
 				viz.height = 15.0;
 				viz.radius = 15.0;
@@ -51,21 +51,18 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
 				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350"};
 				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
-
 			});
 
-
-		layout.row("overall ranking result green space")
+		layout.row("overall index result green space")
 			.el(Tile.class, (viz, data) -> {
 
-				viz.title = "Green Space Ranking Value";
+				viz.title = "Green Space Index Value";
 				viz.description = "According to the 'Deutsche Städtetag' every person should have accessibility to a green space " +
 					"of at least 1 ha of size within 500 m footpath of their home location. Furthermore those green spaces should " +
 					"offer at least 6 m² per person assigned to it (here: always choice of the nearest green space to the home location).";
 
 				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_TilesOverall.csv");
 				viz.height = 0.1;
-
 			});
 
 		layout.row("Green Space info - size groups")
@@ -91,7 +88,7 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
 		layout.row("Green Space Flächen mit Breakpoint und Farbe")
 			.el(MapPlot.class, (viz, data) -> {
-				viz.title = "GreenSpace Flächen Utilization";
+				viz.title = "Green Spaces and their utilization";
 				viz.height = 15.0;
 				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_statsGeofile.gpkg"));
 				viz.display.fill.dataset = "greenSpace_statsGeofile.gpkg";
@@ -116,7 +113,6 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.description = "Displays how many agents have at least 6m² of space in the green space closest to their home location. " +
 					"Also shows the average and mean utilization that agents from the study area face when visiting their nearest green space.";
 				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_TilesUtilization.csv");
-
 			});
 
 		layout.row("Stats per indicator - Diagram")
