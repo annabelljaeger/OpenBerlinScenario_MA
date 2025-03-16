@@ -7,7 +7,6 @@ import org.matsim.application.MATSimAppCommand;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
 import org.matsim.simwrapper.*;
-import org.matsim.simwrapper.dashboard.EmissionsDashboard;
 import picocli.CommandLine;
 
 import java.io.IOException;
@@ -26,29 +25,18 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	private static Path inputDirectory;
 	@CommandLine.Option(names = "--outputDirectory",description = "Path to the output directory")
 	private static Path outputDirectory;
-//	@CommandLine.Option(names = "--outputLiveabilityDirectory",description = "Path to the liveability output directory")
-//	private static Path outputLiveabilityDirectory;
 
 	// option to insert standard input and output (general output and liveability analysis output) paths for users
-	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/input_OBS_Base");
-	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/input_Kelheim");
-	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/10pct.absSpdLim2.777");
-	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_10pct");
+	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/input_OBS_Base");
+	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/input_Kelheim");
+	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/10pct.absSpdLim2.777");
+	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_10pct");
 	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
-//	private static final Path DEFAULT_LIVEABILITY_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct/analysis/liveability");
 
 	// public static attributes - necessary to save the valid input and output directory paths
 	public static Path validInputDirectory;
 	public static Path validOutputDirectory;
 	public static Path validLiveabilityOutputDirectory;
-
-	// NUR FÜR EMISSIONS CONTRIB - KLAPPT NOCH NICHT MIT ECONFIG
-//	private static final String HBEFA_2020_PATH = "https://svn.vsp.tu-berlin.de/repos/public-svn/3507bb3997e5657ab9da76dbedbb13c9b5991d3e/0e73947443d68f95202b71a156b337f7f71604ae/";
-//	private static final String HBEFA_FILE_COLD_DETAILED = HBEFA_2020_PATH + "82t7b02rc0rji2kmsahfwp933u2rfjlkhfpi2u9r20.enc";
-//	private static final String HBEFA_FILE_WARM_DETAILED = HBEFA_2020_PATH + "944637571c833ddcf1d0dfcccb59838509f397e6.enc";
-//	private static final String HBEFA_FILE_COLD_AVERAGE = HBEFA_2020_PATH + "r9230ru2n209r30u2fn0c9rn20n2rujkhkjhoewt84202.enc" ;
-//	private static final String HBEFA_FILE_WARM_AVERAGE = HBEFA_2020_PATH + "7eff8f308633df1b8ac4d06d05180dd0c5fdf577.enc";
-
 
 	// main method to run this class with the given input via the CommandLine or the given Paths
 	public static void main(String[] args) throws IOException {
@@ -67,17 +55,16 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		Config config = ConfigUtils.loadConfig(configPath.toString());
 		SimWrapper sw = SimWrapper.create(config);
 
-		//for work on code purposes to activate the two contribs - temporary
-		//sw.addDashboard(new EmissionsDashboard());
-		//sw.addDashboard(new NoiseDashboard());
-
 		// calling the seperate liveability-dimension dashboards and thereby activating them
-		sw.addDashboard( new AgentBasedLossTimeDashboard());
+		sw.addDashboard( new AgentBasedTravelTimeDashboard());
+		//sw.addDashboard( new AgentBasedAccessibilityDashboard());
+		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
+
+		// todo: implement safety, noise and emissions based on the contribs but with agent-specific output
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
 		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
 		//sw.addDashboard( new AgentBasedSafetyDashboard());
-		//sw.addDashboard( new AgentBasedGreenSpaceDashboard());
-		//sw.addDashboard( new AgentBasedAccessibilityDashboard());
+
 		sw.addDashboard( new LiveabilitySummaryDashboard());
 
 		sw.generate(getValidOutputDirectory());
@@ -115,5 +102,4 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 			Files.createDirectories(validLiveabilityOutputDirectory);
 		}
 	}
-
 }

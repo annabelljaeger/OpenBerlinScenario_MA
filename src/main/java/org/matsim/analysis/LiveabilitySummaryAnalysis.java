@@ -188,7 +188,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 			//			double overallRankingValue = RankingValueMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
 			String formattedOverallRankingValue = String.format(Locale.US, "%.2f%%", overallRankingValue);
 
-			overallRankingWriter.writeNext(new String[]{"Overall Index-Value", formattedOverallRankingValue});
+			overallRankingWriter.writeNext(new String[]{"Overall Liveability-Index Value", formattedOverallRankingValue});
 			System.out.println("Der Gesamt-Rankingwert lautet " + formattedOverallRankingValue);
 
 		}

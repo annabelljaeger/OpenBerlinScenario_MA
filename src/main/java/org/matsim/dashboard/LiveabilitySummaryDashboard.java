@@ -45,7 +45,7 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 				viz.radius = 15.0;
 				viz.file = data.compute(LiveabilitySummaryAnalysis.class, "agentRankingForSummaryMap.xyt.csv");
 
-				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#720e2b", "#720e2b", "#720e2b", "#720e2b", "#720e2b"};
+				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350"};
 				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
 			});
 
