@@ -1,49 +1,43 @@
 package org.matsim.dashboard;
 
 import org.matsim.analysis.AgentBasedGreenSpaceAnalysis;
-import org.matsim.analysis.AgentBasedLossTimeAnalysis;
+import org.matsim.analysis.AgentBasedTravelTimeAnalysis;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
 import org.matsim.simwrapper.viz.*;
 import tech.tablesaw.api.DoubleColumn;
-import tech.tablesaw.api.LongColumn;
 import tech.tablesaw.api.StringColumn;
-import tech.tablesaw.api.*;
 import tech.tablesaw.api.Table;
 import tech.tablesaw.io.csv.CsvReadOptions;
 import tech.tablesaw.plotly.components.Axis;
-import tech.tablesaw.plotly.components.Line;
 import tech.tablesaw.plotly.traces.BarTrace;
-import tech.tablesaw.plotly.traces.HistogramTrace;
 import tech.tablesaw.plotly.traces.ScatterTrace;
-import tech.tablesaw.plotly.traces.Trace;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
 import java.util.*;
 
 import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
-public class AgentBasedLossTimeDashboard implements Dashboard {
+public class AgentBasedTravelTimeDashboard implements Dashboard {
 
 	public double priority(){return -2;}
 
 	public void configure(Header header, Layout layout) {
 
-		header.title = "Loss Time";
-		header.description = "Detailed Loss Time Analysis";
+		header.title = "Travel Time";
+		header.description = "Detailed Travel Time Analysis";
 
-		layout.row("LossTime Ranking Map")
+		// map as xyt-Map - better: SHP for more interactive use of the data
+		layout.row("TravelTime IndexValueMap")
 			.el(XYTime.class, (viz, data) -> {
-				viz.title = "LossTime ranking results map";
-				viz.description = "Here you can see the agents according to their loss time ranking depicted on their home location";
-				viz.height = 10.0;
-				viz.file = data.compute(AgentBasedLossTimeAnalysis.class, "XYTAgentBasedLossTimeMap.xyt.csv");
+				viz.title = "TravelTime index results map";
+				viz.description = "Here you can see the agents according to their travel time index values depicted on their home location";
+				viz.height = 15.0;
+				viz.radius = 15.0;
+				viz.file = data.compute(AgentBasedTravelTimeAnalysis.class, "travelTime_XYTAgentBasedLossTimeMap.xyt.csv");
 
-				//BREAKPOINTS MÜSSEN NOCH DEFINIERT WERDEN; RADIUS AUCH; COLOR RAMP AUCH; CENTER AUCH
+				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350"};
+				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
 			});
 
 		layout.row("overall ranking result loss time")
@@ -52,7 +46,7 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 				viz.title = "Loss Time Ranking Value";
 				viz.description = "percentage of agents with less than 15 % loss time";
 
-				viz.dataset = data.compute(AgentBasedLossTimeAnalysis.class, "lossTime_RankingValue.csv");
+				viz.dataset = data.compute(AgentBasedTravelTimeAnalysis.class, "lossTime_RankingValue.csv");
 				viz.height = 0.1;
 
 			});
@@ -63,7 +57,7 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 				viz.title = "Mode Specific Loss Time";
 				viz.description = "sum by mode";
 
-				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "summary_modeSpecificLegsLossTime.csv"));
+				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedTravelTimeAnalysis.class, "summary_modeSpecificLegsLossTime.csv"));
 				//.aggregate(List.of("mode"), "cumulative_loss_time", Plotly.AggrFunc.SUM);
 
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
@@ -155,7 +149,7 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 				viz.title = "Scatter Plot Travel Time over Loss Time";
 				viz.description = "Agent based analysis of travel time compared to loss time";
 
-				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
+				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedTravelTimeAnalysis.class, "output_legsLossTime_new.csv"));
 
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
 					.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
@@ -196,7 +190,7 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 				viz.title = "Modes Used";
 				viz.description = "teleported modes result in 0 seconds loss time, ergo all solely bike and walk users are defined as true in their loss time dependent liveability ranking - here shown is the number of persons usimg each combination of modes";
 
-				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "lossTime_stats_perAgent.csv"))
+				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedTravelTimeAnalysis.class, "lossTime_stats_perAgent.csv"))
 					.aggregate(List.of("modeUsed"), "Person", Plotly.AggrFunc.SUM);
 
 				// Layout und Achsen anpassen
@@ -217,7 +211,7 @@ public class AgentBasedLossTimeDashboard implements Dashboard {
 				viz.description = "Sum of lost times (in seconds) for each 15-minute interval of the day";
 
 				// Add the legs dataset
-				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTravelTimeAnalysis.class, "output_legsLossTime_new.csv"));
 
 				// Define the layout for the plot
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()

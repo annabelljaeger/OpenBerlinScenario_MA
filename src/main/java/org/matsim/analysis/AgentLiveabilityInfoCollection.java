@@ -39,6 +39,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
@@ -321,6 +322,35 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 	//	return studyAreaGeometry != null && studyAreaGeometry.contains(point);
 
+	}
+
+	public static void writeXYTDataToCSV(Path filePath, Map<String, Double> dataMap,
+										 Map<String, List<String>> coordinatesMap) throws IOException {
+		try (CSVWriter writer = new CSVWriter(new FileWriter(String.valueOf(filePath)),
+			CSVWriter.DEFAULT_SEPARATOR,
+			CSVWriter.NO_QUOTE_CHARACTER,
+			CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+			CSVWriter.DEFAULT_LINE_END)) {
+
+			// Write Heading
+			writer.writeNext(new String[]{"# EPSG:25832"});
+			writer.writeNext(new String[]{"time", "x", "y", "value"});
+
+			// Write Data
+			for (Map.Entry<String, Double> entry : dataMap.entrySet()) {
+				String agentName = entry.getKey();
+				List<String> coordinates = coordinatesMap.get(agentName);
+
+				if (coordinates != null && coordinates.size() >= 2) {
+					writer.writeNext(new String[]{
+						String.valueOf(0.0),
+						coordinates.get(0), // X-Coordinate
+						coordinates.get(1), // Y-Coordinate
+						String.valueOf(entry.getValue()) // Value
+					});
+				}
+			}
+		}
 	}
 
 }

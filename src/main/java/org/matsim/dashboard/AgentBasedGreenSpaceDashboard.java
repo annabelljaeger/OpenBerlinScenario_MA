@@ -41,19 +41,18 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 			"green space as well as the amount of green space in this nearest area per Person is analysed.";
 
 		// map as xyt-Map - better: SHP for more interactive use of the data
-		layout.row("GreenSpace Ranking Map")
+		layout.row("GreenSpace Index Value Map")
 			.el(XYTime.class, (viz, data) -> {
-				viz.title = "GreenSpace ranking results map";
-				viz.description = "Here you can see the agents according to their green space ranking depicted on their home location";
-				viz.height = 10.0;
+				viz.title = "GreenSpace index value results map";
+				viz.description = "Here you can see the agents according to their green space index values depicted on their home location";
+				viz.height = 15.0;
 				viz.radius = 15.0;
 				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
 
-				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#000000"};
-				viz.setBreakpoints(colors, -0.5, 0.0, 0.5, 1.0, 1.5);
+				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350"};
+				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
 
 			});
-
 
 
 		layout.row("overall ranking result green space")
@@ -66,6 +65,41 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
 				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_TilesOverall.csv");
 				viz.height = 0.1;
+
+			});
+
+		layout.row("Green Space info - size groups")
+			.el(Plotly.class, (viz, data) -> {
+				viz.title = "Green Space Area Distribution";
+				viz.description = "Distribution of green spaces by size categories";
+
+				// Add the dataset
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_utilization.csv"));
+
+				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("areaCategory").build(),
+					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
+						.x("areaCategory"));
+
+				Axis.CategoryOrder categoryOrder = Axis.CategoryOrder.ARRAY;
+				// Define the layout for the plot
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Green Space Size").categoryOrder(CATEGORY_ASCENDING).build())
+					.yAxis(Axis.builder().title("Number of Green Spaces").build())
+					.build();
+
+			});
+
+		layout.row("Green Space Flächen mit Breakpoint und Farbe")
+			.el(MapPlot.class, (viz, data) -> {
+				viz.title = "GreenSpace Flächen Utilization";
+				viz.height = 15.0;
+				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_statsGeofile.gpkg"));
+				viz.display.fill.dataset = "greenSpace_statsGeofile.gpkg";
+				viz.display.fill.columnName = "utilizationDeviationValue";
+
+				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 12, false, "-0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0");
+				viz.display.fill.join = "";
+				viz.display.fill.fixedColors = new String[]{"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#720e2b", "#720e2b", "#720e2b", "#720e2b", "#720e2b"};
 
 			});
 
@@ -131,59 +165,28 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 			.el(XYTime.class, (viz, data) -> {
 				viz.title = "GreenSpace distance index value map";
 				viz.description = "Here you can see the agents according to their green space distance index value depicted on their home location";
-				viz.height = 10.0;
+				viz.height = 15.0;
 				viz.radius = 15.0;
-				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
+				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTGreenSpaceDistanceMap.xyt.csv");
 
-				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#000000"};
-				viz.setBreakpoints(colors, -0.5, 0.0, 0.5, 1.0, 1.5);
+				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350"};
+				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
 
 			})
 			.el(XYTime.class, (viz, data) -> {
 				viz.title = "GreenSpace utilization index value map";
 				viz.description = "Here you can see the agents according to their green space utilization index value depicted on their home location";
-				viz.height = 10.0;
+				viz.height = 15.0;
 				viz.radius = 15.0;
-				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTAgentBasedGreenSpaceMap.xyt.csv");
+				viz.file = data.compute(AgentBasedGreenSpaceAnalysis.class, "XYTGreenSpaceUtilizationMap.xyt.csv");
 
-				String[] colors = {"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#000000"};
-				viz.setBreakpoints(colors, -0.5, 0.0, 0.5, 1.0, 1.5);
-
-			});
-
-
-
-		layout.row("Green Space Flächen mit Breakpoint und Farbe")
-			.el(MapPlot.class, (viz, data) -> {
-				viz.title = "GreenSpace Flächen Utilizationt";
-				viz.height = 10.0;
-				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_statsGeofile.gpkg"));
-				viz.display.fill.dataset = "greenSpace_statsGeofile.gpkg";
-				viz.display.fill.columnName = "utilizationDeviationValue";
-				viz.display.fill.setColorRamp(ColorScheme.Viridis, 6, true, "-0.5, 0.0, 0.5, 1.0, 1.5");
-				viz.display.fill.join = "";
-			});
-
-		layout.row("Green Space info - size groups")
-			.el(Plotly.class, (viz, data) -> {
-				viz.title = "Green Space Area Distribution";
-				viz.description = "Distribution of green spaces by size categories";
-
-				// Add the dataset
-				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_utilization.csv"));
-
-				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("areaCategory").build(),
-					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
-						.x("areaCategory"));
-
-				Axis.CategoryOrder categoryOrder = Axis.CategoryOrder.ARRAY;
-				// Define the layout for the plot
-				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-					.xAxis(Axis.builder().title("Green Space Size").categoryOrder(CATEGORY_ASCENDING).build())
-					.yAxis(Axis.builder().title("Number of Green Spaces").build())
-					.build();
+				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350"};
+				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
 
 			});
+
+
+/*
 		// geofile based map - issue: visualization cannot be adapted here
 		layout.row("Green Space Deviations Geofile")
 			.el(MapPlot.class, (viz, data) -> {
@@ -220,6 +223,6 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 				viz.display.fill.setColorRamp(ColorScheme.Set1, 6, true, "-0.5, 0.0, 0.5, 1.0, 1.5");
 				viz.display.fill.join = "";
 			});
-
+*/
 	}
 }
