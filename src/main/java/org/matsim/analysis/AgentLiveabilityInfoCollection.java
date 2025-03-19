@@ -39,6 +39,8 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
@@ -116,7 +118,11 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			 InputStream gzipStream = new GZIPInputStream(fileStream);
 			 Reader personsReader = new InputStreamReader(gzipStream);
 			 CSVParser personsParser = new CSVParser(personsReader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withDelimiter(';'));
-			 CSVWriter agentLiveabilityWriter = new CSVWriter(new FileWriter(outputAgentLiveabilityCSVPath.toFile()))) {
+			 CSVWriter agentLiveabilityWriter = new CSVWriter(new FileWriter(outputAgentLiveabilityCSVPath.toFile()),
+				 CSVWriter.DEFAULT_SEPARATOR,
+				 CSVWriter.NO_QUOTE_CHARACTER, // without quotation
+				 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+				 CSVWriter.DEFAULT_LINE_END)) {
 
 					 agentLiveabilityWriter.writeNext(new String[]{"person", "home_x", "home_y"});
 
@@ -166,7 +172,11 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	public void extendAgentLiveabilityInfoCsvWithAttribute(Map<String, Double> additionalData, String newAttributeName) throws IOException {
 
 		try (CSVReader personEntryReader = new CSVReader(new FileReader(outputAgentLiveabilityCSVPath.toFile()));
-			CSVWriter valueWriter = new CSVWriter(new FileWriter(tempAgentLiveabilityOutputPath.toFile()))) {
+			CSVWriter valueWriter = new CSVWriter(new FileWriter(tempAgentLiveabilityOutputPath.toFile()),
+				CSVWriter.DEFAULT_SEPARATOR,
+				CSVWriter.NO_QUOTE_CHARACTER, // without quotation
+				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+				CSVWriter.DEFAULT_LINE_END)) {
 
 			//read header
 			String[] header = personEntryReader.readNext();
@@ -350,6 +360,23 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 					});
 				}
 			}
+		}
+	}
+
+	public static double calculateMedian(Map<String, Double> values) {
+		if (values == null || values.isEmpty()) {
+			throw new IllegalArgumentException("Map is empty");
+		}
+		List<Double> sortedValues = new ArrayList<>(values.values());
+		Collections.sort(sortedValues);
+
+		int size = sortedValues.size();
+		if (size % 2 == 0) {
+			// Average of the two middle values with an even number
+			return (sortedValues.get(size / 2 - 1) + sortedValues.get(size / 2)) / 2.0;
+		} else {
+			// The average value for an odd number
+			return sortedValues.get(size/2);
 		}
 	}
 
