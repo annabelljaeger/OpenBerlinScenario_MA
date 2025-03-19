@@ -139,8 +139,8 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Green Space Utilization - Distribution of deviations";
 				viz.description = "Displays the distribution of deviation for the green space utilization. Zero represents the aim of 6 m²/person and " +
-				"values below zero show all values that fall below, meaning a better value for citizens, as the return value is used (how many people per m² of green space)." +
-				"Agents that exceed the 6 m²/person for their nearest green space are represented in the values above zero, with 1 meaning 100 % over the limit (3 m²/person).";
+					"values below zero show all values that fall below, meaning a better value for citizens, as the return value is used (how many people per m² of green space)." +
+					"Agents that exceed the 6 m²/person for their nearest green space are represented in the values above zero, with 1 meaning 100 % over the limit (3 m²/person).";
 
 				// Add the dataset
 				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_stats_perAgent.csv"));

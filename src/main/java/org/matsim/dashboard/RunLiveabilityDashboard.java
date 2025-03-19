@@ -57,7 +57,7 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 
 		// calling the seperate liveability-dimension dashboards and thereby activating them
 		sw.addDashboard( new AgentBasedTrafficQualityDashboard());
-		//sw.addDashboard( new AgentBasedPtQualityDashboard());
+		sw.addDashboard( new AgentBasedPtQualityDashboard());
 		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
 
 		// todo: implement safety, noise and emissions based on the contribs but with agent-specific output
