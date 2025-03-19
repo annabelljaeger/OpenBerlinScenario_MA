@@ -60,15 +60,15 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 //		@Dependency(value = AgentBasedGreenSpaceAnalysis.class, files =  "greenSpace_stats_perAgent.csv"),
 //	},
 	produces = {
-		"agentLiveabilityInfo.csv",
-		"summaryTiles.csv",
-		"indexIndicatorValues.csv"
+		"overall_stats_agentLiveabilityInfo.csv",
+		"overall_tiles_summaryPerIndex.csv",
+		"overall_stats_indexIndicatorValues.csv"
 	}
 )
 
 /**
  * utility class to generate csv-Files and write methods to extend those generated files for each dimension-analysis class
-  */
+ */
 public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 	@CommandLine.Mixin
@@ -77,18 +77,18 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(AgentLiveabilityInfoCollection.class);
 
 	// defining constants for paths
-	private final Path outputAgentLiveabilityCSVPath = getValidLiveabilityOutputDirectory().resolve("agentLiveabilityInfo.csv");
-	private final Path tempAgentLiveabilityOutputPath = getValidLiveabilityOutputDirectory().resolve("agentLiveabilityInfo_tmp.csv");
+	private final Path outputAgentLiveabilityCSVPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_agentLiveabilityInfo.csv");
+	private final Path tempAgentLiveabilityOutputPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_agentLiveabilityInfo_tmp.csv");
 
-	private final Path outputIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("indexIndicatorValues.csv");
-	private final Path tempIndicatorValuesCsvPath = getValidOutputDirectory().resolve("indexIndicatorValues.csv");
+	private final Path outputIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_indexIndicatorValues.csv");
+	private final Path tempIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_indexIndicatorValues_tmp.csv");
 
-//	private final Path personsCsvPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv.gz");
+	//	private final Path personsCsvPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv.gz");
 	private final Path personsCsvPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
 	private final Path studyAreaShpPath = ApplicationUtils.matchInput("studyArea.shp", getValidInputDirectory());
 
-	private final Path outputCategoryRankingCsvPath = getValidLiveabilityOutputDirectory().resolve("summaryTiles.csv");
-	private final Path tempSummaryTilesOutputPath = getValidLiveabilityOutputDirectory().resolve("summaryTiles_tmp.csv");
+	private final Path outputCategoryRankingCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_tiles_summaryPerIndex.csv");
+	private final Path tempSummaryTilesOutputPath = getValidLiveabilityOutputDirectory().resolve("overall_tiles_summaryPerIndex_tmp.csv");
 
 	private Geometry studyAreaGeometry;
 	private final GeometryFactory geometryFactory = new GeometryFactory();
@@ -124,26 +124,26 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 				 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
 				 CSVWriter.DEFAULT_LINE_END)) {
 
-					 agentLiveabilityWriter.writeNext(new String[]{"person", "home_x", "home_y"});
+			agentLiveabilityWriter.writeNext(new String[]{"person", "home_x", "home_y"});
 
-					 for (CSVRecord record : personsParser) {
-						 String person = record.get("person");
-						 String homeX = (record.get("home_x"));
-						 String homeY = (record.get("home_y"));
+			for (CSVRecord record : personsParser) {
+				String person = record.get("person");
+				String homeX = (record.get("home_x"));
+				String homeY = (record.get("home_y"));
 
-						 System.out.println("Prüfe Person " + person + " mit Koordinaten: (" + homeX + ", " + homeY + ")");
+				System.out.println("Prüfe Person " + person + " mit Koordinaten: (" + homeX + ", " + homeY + ")");
 
 
-						 if (homeX != null && !homeX.isEmpty() && homeY != null && !homeY.isEmpty()) {
-							 try {
-								 double x = Double.parseDouble(homeX);
-								 double y = Double.parseDouble(homeY);
-								 if (isInsideStudyArea(x, y)) {
-									 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
-								 }
-							 } catch (NumberFormatException e) {
-								 System.err.println("Ungültige Koordinaten für Person " + person + ": " + homeX + ", " + homeY);
-							 }
+				if (homeX != null && !homeX.isEmpty() && homeY != null && !homeY.isEmpty()) {
+					try {
+						double x = Double.parseDouble(homeX);
+						double y = Double.parseDouble(homeY);
+						if (isInsideStudyArea(x, y)) {
+							agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
+						}
+					} catch (NumberFormatException e) {
+						System.err.println("Ungültige Koordinaten für Person " + person + ": " + homeX + ", " + homeY);
+					}
 
 //						 double x = Double.parseDouble(homeX);
 //						 double y = Double.parseDouble(homeY);
@@ -161,9 +161,9 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 //						 if ("1".equals(pointInStudyArea)) {
 //							 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
 //						 }
-						 }
-					 }
+				}
 			}
+		}
 		System.out.println("Liveability-CSV generated under: " + outputAgentLiveabilityCSVPath);
 	}
 
@@ -172,11 +172,11 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	public void extendAgentLiveabilityInfoCsvWithAttribute(Map<String, Double> additionalData, String newAttributeName) throws IOException {
 
 		try (CSVReader personEntryReader = new CSVReader(new FileReader(outputAgentLiveabilityCSVPath.toFile()));
-			CSVWriter valueWriter = new CSVWriter(new FileWriter(tempAgentLiveabilityOutputPath.toFile()),
-				CSVWriter.DEFAULT_SEPARATOR,
-				CSVWriter.NO_QUOTE_CHARACTER, // without quotation
-				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-				CSVWriter.DEFAULT_LINE_END)) {
+			 CSVWriter valueWriter = new CSVWriter(new FileWriter(tempAgentLiveabilityOutputPath.toFile()),
+				 CSVWriter.DEFAULT_SEPARATOR,
+				 CSVWriter.NO_QUOTE_CHARACTER, // without quotation
+				 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+				 CSVWriter.DEFAULT_LINE_END)) {
 
 			//read header
 			String[] header = personEntryReader.readNext();
@@ -235,20 +235,20 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	// method to extend the summaryTiles.csv file with agent based information from the analysis classes of the dimensions (this is where they are called)
 	public void extendSummaryTilesCsvWithAttribute(String RankingValue, String CategoryName) throws IOException {
 
-			try (CSVReader tilesReader = new CSVReader(new FileReader(outputCategoryRankingCsvPath.toFile()));
-				 CSVWriter tilesWriter = new CSVWriter(new FileWriter(tempSummaryTilesOutputPath.toFile()))) {
+		try (CSVReader tilesReader = new CSVReader(new FileReader(outputCategoryRankingCsvPath.toFile()));
+			 CSVWriter tilesWriter = new CSVWriter(new FileWriter(tempSummaryTilesOutputPath.toFile()))) {
 
-				String[] nextLine;
-				while ((nextLine = tilesReader.readNext()) != null) {
-					if (String.join(";", nextLine).contains("Warum ist hier nichts? :(")) {
-						continue;
-					}
-					tilesWriter.writeNext(nextLine);
+			String[] nextLine;
+			while ((nextLine = tilesReader.readNext()) != null) {
+				if (String.join(";", nextLine).contains("Warum ist hier nichts? :(")) {
+					continue;
 				}
+				tilesWriter.writeNext(nextLine);
+			}
 
-				tilesWriter.writeNext(new String[]{CategoryName, RankingValue});
+			tilesWriter.writeNext(new String[]{CategoryName, RankingValue});
 
-			} catch (CsvValidationException e) {
+		} catch (CsvValidationException e) {
 			throw new RuntimeException(e);
 		}
 		// rewrite original file by temp file
@@ -266,10 +266,10 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 		// generating the empty csv-file with a prefilled header
 		try (CSVWriter indicatorTableWriter =  new CSVWriter(new FileWriter(String.valueOf(outputIndicatorValuesCsvPath)),
-					 CSVWriter.DEFAULT_SEPARATOR,
-					 CSVWriter.NO_QUOTE_CHARACTER, // without quotations
-					 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-					 CSVWriter.DEFAULT_LINE_END)) {
+			CSVWriter.DEFAULT_SEPARATOR,
+			CSVWriter.NO_QUOTE_CHARACTER, // without quotations
+			CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+			CSVWriter.DEFAULT_LINE_END)) {
 
 			indicatorTableWriter.writeNext(new String[]{"dimension","indicator","median value","limit","ranking value","weight of indicator"});
 
@@ -330,7 +330,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		return inside;
 
 
-	//	return studyAreaGeometry != null && studyAreaGeometry.contains(point);
+		//	return studyAreaGeometry != null && studyAreaGeometry.contains(point);
 
 	}
 

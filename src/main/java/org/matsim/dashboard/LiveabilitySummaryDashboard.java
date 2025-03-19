@@ -34,7 +34,7 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 				viz.description = "Here you can see the agents according to their overall ranking index depicted on their home location";
 				viz.height = 10.0;
 				viz.radius = 15.0;
-				viz.file = data.compute(LiveabilitySummaryAnalysis.class, "agentRankingForSummaryMap.xyt.csv");
+				viz.file = data.compute(LiveabilitySummaryAnalysis.class, "overall_XYT_AgentRankingForSummary.xyt.csv");
 
 				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350"};
 				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
@@ -42,26 +42,26 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 
 		layout.row("Overall Ranking")
 			.el(Tile.class, (viz, data) -> {
-				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overallRankingTile.csv");
+				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overall_tiles_ranking.csv");
 				viz.height = 0.1;
 			});
 
 		layout.row("ScoringTiles")
 			.el(Tile.class, (viz, data) -> {
-				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "summaryTiles.csv");
+				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "overall_tiles_summaryPerIndex.csv");
 				viz.height = 0.1; //})
 			});
 
 		layout.row("WorstIndicator")
 			.el(Tile.class, (viz, data) -> {
-				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overallHighestLowestIndicator.csv");
+				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overall_tiles_highestLowestIndicator.csv");
 				viz.height = 0.1; //})
 
 			});
 
 		layout.row("Indicator Overview")
 			.el(Table.class, (viz, data) -> {
-				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "indexIndicatorValues.csv");
+				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "overall_stats_indexIndicatorValues.csv");
 				viz.height = 6.0;
 			});
 	}
