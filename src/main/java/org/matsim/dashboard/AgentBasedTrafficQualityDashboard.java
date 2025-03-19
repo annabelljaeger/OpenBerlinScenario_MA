@@ -1,7 +1,7 @@
 package org.matsim.dashboard;
 
-import org.matsim.analysis.AgentBasedGreenSpaceAnalysis;
 import org.matsim.analysis.AgentBasedTrafficQualityAnalysis;
+import org.matsim.analysis.AgentLiveabilityInfoCollection;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
@@ -12,6 +12,7 @@ import tech.tablesaw.api.Table;
 import tech.tablesaw.io.csv.CsvReadOptions;
 import tech.tablesaw.plotly.components.Axis;
 import tech.tablesaw.plotly.traces.BarTrace;
+import tech.tablesaw.plotly.traces.HistogramTrace;
 import tech.tablesaw.plotly.traces.ScatterTrace;
 
 import java.util.*;
@@ -56,6 +57,29 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 				viz.height = 0.1;
 			});
 
+		layout.row("Scatterplot 2 Indikatoren")
+			.el(Plotly.class, (viz, data) -> {
+
+				viz.title = "Scatter Plot Longest Trip over Loss Time";
+				viz.description = "Agent based analysis of longest trip compared to loss time";
+
+				Plotly.DataSet ds = viz.addDataset(data.compute(AgentLiveabilityInfoCollection.class, "agentLiveabilityInfo.csv"));
+
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
+					.xAxis(Axis.builder().title("indexValue_longestTrip").build())
+					.yAxis(Axis.builder().title("indexValue_lossTime").build())
+					.build();
+
+				viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).build(), ds.mapping()
+						.x("indexValue_maxTravelTimePerTrip")
+						.y("indexValue_relativeLossTime")
+				//		.name("indexValue_relativeLossTime", ColorScheme.RdYlBu)
+
+					//	viz.addTrace((Trace) new Line.LineBuilder()),
+
+				);
+			});
 
 		// indicator specific dashboard values
 
@@ -66,16 +90,58 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 					"pt or ride per day.";
 					//+
 					//"Also shows the average and mean distance that agents from the study area live away from green spaces.";
-				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_TilesDistance.csv");
+				viz.dataset = data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_TilesLongestTrip.csv");
 			})
 
 			.el(Tile.class, (viz, data) -> {
 				viz.title = "Loss Time Indicator Details";
-				viz.description = "Displays how many agents have at least 6m² of space in the green space closest to their home location. " +
-					"Also shows the average and mean utilization that agents from the study area face when visiting their nearest green space.";
-				viz.dataset = data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_TilesUtilization.csv");
+				viz.description = "Displays how many agents spend a maximum of 20 % longer in traffic than they would in an empty network." +
+					"Therefore all trips during the day are aggregated and compared to the travel time these trips would have, if they ware taken" +
+					"in an empty network." +
+					"Also shows the sum of all loss times in the scenario as well as the average and median loss time for agents from the study area.";
+				viz.dataset = data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_TilesLossTime.csv");
 			});
 
+		layout.row("Stats per indicator - Diagram")
+			.el(Plotly.class, (viz, data) -> {
+				viz.title = "Longest Trip - Distribution of deviations";
+				viz.description = "Displays the distribution of deviation for the longest trips. Zero represents the limit of 30 minutes for car" +
+					"or 60 minutes for pt and ride trips. Values below 0 mean the longest trip is shorter than the mentioned durations, values over" +
+					"zero mean theres an excess of the limit, with 1 meaning 100% over the limit, e.g. 60 min car trip or 120 pt trip.";
+
+				// Add the dataset
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_stats_perAgent.csv"));
+
+				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("TQLongestTripDeviationFromLimit").nBinsX(200).build(),
+					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
+						.x("TQLongestTripDeviationFromLimit"));
+
+				// Define the layout for the plot
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Deviation").build())
+					.yAxis(Axis.builder().title("Number of Agents").build())
+					.build();
+			})
+
+			.el(Plotly.class, (viz, data) -> {
+				viz.title = "Loss Time - Distribution of deviations";
+				viz.description = "Displays the distribution of deviation for the loss time. Zero represents the aim of 20 % time loss comparing the actual travel" +
+					"duration of the whole day with the free speed travel time of all those legs. Values below zero mean less than 20 % loss time, values above mean" +
+					"more longer travel times compared to free speed times.";
+
+				// Add the dataset
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_stats_perAgent.csv"));
+
+				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("TQLossTimeDeviationFromLimit").nBinsX(200).build(),
+					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
+						.x("TQLossTimeDeviationFromLimit"));
+
+				// Define the layout for the plot
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.xAxis(Axis.builder().title("Deviation").build())
+					.yAxis(Axis.builder().title("Number of Agents").build())
+					.build();
+			});
 
 
 		layout.row("Indicator specific Index Value Maps")
@@ -101,9 +167,13 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
 			});
 
-
+// AB HIER FEHLT FÜR JEDES LOSS TIME DIAGRAMM NOCH EIN LONGEST TRIP DIAGRAMM!
 
 		layout.row("BarChart Modes")
+			.el(Plotly.class, (viz, data)->{
+
+			})
+
 			.el(Plotly.class, (viz, data) -> {
 
 				viz.title = "Mode Specific Loss Time";
@@ -122,36 +192,21 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 					.x("mode")
 					.y("cumulative_loss_time")
 					.name("cumulative_loss_time", ColorScheme.RdYlBu)
-
 				);
-//			})
-//			.el(Bar.class, (viz, data) -> {
-//				viz.title = "Loss Time per mode v2";
-//				viz.description = "in seconds";
-//
-//				viz.stacked = false;
-//				viz.dataset = data.compute(AgentBasedLossTimeAnalysis.class, "summary_modeSpecificLegsLossTime.csv");
-//				viz.x = "mode";
-//				viz.xAxisName = "Mode";
-//				viz.yAxisName = "Loss Time [s]";
-//				viz.columns = List.of("cumulative_loss_time", "failed_routings");
+
 			});
 
 		layout.row("ModesUsed (BarTrace) & Scatter Plot")
+			.el(Plotly.class, (viz, data)->{
+
+			})
 
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Number of used modes";
 				viz.description = "Number of the used mode";
 
-				// Dataset hinzufügen
-				//Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedLossTimeAnalysis.class, "output_legsLossTime_new.csv"));
-
-
-				//ACHTUNG: AUFRUF KANN HIER NICHT KLAPPEN WEIL DATEI ZU DEM ZEITPUNKT NOCH NICHT VORHANDEN!! BERECHNUNG IN ANALYSKLASSE AUSLAGERN!!
-
 				// Dateipfad aus dem Dataset abrufen
-			//	String csvFilePath = "C:\\Users\\annab\\MatSim for MA\\Output_Cluster\\OBS_Base\\output_OBS_Base\\berlin-v6.3-10pct\\analysis\\analysis\\lossTime_stats_perAgent.csv";
-				String csvFilePath = String.valueOf(getValidLiveabilityOutputDirectory().resolve("lossTime_stats_perAgent.csv"));
+				String csvFilePath = String.valueOf(getValidLiveabilityOutputDirectory().resolve("travelTime_stats_perAgent.csv"));
 
 				// Layout definieren
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
@@ -194,6 +249,11 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 				} catch (Exception e) {
 					e.printStackTrace(); // Für unerwartete Fehler
 				}
+			});
+
+		layout.row("offen & Scatterplot")
+			.el(Plotly.class, (viz, data)->{
+
 			})
 
 			.el(Plotly.class, (viz, data) -> {
@@ -219,30 +279,18 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 				);
 			});
 
-		layout.row("offene Tasks")
-			.el(TextBlock.class, (viz, data) -> {
-				viz.title = "Open Tasks";
-				viz.description = "diese Diagramme würde ich gerne noch erstellen - dauert aber gerade zu lang";
-				viz.content = "\t1. Loss Times über den Tag verteilt (Bar)\n" +
-					"\t2. Top Ausreißer räumlich auf Karte darstellen (zeitlich)?\n"+
-					"\t7. Zusätzliche Infos-Tabelle\n" +
-					"\t\ta. Wie viele Routen werden gar nicht richtig gefunden und somit geskippt (LossTime 0)?\n" +
-					"\t\tb. Wie viele Agenten nutzen nur teleportierte Modi und erhalten somit automatisch den True-Wert?\n" +
-					"\t\tc. Wie viele Agenten haben über X%/xMin (z.B. 100%/30 min) Verlustzeit - evtl. 2 Angaben, einmal > 100% und einmal mehr als 1 Std.\n";
 
-			});
+		layout.row("offen & prüfen ob doppelt")
+			.el(Plotly.class, (viz, data)->{
 
-
-
-
-		layout.row("nicht mehr relevante Versuche")
+			})
 
 			.el(Plotly.class, (viz, data) -> {
 
 				viz.title = "Modes Used";
 				viz.description = "teleported modes result in 0 seconds loss time, ergo all solely bike and walk users are defined as true in their loss time dependent liveability ranking - here shown is the number of persons usimg each combination of modes";
 
-				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "lossTime_stats_perAgent.csv"))
+				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_stats_perAgent.csv"))
 					.aggregate(List.of("modeUsed"), "Person", Plotly.AggrFunc.SUM);
 
 				// Layout und Achsen anpassen
@@ -256,6 +304,11 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 						.y("Person")
 					//				.name("mode", ColorScheme.RdYlBu)
 				);
+			});
+
+		layout.row("offen & Histogramm zeitliche Verteilung LossTime")
+			.el(Plotly.class, (viz, data)->{
+
 			})
 
 			.el(Plotly.class, (viz, data) -> {
@@ -283,59 +336,19 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 
 			});
 
-		//HIER NOCH UNFERTIGER VERSUCH DIE AUSREIßER UND SONSTIGE FEHLER AUSZUBLENDEN - SCATTERPLOT DETAILARBEIT NOCH NÖTIG
-		layout.row("neuer Ansatz Scatterplot")
-		.el(Plotly.class, (viz, data) -> {
 
-			viz.title = "Scatter Plot Travel Time over Loss Time";
-			viz.description = "Agent based analysis of travel time compared to loss time";
+		layout.row("offene Tasks")
+			.el(TextBlock.class, (viz, data) -> {
+				viz.title = "Open Tasks";
+				viz.description = "diese Diagramme würde ich gerne noch erstellen - dauert aber gerade zu lang";
+				viz.content = "\t1. Loss Times über den Tag verteilt (Bar)\n" +
+					"\t2. Top Ausreißer räumlich auf Karte darstellen (zeitlich)?\n"+
+					"\t7. Zusätzliche Infos-Tabelle\n" +
+					"\t\ta. Wie viele Routen werden gar nicht richtig gefunden und somit geskippt (LossTime 0)?\n" +
+					"\t\tb. Wie viele Agenten nutzen nur teleportierte Modi und erhalten somit automatisch den True-Wert?\n" +
+					"\t\tc. Wie viele Agenten haben über X%/xMin (z.B. 100%/30 min) Verlustzeit - evtl. 2 Angaben, einmal > 100% und einmal mehr als 1 Std.\n";
 
-//			// Bereinige die Daten vor dem Hinzufügen zum Dataset
-//			List<Map<String, Object>> cleanedData = new ArrayList<>();
-//			try (BufferedReader br = new BufferedReader(new FileReader(String.valueOf(getValidOutputDirectory().resolve("analysis\\analysis\\output_legsLossTime_new.csv"))))) {
-//				String line;
-//				while ((line = br.readLine()) != null) {
-//					String[] values = line.split(";");
-//					double travTime = Double.parseDouble(values[3]);  // Annahme: Travel Time ist in der ersten Spalte
-//					double lossTime = Double.parseDouble(values[5]);  // Annahme: Loss Time ist in der zweiten Spalte
-//
-//					// Nullwerte für Loss Time und Ausreißer filtern
-//					if (lossTime != 0 && travTime <= 1000 && lossTime <= 500) {
-//						Map<String, Object> row = new HashMap<>();
-//						row.put("trav_time", travTime);
-//						row.put("loss_time", lossTime);
-//						cleanedData.add(row);
-//					}
-//				}
-////			} catch (IOException e) {
-////				e.printStackTrace();
-////			}
-////
-////			// Konvertiere die bereinigten Daten in ein Dataset
-////			Plotly.DataSet ds = viz.addDataset(cleanedData.toString());
-//
-//			// Layout konfigurieren
-//			viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-//				.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
-//				.xAxis(Axis.builder().title("Travel Time").build())
-//				.yAxis(Axis.builder().title("Loss Time").build())
-//				.build();
-//
-//			// Scatter Trace für die bereinigten Daten
-//			viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).build(), ds.mapping()
-//				.x("trav_time")
-//				.y("loss_time")
-//				.name("Loss Time vs. Travel Time", ColorScheme.RdYlBu)
-//			);
-//
-//			// Füge die Linie Travel Time = 2 * Loss Time hinzu
-//			viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).build(), ds.mapping()
-//				.x("trav_time")
-//				.y("trav_time")//.transform(v -> v / 2)  // Die Linie, bei der Travel Time = 2 * Loss Time
-//				.name("Travel Time = 2 * Loss Time")
-//			//	.line(tech.tablesaw.plotly.components.Line.builder().color("red").width(2).build())  // Linie in Rot
-//			);
-		});
+			});
 
 	}
 

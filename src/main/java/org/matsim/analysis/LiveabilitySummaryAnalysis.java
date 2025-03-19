@@ -33,6 +33,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOu
  	},
 	produces = {
 		"overallRankingTile.csv",
+		"summaryTiles.csv",
 		"overallWorstIndexValueTile.csv",
 		"overviewIndicatorTable.csv",
 		"agentRankingForSummaryMap.xyt.csv",
@@ -55,6 +56,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 //	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 	private final Path outputOverallRankingPath = getValidLiveabilityOutputDirectory().resolve("overallRankingTile.csv");
 	private final Path worstIndicatorOutputPath = getValidLiveabilityOutputDirectory().resolve("overallWorstIndexValueTile.csv");
+	private final Path bestIndicatorOutputPath = getValidLiveabilityOutputDirectory().resolve("overallBestIndexValueTile.csv");
+
 
 	private final Path XYTMapOutputPath = getValidLiveabilityOutputDirectory().resolve("agentRankingForSummaryMap.xyt.csv");
 	private final Path inputIndicatorValuesPath = ApplicationUtils.matchInput("indexIndicatorValues.csv", getValidLiveabilityOutputDirectory());
@@ -77,6 +80,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		Map<String, String> homeXCoordinatePerAgent = new LinkedHashMap<>();
 		Map<String, String> homeYCoordinatePerAgent = new LinkedHashMap<>();
 		Map<String, String> highestIndexValueIndicatorMap = new LinkedHashMap<>();
+		Map<String, String> lowestIndexValueIndicatorMap = new LinkedHashMap<>();
+		Map<String, Double> overallBestRankingValuePerAgent = new LinkedHashMap<>();
 
 		// Prüfe, ob alle Werte in den "rankingValue_"-Spalten kleiner oder gleich 0 sind
 		String inputAgentLiveabilityInfoPath = input.getPath(AgentLiveabilityInfoCollection.class,"agentLiveabilityInfo.csv");
@@ -85,6 +90,8 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 			 CSVWriter worstIndicatorWriter = new CSVWriter(new FileWriter(output.getPath("overallWorstIndexValueTile.csv").toFile()));
 			 CSVWriter overallRankingWriter = new CSVWriter(new FileWriter(output.getPath("overallRankingTile.csv").toFile()));
+			 CSVWriter highestLowestIndicatorTileWriter = new CSVWriter(new FileWriter(String.valueOf(overallHighestLowestIndicatorPath)));
+
 
 			 CSVWriter XYTMapWriter = new CSVWriter(
 				new FileWriter(String.valueOf(XYTMapOutputPath)),
@@ -118,8 +125,10 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 				boolean allValuesValid = true;
 				boolean validAgent = true;
-				double highestRankingValue=-Double.MIN_VALUE;
+				double highestIndexValue=-Double.MIN_VALUE;
+				double lowestIndexValue=Double.MIN_VALUE;
 				String highestIndexValueIndicator = "";
+				String lowestIndexValueIndicator = "";
 				boolean isFirstIteration = true;
 
 				// find out whether an agent has a valid ranking value for all indices
@@ -131,9 +140,16 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 					}
 
 					double doubleValue = Double.parseDouble(cellValue);
-					if (doubleValue > highestRankingValue || isFirstIteration){
-						highestRankingValue = doubleValue;
+					if (doubleValue > highestIndexValue || isFirstIteration){
+						highestIndexValue = doubleValue;
 						highestIndexValueIndicator = header[columnIndex];
+						isFirstIteration = false;
+					}
+
+					double doubleValue2 = Double.parseDouble(cellValue);
+					if (doubleValue > lowestIndexValue || isFirstIteration){
+						lowestIndexValue = doubleValue2;
+						lowestIndexValueIndicator = header[columnIndex];
 						isFirstIteration = false;
 					}
 
@@ -143,19 +159,20 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 					continue;
 				}
 
-				overallRankingValuePerAgent.put(nextLine[0], highestRankingValue);
+				overallRankingValuePerAgent.put(nextLine[0], highestIndexValue);
 				highestIndexValueIndicatorMap.put(nextLine[0], highestIndexValueIndicator);
+				overallBestRankingValuePerAgent.put(nextLine[0], lowestIndexValue);
+				lowestIndexValueIndicatorMap.put(nextLine[0], lowestIndexValueIndicator);
 				homeXCoordinatePerAgent.put(nextLine[0], nextLine[1]);
 				homeYCoordinatePerAgent.put(nextLine[0], nextLine[2]);
 
 				totalRows++;
 
-				if (highestRankingValue <= 0.0) {
+				if (highestIndexValue <= 0.0) {
 					matchingRows++;
 				}
 
-
-				XYTMapWriter.writeNext(new String[]{String.valueOf(0.0), nextLine[1], nextLine[2], String.valueOf(highestRankingValue)});
+				XYTMapWriter.writeNext(new String[]{String.valueOf(0.0), nextLine[1], nextLine[2], String.valueOf(highestIndexValue)});
 
 			}
 
@@ -163,28 +180,53 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 			double overallRankingValue = (double) matchingRows / totalRows * 100;
 
 			// Map zur Zählung der Häufigkeiten der Values
-			Map<String, Integer> frequencyMap = new HashMap<>();
+			Map<String, Integer> worstValuesfrequencyMap = new HashMap<>();
+			Map<String, Integer> bestValuesfrequencyMap = new HashMap<>();
 
 			for (String value : highestIndexValueIndicatorMap.values()) {
-				frequencyMap.put(value, frequencyMap.getOrDefault(value, 0) + 1);
+				worstValuesfrequencyMap.put(value, worstValuesfrequencyMap.getOrDefault(value, 0) + 1);
+			}
+
+			for (String value : lowestIndexValueIndicatorMap.values()) {
+				bestValuesfrequencyMap.put(value, bestValuesfrequencyMap.getOrDefault(value, 0) + 1);
 			}
 
 			// Den häufigsten Value bestimmen
-			String mostFrequentValue = null;
-			int maxCount = Collections.max(frequencyMap.values());
+			String mostFrequentWorstValue = null;
+			int maxCount = Collections.max(worstValuesfrequencyMap.values());
 
-			for (Map.Entry<String, Integer> entry : frequencyMap.entrySet()) {
+			for (Map.Entry<String, Integer> entry : worstValuesfrequencyMap.entrySet()) {
 				if (entry.getValue() == maxCount) {
-					mostFrequentValue = entry.getKey();
+					mostFrequentWorstValue = entry.getKey();
 					break; // Falls nur ein Eintrag gewünscht ist
 				}
 			}
 
-			String worstIndicatorName = mostFrequentValue;
+			String mostFrequentBestValue = null;
+			int maxCountBest = Collections.max(bestValuesfrequencyMap.values());
+
+			for (Map.Entry<String, Integer> entry : bestValuesfrequencyMap.entrySet()) {
+				if (entry.getValue() == maxCountBest) {
+					mostFrequentBestValue = entry.getKey();
+					break; // Falls nur ein Eintrag gewünscht ist
+				}
+			}
+
+			String worstIndicatorName = mostFrequentWorstValue;
+			String formattedWorstIndicatorName = worstIndicatorName.substring(worstIndicatorName.indexOf('_') + 1);
 			double AnteilWorstIndicator = (double) maxCount / overallRankingValuePerAgent.size() * 100;
 			String formattedPercentageWorstIndicator = String.format(Locale.US, "%.2f%%", AnteilWorstIndicator);
+			String bestIndicatorName = mostFrequentBestValue;
+			String formattedBestIndicatorName = bestIndicatorName.substring(bestIndicatorName.indexOf('_') + 1);
+			double AnteilBestIndicator = (double) maxCountBest / overallRankingValuePerAgent.size() * 100;
+			String formattedPercentageBestIndicator = String.format(Locale.US, "%.2f%%", AnteilBestIndicator);
 			worstIndicatorWriter.writeNext(new String[]{"Worst Indicator", worstIndicatorName});
 			worstIndicatorWriter.writeNext(new String[]{"Worst Indicator Percentage", formattedPercentageWorstIndicator});
+			highestLowestIndicatorTileWriter.writeNext(new String[]{"Worst Indicator", formattedWorstIndicatorName});
+			highestLowestIndicatorTileWriter.writeNext(new String[]{"Worst Indicator Percentage", formattedPercentageWorstIndicator});
+			highestLowestIndicatorTileWriter.writeNext(new String[]{"Best Indicator", formattedBestIndicatorName});
+			highestLowestIndicatorTileWriter.writeNext(new String[]{"Best Indicator Percentage", formattedPercentageBestIndicator});
+
 
 			//			double overallRankingValue = RankingValueMap.values().stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
 			String formattedOverallRankingValue = String.format(Locale.US, "%.2f%%", overallRankingValue);
@@ -195,23 +237,23 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 		}
 
 
-		try (CSVReader indexIndicatorReader = new CSVReader(new FileReader(inputIndicatorValuesPath.toFile()));
-		CSVWriter overviewIndicatorValuesWriter = new CSVWriter(new FileWriter(outputIndicatorValuesForDashboardPath.toFile()))) {
-
-			String[] nextLine;
-			while ((nextLine = indexIndicatorReader.readNext()) != null) {
-
-				overviewIndicatorValuesWriter.writeNext(nextLine);
-
-			}
-
-			System.out.println("The table has been successfully copied " + outputIndicatorValuesForDashboardPath.toFile());
-		} catch(
-		IOException e)
-
-		{
-			e.printStackTrace();
-		}
+//		try (CSVReader indexIndicatorReader = new CSVReader(new FileReader(inputIndicatorValuesPath.toFile()));
+//		CSVWriter overviewIndicatorValuesWriter = new CSVWriter(new FileWriter(outputIndicatorValuesForDashboardPath.toFile()))) {
+//
+//			String[] nextLine;
+//			while ((nextLine = indexIndicatorReader.readNext()) != null) {
+//
+//				overviewIndicatorValuesWriter.writeNext(nextLine);
+//
+//			}
+//
+//			System.out.println("The table has been successfully copied " + outputIndicatorValuesForDashboardPath.toFile());
+//		} catch(
+//		IOException e)
+//
+//		{
+//			e.printStackTrace();
+//		}
 
 		//	log.info("LiveabilitySummaryAnalysis completed successfully.");
 		return 0;

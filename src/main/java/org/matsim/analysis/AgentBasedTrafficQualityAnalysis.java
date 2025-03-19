@@ -35,6 +35,7 @@ import java.time.Duration;
 import java.util.*;
 
 import java.io.IOException;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 import static org.matsim.dashboard.RunLiveabilityDashboard.*;
@@ -59,7 +60,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 	produces = {
 		"output_legsLossTime_new.csv",
 		"summary_modeSpecificLegsLossTime.csv",
-		"lossTime_stats_perAgent.csv",
+		"travelTime_stats_perAgent.csv",
 		"travelTime_XYTAgentBasedTrafficQualityMap.xyt.csv",
 		"travelTime_XYTAgentBasedLongestTripMap.xyt.csv",
 		"travelTime_XYTAgentBasedLossTimeMap.xyt.csv",
@@ -133,7 +134,7 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 		Config config = ConfigUtils.loadConfig(ApplicationUtils.matchInput("config.xml", input.getRunDirectory()).toAbsolutePath().toString());
 		SimWrapperConfigGroup simwrapper = ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class);
 		this.sampleSize = simwrapper.sampleSize;
-		this.routingConfig =  config.routing();
+		this.routingConfig = config.routing();
 
 		// initialising collections and data structures
 		AgentLiveabilityInfoCollection agentLiveabilityInfoCollection = new AgentLiveabilityInfoCollection();
@@ -165,11 +166,13 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 		double counterOverallTravelTime = 0;
 		double counterIndexLongestTrip = 0;
 		double counterIndexLossTime = 0;
+		double counter50PercentUnderLimit = 0;
+		double counter50PercentOverLimit = 0;
 		double sumTotalLossTime = 0.0;
 
 
 		// initializing counters for calculate only for some agents
-		int limit = 2000; // set to -1 for no limit
+		int limit = -1; // set to -1 for no limit
 		int count = 0;
 
 		// declaring other variables for later use
@@ -179,6 +182,20 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 		String formattedLossTimeIndexValue;
 		double travelTimeIndexValue;
 		String formattedTravelTimeIndexValue;
+		double travelTime50PercentUnderIndexValue;
+		String formattedTravelTime50PercentUnderIndexValue;
+		double travelTime50PercentOverIndexValue;
+		String formattedTravelTime50PercentOverIndexValue;
+		double meanTotalLossTime;
+		String formattedMeanTotalLossTime;
+		double medianTotalLossTime;
+		String formattedMedianTotalLossTime;
+		double medianLongestCarTrip;
+		String formattedMedianLongestCarTrip;
+		double medianLongestPTTrip;
+		String formattedMedianLongestPTTrip;
+		double medianLongestRideTrip;
+		String formattedMedianLongestRideTrip;
 
 		String formattedSumTotalLossTime;
 
@@ -443,15 +460,14 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 				// Avoid devision of 0
 				if (freeSpeedTravTimePerAgent.get(person) != 0) {
-					double percentage = ((travTimePerAgent.get(person)-freeSpeedTravTimePerAgent.get(person)) / freeSpeedTravTimePerAgent.get(person));
+					double percentage = ((travTimePerAgent.get(person) - freeSpeedTravTimePerAgent.get(person)) / freeSpeedTravTimePerAgent.get(person));
 					lossTimePercentagePerAgent.put(person, percentage);
 				} else {
 					lossTimePercentagePerAgent.put(person, 0.0); // If freeSpeedTime is 0, we set the loss to 0%
 				}
 
-				temp_lossTimeIndexValue = (lossTimePercentagePerAgent.get(person) - limitRelativeLossTime) /limitRelativeLossTime;
+				temp_lossTimeIndexValue = (lossTimePercentagePerAgent.get(person) - limitRelativeLossTime) / limitRelativeLossTime;
 				lossTimeIndexValuePerAgent.put(person, temp_lossTimeIndexValue);
-
 
 
 			}
@@ -481,15 +497,11 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 				overallTravelTimeIndexValuePerAgent.put(agentId, overallTravelTimeIndexValue);
 
-				if (longestTripDeviation <= 0) {
-					counterIndexLongestTrip++;
-				}
-				if (lossTimeDeviation <= 0) {
-					counterIndexLossTime++;
-				}
-				if (overallTravelTimeIndexValue <= 0) {
-					counterOverallTravelTime++;
-				}
+				if (longestTripDeviation <= 0) {counterIndexLongestTrip++;}
+				if (lossTimeDeviation <= 0) {counterIndexLossTime++;}
+				if (overallTravelTimeIndexValue <= 0) {counterOverallTravelTime++;}
+				if (overallTravelTimeIndexValue <= -0.5) {counter50PercentUnderLimit++;}
+				if (overallTravelTimeIndexValue <= 0.5) {counter50PercentOverLimit++;}
 
 			}
 
@@ -503,6 +515,30 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 			travelTimeIndexValue = counterOverallTravelTime / homeCoordinatesPerAgentInStudyArea.size();
 			formattedTravelTimeIndexValue = String.format(Locale.US, "%.2f%%", travelTimeIndexValue * 100);
 
+			travelTime50PercentUnderIndexValue = counter50PercentUnderLimit / homeCoordinatesPerAgentInStudyArea.size();
+			formattedTravelTime50PercentUnderIndexValue = String.format(Locale.US, "%.2f%%", travelTime50PercentUnderIndexValue * 100);
+
+			travelTime50PercentOverIndexValue = counter50PercentOverLimit / homeCoordinatesPerAgentInStudyArea.size();
+			formattedTravelTime50PercentOverIndexValue = String.format(Locale.US, "%.2f%%", travelTime50PercentOverIndexValue * 100);
+
+			meanTotalLossTime = lossTimePerAgent.values().stream().collect(Collectors.averagingDouble(Double::doubleValue));
+			formattedMeanTotalLossTime = String.format(Locale.US, "%.2f min", meanTotalLossTime /60);
+
+			medianTotalLossTime = AgentLiveabilityInfoCollection.calculateMedian(lossTimePerAgent);
+			formattedMedianTotalLossTime = String.format(Locale.US, "%.2f min", medianTotalLossTime /60);
+
+			medianLongestCarTrip = AgentLiveabilityInfoCollection.calculateMedian(longestTripTravelTimePerAgent.entrySet().stream()
+				.filter(entry -> "car".equals(longestTripModePerAgent.get(entry.getKey())))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+			formattedMedianLongestCarTrip  = String.format(Locale.US, "%.2f min", medianLongestCarTrip);
+			medianLongestPTTrip = AgentLiveabilityInfoCollection.calculateMedian(longestTripTravelTimePerAgent.entrySet().stream()
+				.filter(entry -> "pt".equals(longestTripModePerAgent.get(entry.getKey())))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));;
+			formattedMedianLongestPTTrip  = String.format(Locale.US, "%.2f min", medianLongestPTTrip);
+			medianLongestRideTrip = AgentLiveabilityInfoCollection.calculateMedian(longestTripTravelTimePerAgent.entrySet().stream()
+				.filter(entry -> "ride".equals(longestTripModePerAgent.get(entry.getKey())))
+				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));;
+			formattedMedianLongestRideTrip = String.format(Locale.US, "%.2f min", medianLongestRideTrip);
 
 			//Write Information in Agent Livability Info Collection
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(longestTripTravelTimePerAgent, "maxTravelTimePerTrip");
@@ -517,8 +553,8 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedTravelTimeIndexValue, "Travel Time Index Value");
 
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Longest trip", String.valueOf(0), "60 / 30 / inf", formattedLongestTripIndexValue, 1);
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Loss time", String.valueOf(0), String.valueOf(limitRelativeLossTime), formattedLossTimeIndexValue, 1);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Longest trip", formattedMedianLongestCarTrip, "60 / 30 / inf", formattedLongestTripIndexValue, 1);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Loss time", formattedMedianTotalLossTime, String.valueOf(limitRelativeLossTime), formattedLossTimeIndexValue, 1);
 
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTLossTimeAgentMapPath, lossTimeIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTLongestTripAgentMapPath, longestTripIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);
@@ -535,8 +571,12 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 					"lossTimePerAgent",
 					"travTimePerAgent",
 					"percentageLossTime",
-					"indexValue",
-					"modesUsed"});
+					"TQLossTimeDeviationFromLimit",
+					"modesUsed",
+					"longestTripMode",
+					"longestTripTravelTime",
+					"TQLongestTripDeviationFromLimit"
+				});
 
 				for (String person : homeCoordinatesPerAgentInStudyArea.keySet()) {
 					agentBasedWriter.writeNext(new String[]{
@@ -545,7 +585,10 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 						String.valueOf(travTimePerAgent.getOrDefault(person, 0.0)),
 						String.valueOf(lossTimePercentagePerAgent.getOrDefault(person, 0.0)),
 						String.valueOf(lossTimeIndexValuePerAgent.getOrDefault(person, 0.0)),
-						String.join(",", modePerPerson.getOrDefault(person, Set.of()))
+						String.join("-", modePerPerson.getOrDefault(person, Set.of())),
+						String.valueOf(longestTripModePerAgent.getOrDefault(person, "")),
+						String.valueOf(longestTripTravelTimePerAgent.getOrDefault(person, 0.0)),
+						String.valueOf(longestTripIndexValuePerAgent.getOrDefault(person, 0.0))
 					});
 				}
 			}
@@ -576,28 +619,24 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 				 CSVWriter LongestTripWriter = new CSVWriter(new FileWriter(TilesLogestTripTimePath.toFile()));
 				 CSVWriter LossTimeWriter = new CSVWriter(new FileWriter(TilesLossTimePath.toFile()))) {
 
-				TQTileWriter.writeNext(new String[]{"Traffic Quality: 50% under limit", formattedLongestTripIndexValue});
+				TQTileWriter.writeNext(new String[]{"Traffic Quality: 50% under limit", formattedTravelTime50PercentUnderIndexValue});
 				TQTileWriter.writeNext(new String[]{"Traffic Quality within limit", formattedTravelTimeIndexValue});
-				TQTileWriter.writeNext(new String[]{"Traffic Quality: 50% over limit", formattedLongestTripIndexValue});
+				TQTileWriter.writeNext(new String[]{"Traffic Quality: 50% over limit", formattedTravelTime50PercentOverIndexValue});
 
 				LongestTripWriter.writeNext(new String[]{"Longest Trip Index Value", formattedLongestTripIndexValue});
-				LongestTripWriter.writeNext(new String[]{"Average Trip Duration", formattedTravelTimeIndexValue});
+				LongestTripWriter.writeNext(new String[]{"Median Longest Car Trip Duration", formattedMedianLongestCarTrip});
+				LongestTripWriter.writeNext(new String[]{"Median Longest PT Trip Duration", formattedMedianLongestPTTrip});
+				LongestTripWriter.writeNext(new String[]{"Median Longest Ride Trip Duration", formattedMedianLongestRideTrip});
 
 				LossTimeWriter.writeNext(new String[]{"Loss Time Index Value", formattedLossTimeIndexValue});
+				LossTimeWriter.writeNext(new String[]{"Mean loss time (h:m:s)", formattedMeanTotalLossTime});
+				LossTimeWriter.writeNext(new String[]{"Median loss time (h:m:s)", formattedMedianTotalLossTime});
 				LossTimeWriter.writeNext(new String[]{"Sum loss time (h:m:s)", formattedSumTotalLossTime});
 
 				System.out.println("LossTimeSum (HH:mm:ss): " + formattedSumTotalLossTime);
 				System.out.println("LossTimeRanking: " + formattedLossTimeIndexValue);
 
 			}
-
-			// output dateien erzeugen für travel time Dashboard-Seite
-//			try (CSVWriter LTTileWriter = new CSVWriter(new FileWriter(outputRankingValuePath.toFile()),
-//				CSVWriter.DEFAULT_SEPARATOR,
-//				CSVWriter.NO_QUOTE_CHARACTER, // without quotation
-//				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-//				CSVWriter.DEFAULT_LINE_END))
-//			{
 
 
 		} catch (IOException e) {
@@ -609,7 +648,6 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 		// end of call method
 		return 0;
 	}
-
 
 
 	// Netzwerk laden
@@ -711,6 +749,8 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 		return String.format("%02d:%02d:%02d", hours, minutes, seconds);
 	}
 
+}
+
 
 //	private static void writeXYTDataToCSV(Path filePath, Map<String, Double> dataMap,
 //										 Map<String, List<String>> coordinatesMap) throws IOException {
@@ -741,7 +781,7 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 //		}
 //	}
 
-}
+
 
 
 /*
