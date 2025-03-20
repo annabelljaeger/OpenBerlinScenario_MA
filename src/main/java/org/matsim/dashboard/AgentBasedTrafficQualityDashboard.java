@@ -170,8 +170,22 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 // AB HIER FEHLT FÜR JEDES LOSS TIME DIAGRAMM NOCH EIN LONGEST TRIP DIAGRAMM!
 
 		layout.row("BarChart Modes")
-			.el(Plotly.class, (viz, data)->{
+			.el(Plotly.class, (viz, data) -> {
+				viz.title = "Histogram longest car trips";
+				viz.description = "Histogram longest car trips";
 
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_histogram_longestCarTravel.csv"));
+
+				// Define the layout for the plot
+				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
+					.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
+					.xAxis(Axis.builder().title("Trip duration [min]").build())
+					.yAxis(Axis.builder().title("Number of Trips").build())
+					.build();
+
+				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("travTimePerAgent").build(),
+					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
+						.x("travTimePerAgent"));
 			})
 
 			.el(Plotly.class, (viz, data) -> {
@@ -198,14 +212,13 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 
 		layout.row("ModesUsed (BarTrace) & Scatter Plot")
 			.el(Plotly.class, (viz, data) -> {
-				viz.title = "Histogram longest car trips";
-				viz.description = "Histogram longest car trips";
+				viz.title = "Histogram longest Pt trips";
+				viz.description = "Histogram longest Pt trips";
 
-				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_histogram_longestCarTravel.csv"));
+				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_histogram_longestPtTravel.csv"));
 
 				// Define the layout for the plot
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-					.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
 					.xAxis(Axis.builder().title("Trip duration [min]").build())
 					.yAxis(Axis.builder().title("Number of Trips").build())
 					.build();
@@ -234,8 +247,6 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 
 		layout.row("offen & Scatterplot")
 
-
-
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Histogram longest ride trips";
 				viz.description = "Histogram longest ride trips";
@@ -254,8 +265,6 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 
 
 			})
-
-
 
 
 			.el(Plotly.class, (viz, data) -> {
@@ -278,46 +287,6 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 
 					//	viz.addTrace((Trace) new Line.LineBuilder()),
 
-				);
-			});
-
-
-		layout.row("offen & prüfen ob doppelt")
-			.el(Plotly.class, (viz, data) -> {
-				viz.title = "Histogram longest Pt trips";
-				viz.description = "Histogram longest Pt trips";
-
-				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_histogram_longestPtTravel.csv"));
-
-				// Define the layout for the plot
-				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-					.xAxis(Axis.builder().title("Trip duration [min]").build())
-					.yAxis(Axis.builder().title("Number of Trips").build())
-					.build();
-
-				viz.addTrace(HistogramTrace.builder(Plotly.INPUT).name("travTimePerAgent").build(),
-					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
-						.x("travTimePerAgent"));
-			})
-
-			.el(Plotly.class, (viz, data) -> {
-
-				viz.title = "Modes Used";
-				viz.description = "teleported modes result in 0 seconds loss time, ergo all solely bike and walk users are defined as true in their loss time dependent liveability ranking - here shown is the number of persons usimg each combination of modes";
-
-				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_stats_perAgent.csv"))
-					.aggregate(List.of("modeUsed"), "Person", Plotly.AggrFunc.SUM);
-
-				// Layout und Achsen anpassen
-				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-					.xAxis(Axis.builder().title("Modes").build())
-					.yAxis(Axis.builder().title("Number of Persons").build())
-					.build();
-
-				viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT).orientation(BarTrace.Orientation.VERTICAL).build(), ds.mapping()
-						.x("modesUsed")
-						.y("Person")
-					//				.name("mode", ColorScheme.RdYlBu)
 				);
 			});
 
