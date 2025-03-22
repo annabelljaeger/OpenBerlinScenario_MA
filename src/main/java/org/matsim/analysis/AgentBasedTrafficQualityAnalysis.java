@@ -468,7 +468,7 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 				legLossTime = legTravTime.minus(legFreeSpeedTravTime);
 				//legLossTimeInSeconds = legTravTimeInSeconds - legFreeSpeedTravTimeInSeconds;
 				if (legLossTime.getSeconds() < 0) {
-					System.out.println("Negativ leg loss time set to zero");
+				//	System.out.println("Negativ leg loss time set to zero");
 					legLossTime = Duration.ZERO;
 				} // avoiding negative loss times
 
@@ -482,7 +482,7 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 				if (legFreeSpeedTravTime.getSeconds() != 0) {
 					legLossTimePrecentage = (double) legLossTime.getSeconds() / legFreeSpeedTravTime.getSeconds();
 				} else {
-					System.out.println("Warnung: Division by Zero for trip " + tripId + " avoided.");
+				//	System.out.println("Warnung: Division by Zero for trip " + tripId + " avoided.");
 				}
 
 				SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss");
@@ -649,8 +649,8 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedTravelTimeIndexValue, "Travel Time Index Value");
 
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Longest trip", formattedMedianLongestTrip, "60 / 30 / inf min", formattedLongestTripIndexValue, 1);
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Loss time", formattedMedianTotalLossTime, String.valueOf(limitRelativeLossTime), formattedLossTimeIndexValue, 1);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Longest trip", formattedMedianLongestTrip, "60 / 30 / inf min", formattedLongestTripIndexValue);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Loss time", formattedMedianTotalLossTime, String.valueOf(limitRelativeLossTime), formattedLossTimeIndexValue);
 
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTLossTimeAgentMapPath, lossTimeIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTLongestTripAgentMapPath, longestTripIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);
@@ -896,7 +896,7 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 					if (link.getAllowedModes().contains(mode)) {
 						return link.getLength() / link.getFreespeed();
 					} else {
-						System.out.println("Mode " + mode + " is not allowed on this link.");
+					//	System.out.println("Mode " + mode + " is not allowed on this link.");
 						failedRoutingOccurances.put(mode, failedRoutingOccurances.getOrDefault(mode, 0L) + 1);
 						return backup_travelTime;  // In case the mode is not allowed on this link, return 0
 					}
@@ -907,7 +907,7 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 				LeastCostPathCalculator.Path path = router.calcLeastCostPath(startNode, endNode, 0, null, null);
 
 				if (path == null || path.links.isEmpty()) {
-					System.out.println("No route found for mode " + mode + ".");
+				//	System.out.println("No route found for mode " + mode + ".");
 					failedRoutingOccurances.put(mode, failedRoutingOccurances.getOrDefault(mode, 0L) + 1);
 					return backup_travelTime;
 				} else {
@@ -917,7 +917,7 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 			case "pt":
 			default:
-				System.out.println("No calculation of free speed travel time defined for mode: " + mode);
+			//	System.out.println("No calculation of free speed travel time defined for mode: " + mode);
 		}
 
 		return backup_travelTime;
@@ -958,7 +958,7 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 				depTime = timeFormat.parse(depTimeStr);
 			} catch (ParseException e) {
 				// Log the error or handle it differently
-				System.err.println("Invalid departure time: " + depTimeStr);
+			//	System.err.println("Invalid departure time: " + depTimeStr);
 				continue;  // Skip the invalid departure time
 			} // Convert the time to a Date object
 

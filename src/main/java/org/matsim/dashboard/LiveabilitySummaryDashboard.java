@@ -48,7 +48,7 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 
 		layout.row("ScoringTiles")
 			.el(Tile.class, (viz, data) -> {
-				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "overall_tiles_summaryPerIndex.csv");
+				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "overall_tiles_indexDimensionValues.csv");
 				viz.height = 0.1; //})
 			});
 
@@ -61,8 +61,8 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 
 		layout.row("Indicator Overview")
 			.el(Table.class, (viz, data) -> {
-				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "overall_stats_indexIndicatorValues.csv");
-				viz.height = 6.0;
+				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "overall_stats_indicatorValues.csv");
+				viz.height = 8.0;
 			});
 	}
 }

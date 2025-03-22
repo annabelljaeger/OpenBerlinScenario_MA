@@ -32,6 +32,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOu
 		//	@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overall_tiles_summaryPerIndex.csv"),
 		@Dependency(value = AgentBasedGreenSpaceAnalysis.class, files =  "greenSpace_stats_perAgent.csv"),
 		@Dependency(value = AgentBasedTrafficQualityAnalysis.class, files =  "travelTime_stats_perAgent.csv"),
+		@Dependency(value= AgentBasedPtQualityAnalysis.class, files = "ptQuality_stats_perAgent.csv"),
 	},
 	produces = {
 		"overall_tiles_ranking.csv",
@@ -138,7 +139,7 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 						valuesMap.put(column, Double.valueOf(record.get(column)));
 					} catch (NumberFormatException e) {
 						// If parsing fails (e.g., empty string or invalid value), skip the iteration
-						System.out.println("Warning: Invalid value in column '" + column + "' for agent " + record.get("person") + ". Value skipped.");
+			//			System.out.println("Warning: Invalid value in column '" + column + "' for agent " + record.get("person") + ". Value skipped.");
 						continue; // Proceed to the next iteration
 					}
 				}
