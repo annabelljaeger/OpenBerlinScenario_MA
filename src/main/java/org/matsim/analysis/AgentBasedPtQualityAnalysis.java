@@ -22,8 +22,11 @@ import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
 import org.matsim.contrib.accessibility.AccessibilityConfigGroup;
+import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.events.EventsUtils;
+import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.router.DefaultRoutingRequest;
 import org.matsim.core.router.DijkstraFactory;
 import org.matsim.core.router.LinkWrapperFacilityWithSpecificCoord;
@@ -62,8 +65,8 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 	requireRunDirectory = true,
 	group="liveability",
 	dependsOn = {
-		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "agentLiveabilityInfo.csv"),
-		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overallRankingTile.csv")
+		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overall_stats_agentLiveabilityInfo.csv"),
+		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overall_tiles_indexDimensionValues.csv")
 	},
 	requires = {
 		"output_trips.csv.gz"
@@ -95,6 +98,11 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private Network network;
 	private org.matsim.pt.transitSchedule.api.TransitSchedule TransitSchedule;
 	private TransitRouter transitRouter;
+	private TravelTimeCalculator travelTimeCalculator;
+	private TravelTime travelTime;
+	private TravelDisutility travelDisutility;
+	private LeastCostPathCalculator router;
+
 
 	private final double limitTravelTimeComparision = 2.0;
 	private final double limitMaxWalkToPTDistance = 500;
@@ -103,6 +111,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private final Path CONFIG_FILE = ApplicationUtils.matchInput("config.xml", getValidOutputDirectory());
 	private final Path tripsPath = ApplicationUtils.matchInput("trips.csv.gz", getValidOutputDirectory());
 	private final Path legsPath = ApplicationUtils.matchInput("legs.csv.gz", getValidOutputDirectory());
+	private final Path eventsPath = ApplicationUtils.matchInput("events.xml.gz", getValidOutputDirectory());
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("overall_stats_agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 	//Output path
 	private final Path statsPtQualityPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_perAgent.csv.csv");
@@ -219,7 +228,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 				//limit iterations for code testing code
 				if (counterTesting >= limitTesting && limitTesting != -1) {
-					System.out.println("Limit of itrations for testing reached");
+					System.out.println("Limit of iterations for testing reached");
 					break;
 				}
 				counterTesting++;
@@ -475,23 +484,23 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		double currentTime = timeToSeconds(departureTime);
 		Map<String, Double> CarTripValues = new HashMap<>();
 
-		TravelTimeCalculator travelTimeCalculator = TravelTimeCalculator.create(network, config.travelTimeCalculator());
-		TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
+		//TravelTimeCalculator travelTimeCalculator = TravelTimeCalculator.create(network, config.travelTimeCalculator());
+		//TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
 
-		// initialize router
-		TravelDisutility travelDisutility = new TravelDisutility() {
-			@Override
-			public double getLinkTravelDisutility(Link link, double v, Person person, Vehicle vehicle) {
-				return travelTime.getLinkTravelTime(link, v, person, vehicle);
-			}
-
-			@Override
-			public double getLinkMinimumTravelDisutility(Link link) {
-				return link.getLength() / link.getFreespeed(); // Minimale Reisezeit basierend auf Freigeschwindigkeit
-			}
-		};
-
-		LeastCostPathCalculator router = new DijkstraFactory().createPathCalculator(network, travelDisutility, travelTime);
+//		// initialize router
+//		TravelDisutility travelDisutility = new TravelDisutility() {
+//			@Override
+//			public double getLinkTravelDisutility(Link link, double v, Person person, Vehicle vehicle) {
+//				return travelTime.getLinkTravelTime(link, v, person, vehicle);
+//			}
+//
+//			@Override
+//			public double getLinkMinimumTravelDisutility(Link link) {
+//				return link.getLength() / link.getFreespeed(); // Minimale Reisezeit basierend auf Freigeschwindigkeit
+//			}
+//		};
+//
+//		LeastCostPathCalculator router = new DijkstraFactory().createPathCalculator(network, travelDisutility, travelTime);
 
 		// Define start and end link
 		Link startLink = network.getLinks().get(Id.createLinkId(startLinkID));
@@ -503,7 +512,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		LeastCostPathCalculator.Path path = router.calcLeastCostPath(startNode, endNode, timeToSeconds(departureTime), null, null);
 
 		if (path == null) {
-		//	System.out.println("No car route found for " + startLinkID + " and " + endLinkID);
+			//	System.out.println("No car route found for " + startLinkID + " and " + endLinkID);
 			CarTripValues.put("car_tripOverallTravelTime", null);
 		}
 
@@ -515,6 +524,17 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 		CarTripValues.put("car_tripOverallTravelTime", tripOverallTravelTime);
 		return  CarTripValues;
+	}
+
+	public TravelTimeCalculator readEventsIntoTravelTimeCalculator( Network network ) {
+		EventsManager manager = EventsUtils.createEventsManager();
+		TravelTimeCalculator.Builder builder = new TravelTimeCalculator.Builder( network );
+		TravelTimeCalculator tcc = builder.build();
+		manager.addHandler(tcc);
+		manager.initProcessing();
+		new MatsimEventsReader(manager).readFile(String.valueOf(eventsPath));
+		manager.finishProcessing();
+		return tcc ;
 	}
 
 
@@ -530,7 +550,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		List<? extends PlanElement> planElements = transitRouter.calcRoute(DefaultRoutingRequest.withoutAttributes(start, end, timeToSeconds(time), (Person) null));
 
 		if (planElements == null) {
-		//	System.out.println("No pt route found for " + start + " and " + end);
+			//	System.out.println("No pt route found for " + start + " and " + end);
 
 			PtTripValues.put("pt_tripOverallTravelTime", null);
 			PtTripValues.put("pt_legWalkMaxDistance", null);
@@ -540,7 +560,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 			for (Leg leg : legs) {
 				tripOverallTravelTime += leg.getTravelTime().seconds();
-			//	System.out.println("ptTravelTime for " + leg + "is " + tripOverallTravelTime);
+				//	System.out.println("ptTravelTime for " + leg + "is " + tripOverallTravelTime);
 				if (Objects.equals(leg.getMode(), "walk")){
 					legWalkMaxDistance = Math.max(legWalkMaxDistance, leg.getRoute().getDistance());
 				}
@@ -570,7 +590,28 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 			Population population = scenario.getPopulation();
 			this.network = scenario.getNetwork();
 			this.TransitSchedule = scenario.getTransitSchedule();
+			this.travelTimeCalculator = readEventsIntoTravelTimeCalculator(network);
+			this.travelTime = travelTimeCalculator.getLinkTravelTimes();
+			// initialize router
+			this.travelDisutility = new TravelDisutility() {
+				@Override
+				public double getLinkTravelDisutility(Link link, double v, Person person, Vehicle vehicle) {
+					return travelTime.getLinkTravelTime(link, v, person, vehicle);
+				}
+
+				@Override
+				public double getLinkMinimumTravelDisutility(Link link) {
+					return link.getLength() / link.getFreespeed(); // Minimale Reisezeit basierend auf Freigeschwindigkeit
+				}
+			};
+
+			this.router = new DijkstraFactory().createPathCalculator(network, travelDisutility, travelTime);
+
+
+
 			AccessibilityConfigGroup accConfig = ConfigUtils.addOrGetModule(config, AccessibilityConfigGroup.class);
+
+
 		}
 	}
 
