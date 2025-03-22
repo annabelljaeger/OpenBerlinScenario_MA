@@ -330,8 +330,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpaceIndexValue");
 
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Green Space", "Distance to nearest green space", formattedMedianDistance, String.valueOf(limitEuclideanDistanceToGreenSpace), formattedDistanceRankingGreenSpace, 1);
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Green Space", "Utilization of Green Space", formattedMedianUtilization, String.valueOf(1/limitGreenSpaceUtilization), formattedRankingUtilizationGreenSpace, 1);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Green Space", "Distance to nearest green space", formattedMedianDistance, String.valueOf(limitEuclideanDistanceToGreenSpace), formattedDistanceRankingGreenSpace);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Green Space", "Utilization of Green Space", formattedMedianUtilization, String.valueOf(1/limitGreenSpaceUtilization), formattedRankingUtilizationGreenSpace);
 
 			// writing csv-headers for agent- and green space-based information-output files
 			agentCSVWriter.writeNext(new String[]{"AgentID", "home_x", "home_y", "ClosestGreenSpace", "DistanceToGreenSpace", "UtilizationOfGreenSpace [m²/person]", "GSDistanceDeviationFromLimit", "GSUtilizationDeviationFromLimit"});

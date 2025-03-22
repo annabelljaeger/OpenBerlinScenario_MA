@@ -39,10 +39,8 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 import static org.matsim.dashboard.RunLiveabilityDashboard.*;
@@ -61,8 +59,8 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 //	},
 	produces = {
 		"overall_stats_agentLiveabilityInfo.csv",
-		"overall_tiles_summaryPerIndex.csv",
-		"overall_stats_indexIndicatorValues.csv"
+		"overall_tiles_indexDimensionValues.csv",
+		"overall_stats_indicatorValues.csv"
 	}
 )
 
@@ -80,15 +78,15 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	private final Path outputAgentLiveabilityCSVPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_agentLiveabilityInfo.csv");
 	private final Path tempAgentLiveabilityOutputPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_agentLiveabilityInfo_tmp.csv");
 
-	private final Path outputIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_indexIndicatorValues.csv");
-	private final Path tempIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_indexIndicatorValues_tmp.csv");
+	private final Path outputIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_indicatorValues.csv");
+	private final Path tempIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_indicatorValues_tmp.csv");
 
 	//	private final Path personsCsvPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv.gz");
 	private final Path personsCsvPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
 	private final Path studyAreaShpPath = ApplicationUtils.matchInput("studyArea.shp", getValidInputDirectory());
 
-	private final Path outputCategoryRankingCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_tiles_summaryPerIndex.csv");
-	private final Path tempSummaryTilesOutputPath = getValidLiveabilityOutputDirectory().resolve("overall_tiles_summaryPerIndex_tmp.csv");
+	private final Path outputCategoryRankingCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_tiles_indexDimensionValues.csv");
+	private final Path tempSummaryTilesOutputPath = getValidLiveabilityOutputDirectory().resolve("overall_tiles_indexDimensionValues_tmp.csv");
 
 	private Geometry studyAreaGeometry;
 	private final GeometryFactory geometryFactory = new GeometryFactory();
@@ -131,7 +129,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 				String homeX = (record.get("home_x"));
 				String homeY = (record.get("home_y"));
 
-				System.out.println("Prüfe Person " + person + " mit Koordinaten: (" + homeX + ", " + homeY + ")");
+			//	System.out.println("Prüfe Person " + person + " mit Koordinaten: (" + homeX + ", " + homeY + ")");
 
 
 				if (homeX != null && !homeX.isEmpty() && homeY != null && !homeY.isEmpty()) {
@@ -271,14 +269,14 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			CSVWriter.DEFAULT_ESCAPE_CHARACTER,
 			CSVWriter.DEFAULT_LINE_END)) {
 
-			indicatorTableWriter.writeNext(new String[]{"dimension","indicator","median value","limit","ranking value","weight of indicator"});
+			indicatorTableWriter.writeNext(new String[]{"dimension","indicator","median value","limit","ranking value"});
 
 			System.out.println("The empty file indexIndicatorValues.csv has been generated under: " + outputIndicatorValuesCsvPath);
 		}
 	}
 
 	// method to extend the indexIndicatorValues.csv file with agent based information from the analysis classes of the dimensions (this is where they are called)
-	public void extendIndicatorValuesCsvWithAttribute(String dimension, String indicator, String medianValue, String limit, String RankingValue, double weightOfIndicator) throws IOException {
+	public void extendIndicatorValuesCsvWithAttribute(String dimension, String indicator, String medianValue, String limit, String RankingValue) throws IOException {
 
 		try (CSVReader indicatorReader = new CSVReader(new FileReader(outputIndicatorValuesCsvPath.toFile()));
 			 CSVWriter indicatorWriter = new CSVWriter(new FileWriter(tempIndicatorValuesCsvPath.toFile()),  CSVWriter.DEFAULT_SEPARATOR,
@@ -290,7 +288,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			while ((line = indicatorReader.readNext()) != null) {
 				indicatorWriter.writeNext(line);
 			}
-			indicatorWriter.writeNext(new String[]{dimension, indicator, medianValue, limit, RankingValue, String.valueOf(weightOfIndicator)});
+			indicatorWriter.writeNext(new String[]{dimension, indicator, medianValue, limit, RankingValue});
 
 
 		} catch (CsvValidationException e) {
@@ -314,7 +312,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			}
 		}
 
-		System.out.println("Geladene Study Area Geometrie: " + studyAreaGeometry);
+//		System.out.println("Geladene Study Area Geometrie: " + studyAreaGeometry);
 
 		//PointFeatureFactory pointFactoryBuilder = new PointFeatureFactory.Builder().setCrs(CRS.decode(config.global().getCoordinateSystem)).create();
 	}
@@ -326,7 +324,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 //
 //			Point point = geometryFactory.createPoint(coordinate);
 		boolean inside = studyAreaGeometry != null && studyAreaGeometry.contains(point);
-		System.out.println("Person an (" + x + ", " + y + ") ist " + (inside ? "innerhalb" : "außerhalb") + " der Study Area.");
+	//	System.out.println("Person an (" + x + ", " + y + ") ist " + (inside ? "innerhalb" : "außerhalb") + " der Study Area.");
 		return inside;
 
 
@@ -367,7 +365,18 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		if (values == null || values.isEmpty()) {
 			throw new IllegalArgumentException("Map is empty");
 		}
-		List<Double> sortedValues = new ArrayList<>(values.values());
+
+		// Filter out null values
+		List<Double> sortedValues = values.values().stream()
+			.filter(Objects::nonNull)  // Remove null values
+			.collect(Collectors.toList());
+
+		// If all values were null, throw an exception
+		if (sortedValues.isEmpty()) {
+			throw new IllegalArgumentException("Map contains only null values");
+		}
+
+
 		Collections.sort(sortedValues);
 
 		int size = sortedValues.size();
