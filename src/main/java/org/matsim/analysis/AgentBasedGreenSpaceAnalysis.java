@@ -574,7 +574,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		if (closestGreenSpace != null) {
 			greenSpaceIdPerAgent.put(id, closestGreenSpace);
 			distancePerAgent.put(id, shortestDistance);
-			nrOfPeoplePerGreenSpace.merge(closestGreenSpace, 1, Integer::sum);
+			nrOfPeoplePerGreenSpace.merge(closestGreenSpace, (int) (1/sampleSize), Integer::sum);
 			calculateMeanDistancePerGreenSpace(greenSpaceUtilization, closestGreenSpace, shortestDistance);
 		}
 	}
@@ -595,9 +595,9 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		for (Map.Entry<String, Double> entry : areaPerGreenSpace.entrySet()) {
 			String greenSpaceId = entry.getKey();
 			double area = entry.getValue();
-			double peopleCount = nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceId, 0)/sampleSize;
+			double peopleCount = nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceId, 0);
 			utilizationPerGreenSpace.put(greenSpaceId, area > 0 ? peopleCount / area : 0);
-			greenSpaceUtilizationDeviationValuePerGreenSpace.put(greenSpaceId, ((peopleCount*(1/sampleSize)/area)-limitGreenSpaceUtilization)/limitGreenSpaceUtilization);
+			greenSpaceUtilizationDeviationValuePerGreenSpace.put(greenSpaceId, ((peopleCount/area)-limitGreenSpaceUtilization)/limitGreenSpaceUtilization);
 		}
 	}
 

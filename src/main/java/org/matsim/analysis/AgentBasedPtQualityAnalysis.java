@@ -234,7 +234,12 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 				String person = tripRecord.get("person");
 				String tripId = tripRecord.get("trip_id");
 
+				startCoordinatesPerTrip.put(tripId,  Arrays.asList(tripRecord.get("start_x"), tripRecord.get("start_y")));
+				endCoordinatesPerTrip.put(tripId,  Arrays.asList(tripRecord.get("end_x"), tripRecord.get("end_y")));
+
 				double euclideanDistance = Double.parseDouble(tripRecord.get("euclidean_distance"));
+
+				euclideanDistancePerTrip.put(tripId, euclideanDistance);
 
 				//avoid calculation for people outside the study area
 				if (!homeCoordinatesPerAgentInStudyArea.containsKey(person)) {
