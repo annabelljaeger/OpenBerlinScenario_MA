@@ -76,6 +76,17 @@ public class AgentBasedPtQualityDashboard implements Dashboard {
 				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0, 128.0, NaN);
 			});
 
+		layout.row("EcoMobility to Car Index Value Map")
+			.el(XYTime.class, (viz, data) -> {
+				viz.title = "EcoMobility to Car travel time ratio Index Value Map";
+				viz.description = "tbd";
+				viz.height = 15.0;
+				viz.radius = 15.0;
+				viz.file = data.compute(AgentBasedPtQualityAnalysis.class, "ptQuality_XYT_EcoMobilityToCarRatioPerAgent.csv");
+
+				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350","#0d0a28", "#363636"};
+				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0, 128.0, NaN);
+			});
 	}
 
 }

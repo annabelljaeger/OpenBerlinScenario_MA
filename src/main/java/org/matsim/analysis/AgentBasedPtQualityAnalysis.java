@@ -25,6 +25,7 @@ import org.matsim.contrib.accessibility.AccessibilityConfigGroup;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
+import org.matsim.core.config.groups.RoutingConfigGroup;
 import org.matsim.core.events.EventsUtils;
 import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.router.DefaultRoutingRequest;
@@ -72,7 +73,6 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 		"output_trips.csv.gz"
 	},
 	produces = {
-		"accessibility_stats_perAgent.csv",
 		"ptQuality_stats_perAgent.csv",
 		"ptAccessibility_RankingValue.csv",
 		"ptQuality_stats_travelTimeComparison.csv",
@@ -80,6 +80,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 		"ptQuality_XYT_agentBasedPtQuality.csv",
 		"ptQuality_XYT_maxWalkToPTPerAgent.csv",
 		"ptQuality_XYT_PtToCarRatioPerAgent.csv",
+		"ptQuality_XYT_EcoMobilityToCarRatioPerAgent.csv",
 		"ptQuality_Tiles_PtQuality.csv",
 		"ptQuality_Tiles_MaxWalkToPt.csv",
 		"ptQuality_Tiles_PtToCarRatio.csv"
@@ -94,6 +95,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(AgentBasedPtQualityAnalysis.class);
 
 	private Config config;
+	private RoutingConfigGroup routingConfig;
 	private Scenario scenario;
 	private Network network;
 	private org.matsim.pt.transitSchedule.api.TransitSchedule TransitSchedule;
@@ -115,7 +117,9 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("overall_stats_agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 	//Output path
 	private final Path statsPtQualityPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_perAgent.csv.csv");
+	private final Path statsModeComparisonPerTripPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_modeComparisonPerTrip.csv");
 	private final Path XYTPtToCarRatioMap = getValidLiveabilityOutputDirectory().resolve("ptQuality_XYT_PtToCarRatioPerAgent.csv");
+	private final Path XYTEcoMobilityToCarRatioMap = getValidLiveabilityOutputDirectory().resolve("ptQuality_XYT_EcoMobilityToCarRatioPerAgent.csv");
 	private final Path XYTWalkToPtPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_XYT_maxWalkToPTPerAgent.csv");
 	private final Path XYTPtQualityPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_XYT_agentBasedPtQuality.csv");
 	private final Path TilesPtQualityPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_Tiles_PtQuality.csv");
@@ -125,7 +129,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 	public static void main(String[] args) {
 		new AgentBasedAccessibilityAnalysis().execute(args);
-
 	}
 
 	@Override
@@ -138,16 +141,26 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		initializeScenario();
 		initializeSwissRailRaptor();
 
+		Map<String, Double> beelineDistanceFactors = routingConfig.getBeelineDistanceFactors(); // beelineFactors
+		Map<String, Double> teleportedModeSpeeds = routingConfig.getTeleportedModeSpeeds(); // get average Speeds
+
+
 		// defining all maps to be able to put and get values of those throughout the analysis
 		Map<String, Map<String, Double>> travelTimeComparisionPerTripPerAgentIndexValue = new HashMap<>();
 
 		Map<String, List<String>> homeCoordinatesPerAgentInStudyArea = new HashMap<>();
+		Map<String, String> mainModePerTrip = new HashMap<>();
+		Map<String, List<String>> startCoordinatesPerTrip = new HashMap<>();
+		Map<String, List<String>> endCoordinatesPerTrip = new HashMap<>();
+		Map<String, Double> euclideanDistancePerTrip = new HashMap<>();
 		Map<String, Double> maxWalkDistancesPerAgent = new HashMap<>();
 		Map<String, Double> maxWalkDistancesPerAgentIndexValue = new HashMap<>();
 		Map<String, Double> maxPtToCarRatioPerAgent = new HashMap<>();
 		Map<String, Double> maxPtToCarRatioPerAgentIndexValue = new HashMap<>();
+		Map<String, Double> maxEcoMobilityToCarRatioPerAgent = new HashMap<>();
+		Map<String, Double> maxEcoMobilityToCarRatioPerAgentIndexValue = new HashMap<>();
 		Map<String, Double> overallPtQualityPerAgentIndexValue = new HashMap<>();
-		Map<String, Map<String, Map<String, Map<String, Double>>>> valuesPerModePerTripPerAgent = new HashMap<>();;
+		Map<String, Map<String, Map<String, Map<String, Double>>>> valuesPerModePerTripPerAgent = new HashMap<>();
 
 		// initializing counters
 		int counterTesting = 0;
@@ -214,6 +227,8 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 				Map<String, Map<String, Double>> modeValues = new HashMap<>();
 				Map<String, Double> ptTripValues = new HashMap<>();
 				Map<String, Double> carTripValues = new HashMap<>();
+				Map<String, Double> bikeTripValues = new HashMap<>();
+				Map<String, Double> walkTripValues = new HashMap<>();
 				Map<String, Map<String, Map<String, Double>>> tripValues = new HashMap<>();
 
 				String person = tripRecord.get("person");
@@ -235,10 +250,12 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 
 				//sort out all very short trips as they should be neither using car nor pt but walk - pt routing will most likely not be successful, leading to car vs. walk which makes little sense
+				String mainMode = null;
+				mainMode = tripRecord.get("main_mode");
+				mainModePerTrip.put(tripId, mainMode);
 				if (euclideanDistance > 300.0) {
 
 					String currentTravTime = tripRecord.get("trav_time");
-					String mainMode = tripRecord.get("main_mode");
 					String depTime = tripRecord.get("dep_time");
 
 					//Create Start and End Facility
@@ -252,6 +269,8 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 						case "ride":
 							ptTripValues = calculatePtTrip(startFacility, endFacility, depTime);
 							carTripValues.put("car_tripOverallTravelTime", (double) timeToSeconds(currentTravTime));
+							walkTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("walk")*teleportedModeSpeeds.get("walk"));
+							bikeTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("bike")*teleportedModeSpeeds.get("bike"));
 							break;
 
 						case "drt":
@@ -259,10 +278,29 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 							ptTripValues.put("pt_legWalkMaxDistance", getLegWalkDistanceMax(tripId));
 							ptTripValues.put("pt_tripOverallTravelTime", (double) timeToSeconds(currentTravTime));
 							carTripValues = calculateCarTrip(startLink, endLink, depTime);
+							walkTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("walk")*teleportedModeSpeeds.get("walk"));
+							bikeTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("bike")*teleportedModeSpeeds.get("bike"));
 							break;
+
+						case "walk":
+							ptTripValues = calculatePtTrip(startFacility, endFacility, depTime);
+							carTripValues = calculateCarTrip(startLink, endLink, depTime);
+							walkTripValues.put("tripOverallTravelTime", (double) timeToSeconds(currentTravTime));
+							bikeTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("bike")*teleportedModeSpeeds.get("bike"));
+							break;
+
+						case "bike":
+							ptTripValues = calculatePtTrip(startFacility, endFacility, depTime);
+							carTripValues = calculateCarTrip(startLink, endLink, depTime);
+							walkTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("walk")*teleportedModeSpeeds.get("walk"));
+							bikeTripValues.put("tripOverallTravelTime", (double) timeToSeconds(currentTravTime));
+							break;
+
 						default:
 							ptTripValues = calculatePtTrip(startFacility, endFacility, depTime);
 							carTripValues = calculateCarTrip(startLink, endLink, depTime);
+							walkTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("walk")*teleportedModeSpeeds.get("walk"));
+							bikeTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("bike")*teleportedModeSpeeds.get("bike"));
 							break;
 					}
 				} else {
@@ -270,10 +308,14 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 					ptTripValues.put("pt_tripOverallTravelTime", null);
 					ptTripValues.put("pt_legWalkMaxDistance", null);
 					carTripValues.put("car_tripOverallTravelTime", null);
+					walkTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("walk")*teleportedModeSpeeds.get("walk"));
+					bikeTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("bike")*teleportedModeSpeeds.get("bike"));
 
 				}
 				modeValues.put("pt", ptTripValues);
 				modeValues.put("car", carTripValues);
+				modeValues.put("walk", walkTripValues);
+				modeValues.put("bike", bikeTripValues);
 
 				tripValues.put(tripId, modeValues);
 				valuesPerModePerTripPerAgent.put(person, tripValues);
@@ -286,15 +328,20 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 			Double maxWalkDistance = null;
 			Double maxRatio = null;
 			Double maxPtToCarRatioIndexValue = null;
+			Double maxEcoMobilityRatio = null;
+			Double maxEcoMobilityToCarRatioIndexValue = null;
 			Double maxWalkDistanceIndexValue = null;
 			Map<String, Map<String, Map<String, Double>>> trips = valuesPerModePerTripPerAgent.get(agent);
-
 
 
 			for (String tripId : trips.keySet()) {
 				Double legWalkMaxDistance = trips.get(tripId).get("pt").get("pt_legWalkMaxDistance");
 				Double ptTime = trips.get(tripId).get("pt").get("pt_tripOverallTravelTime");
 				Double carTime = trips.get(tripId).get("car").get("car_tripOverallTravelTime");
+				Double walkTime = trips.get(tripId).get("walk").get("tripOverallTravelTime");
+				Double bikeTime = trips.get(tripId).get("bike").get("tripOverallTravelTime");
+				List<Double> ecoMobilityTimes = Arrays.asList(ptTime, walkTime, bikeTime);
+				double minEcoMobilityTime = ecoMobilityTimes.stream().filter(Objects::nonNull).min(Double::compareTo).orElse(Double.MAX_VALUE);
 
 				// Get longest walk to PT
 				if (legWalkMaxDistance != null) {
@@ -304,7 +351,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 						maxWalkDistance = Math.max(maxWalkDistance, legWalkMaxDistance);
 					}
 					maxWalkDistanceIndexValue = (maxWalkDistance - limitMaxWalkToPTDistance) / limitMaxWalkToPTDistance;
-
 				}
 
 				//Get PT to Car travel time ratio
@@ -317,11 +363,24 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 					}
 					maxPtToCarRatioIndexValue = (maxRatio - limitTravelTimeComparision) / limitTravelTimeComparision;
 				}
+
+				if(carTime != null){
+					double ratio = minEcoMobilityTime / carTime;
+					if (maxEcoMobilityRatio == null) {
+						maxEcoMobilityRatio = ratio;
+					} else {
+						maxEcoMobilityRatio = Math.max(maxEcoMobilityRatio, ratio);
+					}
+					maxEcoMobilityToCarRatioIndexValue = (maxEcoMobilityRatio - limitTravelTimeComparision) / limitTravelTimeComparision;
+				}
+
 			}
 			maxWalkDistancesPerAgent.put(agent, maxWalkDistance);
 			maxWalkDistancesPerAgentIndexValue.put(agent, maxWalkDistanceIndexValue);
 			maxPtToCarRatioPerAgent.put(agent, maxRatio);
 			maxPtToCarRatioPerAgentIndexValue.put(agent, maxPtToCarRatioIndexValue);
+			maxEcoMobilityToCarRatioPerAgent.put(agent, maxEcoMobilityRatio);
+			maxEcoMobilityToCarRatioPerAgentIndexValue.put(agent, maxEcoMobilityToCarRatioIndexValue);
 		}
 
 
@@ -417,6 +476,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTPtQualityPath, overallPtQualityPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
 		AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTPtToCarRatioMap, maxPtToCarRatioPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
 		AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTWalkToPtPath, maxWalkDistancesPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
+		AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTEcoMobilityToCarRatioMap, maxEcoMobilityToCarRatioPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
 
 		// generating output files for the green space dashboard page
 		try (CSVWriter PTQTileWriter = new CSVWriter(new FileWriter(TilesPtQualityPath.toFile()));
@@ -463,6 +523,50 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 			}
 		}
 
+		try (CSVWriter modeComparisonWriter = new CSVWriter(new FileWriter(String.valueOf(statsModeComparisonPerTripPath)),
+			CSVWriter.DEFAULT_SEPARATOR,
+			CSVWriter.NO_QUOTE_CHARACTER, // without quotation
+			CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+			CSVWriter.DEFAULT_LINE_END)) {
+
+			modeComparisonWriter.writeNext(new String[]{
+				"Person",
+				"TripID",
+				"tripMainMode",
+				"euclideanDistance",
+				"CarTraveTime",
+				"PTTraveTime",
+				"BikeTraveTime",
+				"WalkTraveTime",
+				"PtmaxLegWalkDistance",
+				"startX",
+				"startY",
+				"endX",
+				"endY"
+			});
+
+			for (String person : valuesPerModePerTripPerAgent.keySet()) {
+				for (String trip : valuesPerModePerTripPerAgent.get(person).keySet()){
+					modeComparisonWriter.writeNext(new String[]{
+						person,
+						trip,
+						mainModePerTrip.get(trip),
+						String.valueOf(euclideanDistancePerTrip.get(trip)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("car").getOrDefault("tripOverallTravelTime", null)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("pt").getOrDefault("tripOverallTravelTime", null)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("bike").getOrDefault("tripOverallTravelTime", null)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("walk").getOrDefault("tripOverallTravelTime", null)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("pt").getOrDefault("legWalkMaxDistance", null)),
+						String.valueOf(startCoordinatesPerTrip.get(trip).get(0)),
+						String.valueOf(startCoordinatesPerTrip.get(trip).get(1)),
+						String.valueOf(endCoordinatesPerTrip.get(trip).get(0)),
+						String.valueOf(endCoordinatesPerTrip.get(trip).get(1))
+
+					});
+				}
+			}
+		}
+
 		return 0;
 	}
 
@@ -483,24 +587,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		double tripOverallTravelTime = 0.0;
 		double currentTime = timeToSeconds(departureTime);
 		Map<String, Double> CarTripValues = new HashMap<>();
-
-		//TravelTimeCalculator travelTimeCalculator = TravelTimeCalculator.create(network, config.travelTimeCalculator());
-		//TravelTime travelTime = travelTimeCalculator.getLinkTravelTimes();
-
-//		// initialize router
-//		TravelDisutility travelDisutility = new TravelDisutility() {
-//			@Override
-//			public double getLinkTravelDisutility(Link link, double v, Person person, Vehicle vehicle) {
-//				return travelTime.getLinkTravelTime(link, v, person, vehicle);
-//			}
-//
-//			@Override
-//			public double getLinkMinimumTravelDisutility(Link link) {
-//				return link.getLength() / link.getFreespeed(); // Minimale Reisezeit basierend auf Freigeschwindigkeit
-//			}
-//		};
-//
-//		LeastCostPathCalculator router = new DijkstraFactory().createPathCalculator(network, travelDisutility, travelTime);
 
 		// Define start and end link
 		Link startLink = network.getLinks().get(Id.createLinkId(startLinkID));
@@ -586,6 +672,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private void initializeScenario() {
 		if (this.scenario == null) {
 			this.config = ConfigUtils.loadConfig(String.valueOf(CONFIG_FILE));
+			this.routingConfig = config.routing();
 			this.scenario = ScenarioUtils.loadScenario(config);
 			Population population = scenario.getPopulation();
 			this.network = scenario.getNetwork();
