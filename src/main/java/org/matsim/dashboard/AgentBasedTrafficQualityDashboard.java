@@ -167,7 +167,6 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
 			});
 
-// AB HIER FEHLT FÜR JEDES LOSS TIME DIAGRAMM NOCH EIN LONGEST TRIP DIAGRAMM!
 
 		layout.row("BarChart Modes")
 			.el(Plotly.class, (viz, data) -> {
@@ -197,7 +196,7 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 				//.aggregate(List.of("mode"), "cumulative_loss_time", Plotly.AggrFunc.SUM);
 
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
-					.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
+					//.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
 					.xAxis(Axis.builder().title("Mode").build())
 					.yAxis(Axis.builder().title("Loss Time").build())
 					.build();
@@ -205,7 +204,7 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 				viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT).orientation(BarTrace.Orientation.VERTICAL).build(), ds.mapping()
 					.x("mode")
 					.y("cumulative_loss_time")
-					.name("cumulative_loss_time", ColorScheme.RdYlBu)
+					//.name("cumulative_loss_time", ColorScheme.RdYlBu)
 				);
 
 			});
@@ -283,7 +282,7 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 				viz.addTrace(ScatterTrace.builder(Plotly.INPUT, Plotly.INPUT).build(), ds.mapping()
 						.x("trav_time")
 						.y("loss_time")
-						.name("loss_time", ColorScheme.RdYlBu)
+					//	.name("loss_time", ColorScheme.RdYlBu)
 
 					//	viz.addTrace((Trace) new Line.LineBuilder()),
 
