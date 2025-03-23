@@ -28,11 +28,9 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOu
 	requireRunDirectory = true,
 	group="liveability",
 	dependsOn = {
-		//	@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overall_stats_agentLiveabilityInfo.csv"),
-		//	@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overall_tiles_summaryPerIndex.csv"),
-		@Dependency(value = AgentBasedGreenSpaceAnalysis.class, files =  "greenSpace_stats_perAgent.csv"),
 		@Dependency(value = AgentBasedTrafficQualityAnalysis.class, files =  "travelTime_stats_perAgent.csv"),
 		@Dependency(value= AgentBasedPtQualityAnalysis.class, files = "ptQuality_stats_perAgent.csv"),
+		@Dependency(value = AgentBasedGreenSpaceAnalysis.class, files =  "greenSpace_stats_perAgent.csv"),
 	},
 	produces = {
 		"overall_tiles_ranking.csv",

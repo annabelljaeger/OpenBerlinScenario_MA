@@ -117,7 +117,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private final Path eventsPath = ApplicationUtils.matchInput("events.xml.gz", getValidOutputDirectory());
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("overall_stats_agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 	//Output path
-	private final Path statsPtQualityPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_perAgent.csv.csv");
+	private final Path statsPtQualityPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_perAgent.csv");
 	private final Path statsModeComparisonPerTripPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_modeComparisonPerTrip.csv");
 	private final Path XYTPtToCarRatioMap = getValidLiveabilityOutputDirectory().resolve("ptQuality_XYT_PtToCarRatioPerAgent.csv");
 	private final Path XYTEcoMobilityToCarRatioMap = getValidLiveabilityOutputDirectory().resolve("ptQuality_XYT_EcoMobilityToCarRatioPerAgent.csv");
@@ -172,7 +172,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 		// initializing counters
 		int counterTesting = 0;
-		int limitTesting = 250; // no limit for  -1
+		int limitTesting = -1; // no limit for  -1
 
 
 		// initializing counters for index value calculations
@@ -230,6 +230,8 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 				maxPtToCarRatioPerAgent.put(id, null);
 				maxPtToCarRatioPerAgentIndexValue.put(id, null);
 				overallPtQualityPerAgentIndexValue.put(id, null);
+				maxEcoMobilityToCarRatioPerAgent.put(id, null);
+				maxEcoMobilityToCarRatioPerAgentIndexValue.put(id, null);
 			}
 		}
 

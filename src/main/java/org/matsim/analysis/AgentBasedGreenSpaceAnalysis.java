@@ -89,8 +89,6 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	// defining the limits for the indicators
 	private final double limitEuclideanDistanceToGreenSpace = 500;
 	private final double limitGreenSpaceUtilization = (double) 1/6; // ATTENTION: THIS IS FOR THE 100% REALITY CASE - FOR SMALLER SAMPLES (E.G. 10pct), THIS HAS TO BE ADAPTED ACCORDINGLY
-	// for calculating and unifying reasons, since larger Values than 6m²/EW would be positive, the return value is used. Accordingly, the sample size is multiplied (not divided).
-	private final double limitGreenSpaceUtilizationSampleSizeAdjusted = limitGreenSpaceUtilization * sampleSize;
 
 	// constants for paths
 	// input paths
@@ -128,7 +126,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		//loads sample size from config
 		Config config = ConfigUtils.loadConfig(ApplicationUtils.matchInput("config.xml", input.getRunDirectory()).toAbsolutePath().toString());
 		SimWrapperConfigGroup simwrapper = ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class);
-		this.sampleSize = simwrapper.sampleSize;
+		// todo: sampleSize is currently not imported correctly (this line returns 1 while the config says 0.1 which results in errors in the results). For now the sample size is hard coded at the top.
+	//	this.sampleSize = simwrapper.sampleSize;
 
 		// initialising collections and data structures
 		AgentLiveabilityInfoCollection agentLiveabilityInfoCollection = new AgentLiveabilityInfoCollection();
@@ -328,7 +327,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(limitUtilizationOfGreenSpace, "limit_SpacePerAgentAtNearestGreenSpace");
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(greenSpaceUtilizationDeviationValuePerAgent, "indexValue_GreenSpaceUtilization");
 
-			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "GreenSpaceIndexValue");
+			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedRankingGreenSpace, "Green Space Index Value");
 
 			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Green Space", "Distance to nearest green space", formattedMedianDistance, String.valueOf(limitEuclideanDistanceToGreenSpace), formattedDistanceRankingGreenSpace);
 			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Green Space", "Utilization of Green Space", formattedMedianUtilization, String.valueOf(1/limitGreenSpaceUtilization), formattedRankingUtilizationGreenSpace);
@@ -398,17 +397,17 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
 				 CSVWriter.DEFAULT_LINE_END)) {
 
-			GSTileWriter.writeNext(new String[]{"GreenSpace50%underLimit", formatted50PercentUnderLimitIndexGreenSpace});
-			GSTileWriter.writeNext(new String[]{"GreenSpaceWithinLimit", formattedRankingGreenSpace});
-			GSTileWriter.writeNext(new String[]{"GreenSpace50%overLimit", formatted50PercentOverLimitIndexGreenSpace});
+			GSTileWriter.writeNext(new String[]{"Green Space 50% under Limit", formatted50PercentUnderLimitIndexGreenSpace});
+			GSTileWriter.writeNext(new String[]{"Green Space Within Limit", formattedRankingGreenSpace});
+			GSTileWriter.writeNext(new String[]{"Green Space 50% over Limit", formatted50PercentOverLimitIndexGreenSpace});
 
-			UtilizationTileWriter.writeNext(new String[]{"UtilizationWithinLimit", formattedRankingUtilizationGreenSpace});
-			UtilizationTileWriter.writeNext(new String[]{"AverageUtilization(m²/person)", formattedAvgUtilization});
-			UtilizationTileWriter.writeNext(new String[]{"MedianUtilization(m²/person)", formattedMedianUtilization});
+			UtilizationTileWriter.writeNext(new String[]{"Utilization Within Limit", formattedRankingUtilizationGreenSpace});
+			UtilizationTileWriter.writeNext(new String[]{"Mean Utilization (m²/person)", formattedAvgUtilization});
+			UtilizationTileWriter.writeNext(new String[]{"Median Utilization (m²/person)", formattedMedianUtilization});
 
-			DistanceTileWriter.writeNext(new String[]{"DistanceWithinLimit", formattedDistanceRankingGreenSpace});
-			DistanceTileWriter.writeNext(new String[]{"AverageDistance(m)", formattedAvgDistance});
-			DistanceTileWriter.writeNext(new String[]{"MedianDistance(m)", formattedMedianDistance});
+			DistanceTileWriter.writeNext(new String[]{"Distance Within Limit", formattedDistanceRankingGreenSpace});
+			DistanceTileWriter.writeNext(new String[]{"Mean Distance (m)", formattedAvgDistance});
+			DistanceTileWriter.writeNext(new String[]{"Median Distance (m)", formattedMedianDistance});
 
 			GSxytAgentMapWriter.writeNext(new String[]{"# EPSG:25832"});
 			GSxytAgentMapWriter.writeNext(new String[]{"time", "x", "y", "value"});
@@ -513,7 +512,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				area,
 				utilizationPerGreenSpace.getOrDefault(greenSpaceID, 0.0),
 				nrOfPeoplePerGreenSpace.getOrDefault(greenSpaceID,0),
-				greenSpaceUtilizationDeviationValuePerGreenSpace.getOrDefault(greenSpaceID, 0.0)
+				greenSpaceUtilizationDeviationValuePerGreenSpace.getOrDefault(greenSpaceID, -1.0)
 			};
 
 			// Das neue Feature in die Sammlung einfügen
