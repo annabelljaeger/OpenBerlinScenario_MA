@@ -76,6 +76,16 @@ public class AgentBasedPtQualityDashboard implements Dashboard {
 				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0, 128.0, NaN);
 			});
 
+		layout.row("EcoMobility to Car Ratio Tiles")
+			.el(Tile.class, (viz, data) -> {
+
+				viz.title = "Public Transport Quality Index Value";
+				viz.description = "tbd";
+
+				viz.dataset = data.compute(AgentBasedPtQualityAnalysis.class, "ptQuality_Tiles_EcoMobilityRatio.csv");
+				viz.height = 0.1;
+			});
+
 		layout.row("EcoMobility to Car Index Value Map")
 			.el(XYTime.class, (viz, data) -> {
 				viz.title = "EcoMobility to Car travel time ratio Index Value Map";

@@ -1,21 +1,11 @@
 package org.matsim.dashboard;
 
-import org.matsim.analysis.AgentBasedGreenSpaceAnalysis;
 import org.matsim.analysis.AgentLiveabilityInfoCollection;
 import org.matsim.analysis.LiveabilitySummaryAnalysis;
-import org.matsim.application.ApplicationUtils;
 import org.matsim.simwrapper.Dashboard;
 import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
 import org.matsim.simwrapper.viz.*;
-
-import java.nio.file.Path;
-import java.util.List;
-
-import org.matsim.simwrapper.*;
-
-import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
-
 
 public class LiveabilitySummaryDashboard implements Dashboard {
 
@@ -25,13 +15,15 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 	public void configure(Header header, Layout layout) {
 
 		header.title = "Liveability-Index Summary";
-		header.description = "Agents and their fulfillment of liveability indicators";
+		header.description = "This index checks the compliance of agents according to liveability indicators. The overall index, which is the proportion of agents " +
+			"that meet the benchmark values (limits) for all indicators, can be found. This dashboard also includes a summary of the dimension and indicator index values.";
 
 		// map as xyt-Map - better: SHP for more interactive use of the data
 		layout.row("Overall Index Value Map")
 			.el(XYTime.class, (viz, data) -> {
-				viz.title = "Overall index value map";
-				viz.description = "Here you can see the agents according to their overall ranking index depicted on their home location";
+				viz.title = "Overall Index Value Map";
+				viz.description = "The agent's overall index value represents the deviation from a limit that the agent is below on all indicators. It is therefore " +
+					"the maximum indicator index value per agent and is displayed on the agent's home location.";
 				viz.height = 10.0;
 				viz.radius = 15.0;
 				viz.file = data.compute(LiveabilitySummaryAnalysis.class, "overall_XYT_AgentRankingForSummary.xyt.csv");
@@ -42,27 +34,36 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 
 		layout.row("Overall Ranking")
 			.el(Tile.class, (viz, data) -> {
+				viz.title = "Overall Liveability-Index Value";
+				viz.description = "The index value indicates what percentage of the agents in the study area fulfil all the liveability indicators by achieving at least the limit.";
 				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overall_tiles_ranking.csv");
 				viz.height = 0.1;
 			});
 
 		layout.row("ScoringTiles")
 			.el(Tile.class, (viz, data) -> {
+				viz.title = "Target Dimensions Index Values";
+				viz.description = "The index values for each calculated target dimension can be found here. These values indicate what percentage of the agents in the study area, " +
+					"for which the calculation was successful, fulfil all the indicator limits for that dimension.";
 				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "overall_tiles_indexDimensionValues.csv");
-				viz.height = 0.1; //})
+				viz.height = 0.1;
 			});
 
 		layout.row("WorstIndicator")
 			.el(Tile.class, (viz, data) -> {
+				viz.title = "Overall Best and Worst Indicators";
+				viz.description = "To better understand the influence of each indicator on the overall index, the indicator with the best and worst deviation values for each agent is shown. " +
+					"For each agent, the name of the indicator with the highest and lowest of all indicator index values (excluding null values) is counted and the indicator which was the best or worst indicator most often is shown, " +
+					"together with the percentage of agents for which this is the highest or lowest indicator index value.";
 				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overall_tiles_highestLowestIndicator.csv");
-				viz.height = 0.1; //})
-
+				viz.height = 0.1;
 			});
 
 		layout.row("Indicator Overview")
 			.el(Table.class, (viz, data) -> {
+				viz.title = "Liveability-Index Indicator Overview";
 				viz.dataset = data.compute(AgentLiveabilityInfoCollection.class, "overall_stats_indicatorValues.csv");
-				viz.height = 8.0;
+				viz.height = 4.0;
 			});
 	}
 }
