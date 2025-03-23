@@ -181,44 +181,5 @@ public class AgentBasedGreenSpaceDashboard implements Dashboard {
 
 			});
 
-
-/*
-		// geofile based map - issue: visualization cannot be adapted here
-		layout.row("Green Space Deviations Geofile")
-			.el(MapPlot.class, (viz, data) -> {
-				viz.title = "GreenSpace Index Results Map";
-				viz.height = 10.0;
-				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_perAgentGeofile.gpkg"));
-				viz.display.fill.dataset = "greenSpace_perAgentGeofile.gpkg";
-				viz.display.fill.columnName = "greenSpaceOverallIndexValue";
-				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 6, false);
-				viz.display.fill.join = "";
-
-			});
-
-		layout.row("Green Space Deviations mit Breakpoint und Farbe nin Maß")
-			.el(MapPlot.class, (viz, data) -> {
-				viz.title = "GreenSpace Index Results Map - Farben selbst gesetzt";
-				viz.height = 10.0;
-				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_statsGeofile.gpkg"));
-				viz.display.fill.dataset = "greenSpace_statsGeofile.gpkg";
-				viz.display.fill.columnName = "greenSpaceUtilization";
-				viz.display.fill.setColorRamp(ColorScheme.RdYlBu, 6, false, "-0.5, 0.0, 0.5, 1.0, 1.5");
-				viz.display.fill.join = "";
-				viz.display.fill.fixedColors = new String[]{"#1175b3", "#95c7df", "#dfdb95", "#dfb095", "#f4a986", "#cc0c27"};
-			});
-
-		// geofile based map - issue: visualization cannot be adapted here
-		layout.row("Green Space Deviations Geofile")
-			.el(MapPlot.class, (viz, data) -> {
-				viz.title = "GreenSpace Index Results Map";
-				viz.height = 10.0;
-				viz.setShape(data.compute(AgentBasedGreenSpaceAnalysis.class, "greenSpace_perAgentGeofile.gpkg"));
-				viz.display.fill.dataset = "greenSpace_perAgentGeofile.gpkg";
-				viz.display.fill.columnName = "greenSpaceOverallIndexValue";
-				viz.display.fill.setColorRamp(ColorScheme.Set1, 6, true, "-0.5, 0.0, 0.5, 1.0, 1.5");
-				viz.display.fill.join = "";
-			});
-*/
 	}
 }
