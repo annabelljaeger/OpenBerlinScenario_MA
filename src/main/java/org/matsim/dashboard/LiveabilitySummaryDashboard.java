@@ -7,6 +7,8 @@ import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
 import org.matsim.simwrapper.viz.*;
 
+import static java.lang.Double.NaN;
+
 public class LiveabilitySummaryDashboard implements Dashboard {
 
 	public double priority() {return 2;}
@@ -18,23 +20,21 @@ public class LiveabilitySummaryDashboard implements Dashboard {
 		header.description = "This index checks the compliance of agents according to liveability indicators. The overall index, which is the proportion of agents " +
 			"that meet the benchmark values (limits) for all indicators, can be found. This dashboard also includes a summary of the dimension and indicator index values.";
 
-		// map as xyt-Map - better: SHP for more interactive use of the data
 		layout.row("Overall Index Value Map")
 			.el(XYTime.class, (viz, data) -> {
-				viz.title = "Overall Index Value Map";
+				viz.title = "Liveability-Index Value Map";
 				viz.description = "The agent's overall index value represents the deviation from a limit that the agent is below on all indicators. It is therefore " +
 					"the maximum indicator index value per agent and is displayed on the agent's home location.";
 				viz.height = 10.0;
 				viz.radius = 15.0;
 				viz.file = data.compute(LiveabilitySummaryAnalysis.class, "overall_XYT_AgentRankingForSummary.xyt.csv");
-
-				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350"};
-				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0);
+				String[] colors = {"#008000", "#6eaa5e", "#93bf85", "#f0a08a", "#d86043", "#c93c20", "#af230c", "#9b88d3", "#7863c4", "#4f3fb4", "#001ca4", "#191350","#0d0a28", "#363636"};
+				viz.setBreakpoints(colors, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 2.0, 4.0, 8.0, 16.0, 128.0, NaN);
 			});
 
 		layout.row("Overall Ranking")
 			.el(Tile.class, (viz, data) -> {
-				viz.title = "Overall Liveability-Index Value";
+				viz.title = "Liveability-Index Value (Overall)";
 				viz.description = "The index value indicates what percentage of the agents in the study area fulfil all the liveability indicators by achieving at least the limit.";
 				viz.dataset = data.compute(LiveabilitySummaryAnalysis.class, "overall_tiles_ranking.csv");
 				viz.height = 0.1;

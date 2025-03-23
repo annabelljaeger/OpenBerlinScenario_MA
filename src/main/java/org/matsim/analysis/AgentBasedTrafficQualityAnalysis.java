@@ -148,7 +148,8 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 		//loads sample size from config
 		Config config = ConfigUtils.loadConfig(ApplicationUtils.matchInput("config.xml", input.getRunDirectory()).toAbsolutePath().toString());
 		SimWrapperConfigGroup simwrapper = ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class);
-		this.sampleSize = simwrapper.sampleSize;
+		// todo: sampleSize is currently not imported correctly (this line returns 1 while the config says 0.1 which results in errors in the results). For now the sample size is hard coded at the top. - Same for GreenSpace
+		//	this.sampleSize = simwrapper.sampleSize;
 		this.routingConfig = config.routing();
 
 		// initialising collections and data structures
@@ -427,8 +428,6 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 				Duration legLossTime;
 				String formattedLegLegLossTime;
-
-
 
 				// collection of values from existing legs.csv to take over to the new legsLossTime.csv
 				double startX = Double.parseDouble(legRecord.get("start_x"));
@@ -944,8 +943,21 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 		SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss"); // Time format "HH:mm:ss"
 
+//		Calendar calendar = Calendar.getInstance();
+//		calendar.set(Calendar.HOUR_OF_DAY, 0);
+//		calendar.set(Calendar.MINUTE, 0);
+//		calendar.set(Calendar.SECOND, 0);
+//		calendar.set(Calendar.MILLISECOND, 0);
+//
+//		int nrOfIntervalls = 24*60/intervalInMinutes;
+//		for (int i = 0; i<nrOfIntervalls; i++) {
+//			String timeKey = timeFormat.format(calendar.getTime());
+//			departuresPerInterval.put(timeKey, 0);
+//			calendar.add(Calendar.MINUTE, intervalInMinutes); // Increment the calendar by the interval length
+//		}
+
 		// Calculate the number of intervals for a day
-		int intervalsPerDay = (24 * 60) / intervalInMinutes;
+		//int intervalsPerDay = (24 * 60) / intervalInMinutes;
 
 		// Iterate over all persons and their departure times
 		for (String person : depTimePerAgent.keySet()) {

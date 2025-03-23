@@ -7,7 +7,6 @@ import org.matsim.simwrapper.Header;
 import org.matsim.simwrapper.Layout;
 import org.matsim.simwrapper.viz.*;
 import tech.tablesaw.plotly.components.Axis;
-import tech.tablesaw.plotly.components.Marker;
 import tech.tablesaw.plotly.traces.BarTrace;
 import tech.tablesaw.plotly.traces.HistogramTrace;
 import tech.tablesaw.plotly.traces.ScatterTrace;
@@ -195,7 +194,7 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Number Of Used Modes";
-				viz.description = "Number of legs travelled by each mode.";
+				viz.description = "Shows the number of legs travelled by each mode.";
 
 				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_bar_numberOfModes.csv"));
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
@@ -226,10 +225,9 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Scatter Plot Loss Time over Travel Time";
-				viz.description = "Agent based analysis of travel time compared to loss time";
+				viz.description = "Shows how much loss time occurs depending on the travel time of the trip of each agent.";
 
 				Plotly.DataSet ds = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_stats_legsLossTime.csv"));
-
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
 					.barMode(tech.tablesaw.plotly.components.Layout.BarMode.GROUP)
 					.xAxis(Axis.builder().title("Travel Time [min]").build())
@@ -244,7 +242,7 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 		layout.row("Detail Diagrams 4/4")
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Histogram Departure Time Of Longest Trips";
-				viz.description = "Histogram Departure Time longest trips";
+				viz.description = "Shows the departure time of each of the longest trips for the entire day.";
 
 				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_histogram_longestTripDep.csv"));
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
@@ -258,20 +256,19 @@ public class AgentBasedTrafficQualityDashboard implements Dashboard {
 
 			.el(Plotly.class, (viz, data) -> {
 				viz.title = "Histogramm Occurrences Of Loss Time";
-				viz.description = "Sum of loss times (in seconds) for each 15-minute interval of the day";
+				viz.description = "Shows the sum of loss times (in minutes) according to when they occur during the day";
 
 				Plotly.DataSet dataset = viz.addDataset(data.compute(AgentBasedTrafficQualityAnalysis.class, "travelTime_histogram_lossTimeDep.csv"));
 				viz.layout = tech.tablesaw.plotly.components.Layout.builder()
 					.xAxis(Axis.builder().title("Time Interval").build())
 					.yAxis(Axis.builder().title("Total Loss Time [min]").build())
 					.build();
-
-				viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT) // Verwenden von INPUT
-						.name("Loss Time") // Name des Traces
+				viz.addTrace(BarTrace.builder(Plotly.OBJ_INPUT, Plotly.INPUT)
+						.name("Loss Time")
 						.build(),
-					dataset.mapping() // Mapping verwenden, um Spalten aus dem Dataset zuzuordnen
-						.x("timeInterval") // Spaltenname für die X-Achse (Zeitintervalle)
-						.y("LossMinutes"));// Spaltenname für die Y-Achse (Verlustzeiten)
+					dataset.mapping()
+						.x("timeInterval")
+						.y("LossMinutes"));
 			});
 	}
 }
