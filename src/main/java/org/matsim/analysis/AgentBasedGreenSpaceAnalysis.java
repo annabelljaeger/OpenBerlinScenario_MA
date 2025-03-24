@@ -334,7 +334,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 
 			// writing csv-headers for agent- and green space-based information-output files
 			agentCSVWriter.writeNext(new String[]{"AgentID", "home_x", "home_y", "ClosestGreenSpace", "DistanceToGreenSpace", "UtilizationOfGreenSpace [m²/person]", "GSDistanceDeviationFromLimit", "GSUtilizationDeviationFromLimit"});
-			greenSpaceUtilizationWriter.writeNext(new String[]{"osm_id", "nrOfPeople", "meanDistance", "utilization [m²/person]", "area", "areaCategory"});
+			greenSpaceUtilizationWriter.writeNext(new String[]{"greenSpaceId", "nrOfPeople", "meanDistance", "utilization [m²/person]", "area", "areaCategory"});
 
 			// writing results in the csv files
 			for (Map.Entry<String, List<Double>> entry : greenSpaceUtilization.entrySet()) {
@@ -498,6 +498,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		// NewCollection
 		Collection<SimpleFeature> polygonCollection = new ArrayList<SimpleFeature>();
 
+
+		System.out.println("Start Geofile Writer");
 
 		// Iteration über alle bestehenden Features, Geometrie und Attribute setzen
 		for (SimpleFeature existingFeature : existingGreenSpaceCollection) {

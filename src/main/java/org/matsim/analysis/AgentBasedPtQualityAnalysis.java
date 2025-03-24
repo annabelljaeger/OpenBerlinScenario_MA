@@ -172,7 +172,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 		// initializing counters
 		int counterTesting = 0;
-		int limitTesting = -1; // no limit for  -1
+		int limitTesting = 100000; // no limit for  -1
 
 
 		// initializing counters for index value calculations

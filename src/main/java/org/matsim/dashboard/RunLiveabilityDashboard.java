@@ -1,5 +1,7 @@
 package org.matsim.dashboard;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.matsim.analysis.AgentLiveabilityInfoCollection;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
@@ -26,17 +28,24 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	@CommandLine.Option(names = "--outputDirectory",description = "Path to the output directory")
 	private static Path outputDirectory;
 
-	// option to insert standard input and output (general output and liveability analysis output) paths for users
+	// option to insert standard input and output paths for users
+//	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("Insert your input path here");
+//	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("Insert your output path here");
+
 	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/input_OBS_Base");
-	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/input_Kelheim");
+	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/input_Kelheim");
+	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/inputBerlin_new");
 	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/10pct.absSpdLim2.777");
-	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_10pct");
+	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_10pct");
 	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
+	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/outputBerlin_Base_all");
 
 	// public static attributes - necessary to save the valid input and output directory paths
 	public static Path validInputDirectory;
 	public static Path validOutputDirectory;
 	public static Path validLiveabilityOutputDirectory;
+
+	private static final Logger log = LogManager.getLogger(RunLiveabilityDashboard.class);
 
 	// main method to run this class with the given input via the CommandLine or the given Paths
 	public static void main(String[] args) throws IOException {
@@ -56,9 +65,9 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		SimWrapper sw = SimWrapper.create(config);
 
 		// calling the seperate liveability-dimension dashboards and thereby activating them
-		sw.addDashboard( new AgentBasedTrafficQualityDashboard());
+		//sw.addDashboard( new AgentBasedTrafficQualityDashboard());
 		sw.addDashboard( new AgentBasedPtQualityDashboard());
-		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
+		//sw.addDashboard( new AgentBasedGreenSpaceDashboard());
 
 		// todo: implement safety, noise and emissions based on the contribs but with agent-specific output
 		//sw.addDashboard( new AgentBasedNoiseDashbaord());
@@ -69,6 +78,8 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 
 		sw.generate(getValidOutputDirectory());
 		sw.run(getValidOutputDirectory());
+
+		log.info("RunLiveabilityDashboard completed.");
 
 		return 0;
 	}

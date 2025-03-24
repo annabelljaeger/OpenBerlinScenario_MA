@@ -6,34 +6,24 @@ import com.opencsv.exceptions.CsvValidationException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.geotools.api.data.FileDataStore;
 import org.geotools.api.data.FileDataStoreFinder;
 import org.geotools.api.data.SimpleFeatureSource;
 import org.geotools.api.feature.simple.SimpleFeature;
-import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.feature.FeatureIterator;
-import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.io.WKTReader;
-import org.matsim.api.core.v01.Coord;
 import org.matsim.application.ApplicationUtils;
 import org.matsim.application.CommandSpec;
-import org.matsim.application.Dependency;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
-import org.matsim.core.config.Config;
-import org.matsim.core.config.ConfigUtils;
-import org.matsim.core.utils.gis.PointFeatureFactory;
 import picocli.CommandLine;
-
-import org.geotools.data.*;
-import org.geotools.data.simple.*;
-import org.apache.commons.csv.*;
 
 import java.io.*;
 import java.nio.file.Files;
@@ -47,16 +37,13 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 @CommandLine.Command(
 	name = "Utility - Agent Liveability Info Collection",
-	description = "create agentLiveabilityInfo.csv, summaryTiles.csv and indexIndicatorValues.csv to collect the liveability values from the different dimensions",
+	description = "Creates basic files for data collection from the different dimensions",
 	mixinStandardHelpOptions = true,
 	showDefaultValues = true
 )
 
 @CommandSpec(
 	group="liveability",
-//	dependsOn = {
-//		@Dependency(value = AgentBasedGreenSpaceAnalysis.class, files =  "greenSpace_stats_perAgent.csv"),
-//	},
 	produces = {
 		"overall_stats_agentLiveabilityInfo.csv",
 		"overall_tiles_indexDimensionValues.csv",
@@ -75,21 +62,22 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	private final OutputOptions output = OutputOptions.ofCommand(AgentLiveabilityInfoCollection.class);
 
 	// defining constants for paths
+	private final Path personsCsvPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
+	private final Path studyAreaShpPath = ApplicationUtils.matchInput("studyArea.shp", getValidInputDirectory());
+
 	private final Path outputAgentLiveabilityCSVPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_agentLiveabilityInfo.csv");
 	private final Path tempAgentLiveabilityOutputPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_agentLiveabilityInfo_tmp.csv");
 
 	private final Path outputIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_indicatorValues.csv");
 	private final Path tempIndicatorValuesCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_stats_indicatorValues_tmp.csv");
 
-	//	private final Path personsCsvPath = getValidOutputDirectory().resolve("berlin-v6.3.output_persons.csv.gz");
-	private final Path personsCsvPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
-	private final Path studyAreaShpPath = ApplicationUtils.matchInput("studyArea.shp", getValidInputDirectory());
-
 	private final Path outputCategoryRankingCsvPath = getValidLiveabilityOutputDirectory().resolve("overall_tiles_indexDimensionValues.csv");
 	private final Path tempSummaryTilesOutputPath = getValidLiveabilityOutputDirectory().resolve("overall_tiles_indexDimensionValues_tmp.csv");
 
 	private Geometry studyAreaGeometry;
 	private final GeometryFactory geometryFactory = new GeometryFactory();
+
+	private static final Logger log = LogManager.getLogger(AgentLiveabilityInfoCollection.class);
 
 	// method generates the csv-Files - the methods to extend the files are called in the dimension analysis classes
 	@Override
@@ -105,11 +93,11 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		return 0;
 	}
 
-	// method to introduce the agentLiveabilityInfo.csv and fill it with the person ids from the persons.csv.gz file in the output folder
+	// method to introduce the agentLiveabilityInfo.csv and fill it with the person ids from persons within the study are from the persons.csv.gz file in the output folder
 	private void generateLiveabilityData( ) throws IOException {
 
 		if (!Files.exists(personsCsvPath)) {
-			throw new IOException("Die Datei output_persons.csv.gz wurde nicht gefunden: " + personsCsvPath);
+			throw new IOException("The file output_persons.csv.gz could not be found: " + personsCsvPath);
 		}
 
 		try (InputStream fileStream = new FileInputStream(personsCsvPath.toFile());
@@ -129,9 +117,6 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 				String homeX = (record.get("home_x"));
 				String homeY = (record.get("home_y"));
 
-			//	System.out.println("Prüfe Person " + person + " mit Koordinaten: (" + homeX + ", " + homeY + ")");
-
-
 				if (homeX != null && !homeX.isEmpty() && homeY != null && !homeY.isEmpty()) {
 					try {
 						double x = Double.parseDouble(homeX);
@@ -140,33 +125,17 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 							agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
 						}
 					} catch (NumberFormatException e) {
-						System.err.println("Ungültige Koordinaten für Person " + person + ": " + homeX + ", " + homeY);
+						log.error("Invalid coordinates for person {}: {}, {}", person, homeX, homeY);
 					}
-
-//						 double x = Double.parseDouble(homeX);
-//						 double y = Double.parseDouble(homeY);
-//						 Coord coord = new Coord(x, y);
-//						 Coordinate coordinate = new Coordinate(coord.getX(), coord.getY());
-//
-//						 if (isInsideStudyArea(coordinate)) {
-//							 agentLiveabilityWriter.writeNext(new String[]{person, String.valueOf(homeX), String.valueOf(homeY)});
-//						 }
-
-//						 // not universally transferable for other regions yet!
-//						 String pointInStudyArea = record.get("RegioStaR7");
-//
-//						 // the Liveability-Ranking is only useful for a defined study area, which in this case is the boarder of Berlin. In this case, this includes all points in the RegioStaR7 = 1 area.
-//						 if ("1".equals(pointInStudyArea)) {
-//							 agentLiveabilityWriter.writeNext(new String[]{person, homeX, homeY});
-//						 }
 				}
 			}
 		}
-		System.out.println("Liveability-CSV generated under: " + outputAgentLiveabilityCSVPath);
+		log.info("Liveability-CSV generated under: {}", outputAgentLiveabilityCSVPath);
 	}
 
-	// method to extend the agentLiveabilityInfo.csv file with agent based information from the analysis classes of the dimensions (this is where they are called).
-	// Data has to be provided as maps - those are used throughout the code to guarantee agent based values and the mapping of those to the universal peron ids.
+	/* method to extend the agentLiveabilityInfo.csv file with agent based information from the analysis classes of the dimensions (this is where they are called).
+	  Data has to be provided as maps - those are used throughout the code to guarantee agent based values and the mapping of those to the universal peron ids.
+	 */
 	public void extendAgentLiveabilityInfoCsvWithAttribute(Map<String, Double> additionalData, String newAttributeName) throws IOException {
 
 		try (CSVReader personEntryReader = new CSVReader(new FileReader(outputAgentLiveabilityCSVPath.toFile()));
@@ -187,7 +156,6 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			System.arraycopy(header, 0, newHeader, 0, header.length);
 			newHeader[header.length] = newAttributeName;
 			valueWriter.writeNext(newHeader);
-			System.out.println("Spaltenname geschrieben: " + newAttributeName);
 
 			// extends each person line with the content from the input in a next column
 			String[] line;
@@ -209,8 +177,11 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		} catch (CsvValidationException e) {
 			throw new RuntimeException(e);
 		}
+
 		// rewrite original file by temp file
 		Files.move(tempAgentLiveabilityOutputPath, outputAgentLiveabilityCSVPath, StandardCopyOption.REPLACE_EXISTING);
+
+		log.info("File written with new column: {}", newAttributeName);
 	}
 
 	// generates an empty summaryTiles.csv file for information from each analysis to be added
@@ -219,14 +190,14 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		// if file exists: delete
 		if (Files.exists(outputCategoryRankingCsvPath)) {
 			Files.delete(outputCategoryRankingCsvPath);
-			System.out.println("The file summaryTiles.csv exists already and has been replaced.");
+			log.info("The file summaryTiles.csv exists already and has been replaced.");
 		}
 
 		// generate and initialize empty/placeholder-filled csv-file
 		try (CSVWriter writer = new CSVWriter(new FileWriter(outputCategoryRankingCsvPath.toFile()))) {
-			writer.writeNext(new String[]{"Warum ist hier nichts? :( - CSV angelegt aber kein Inhalt hinzugefügt"});
+			writer.writeNext(new String[]{"Why is there nothing here? :( - CSV created but no content added"});
 
-			System.out.println("The prepared file Datei summaryTiles.csv has been generated: " + outputCategoryRankingCsvPath);
+			log.info("The prepared file Datei summaryTiles.csv has been generated: " + outputCategoryRankingCsvPath);
 		}
 	}
 
@@ -238,7 +209,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 			String[] nextLine;
 			while ((nextLine = tilesReader.readNext()) != null) {
-				if (String.join(";", nextLine).contains("Warum ist hier nichts? :(")) {
+				if (String.join(";", nextLine).contains("Theres nothing here to see :(")) {
 					continue;
 				}
 				tilesWriter.writeNext(nextLine);
@@ -249,6 +220,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		} catch (CsvValidationException e) {
 			throw new RuntimeException(e);
 		}
+
 		// rewrite original file by temp file
 		Files.move(tempSummaryTilesOutputPath, outputCategoryRankingCsvPath, StandardCopyOption.REPLACE_EXISTING);
 	}
@@ -259,7 +231,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 		// delete file if already existent
 		if (Files.exists(outputIndicatorValuesCsvPath)) {
 			Files.delete(outputIndicatorValuesCsvPath);
-			System.out.println("The file indexIndicatorValues.csv already exists and has been replaced.");
+			log.info("The file indexIndicatorValues.csv already exists and has been replaced.");
 		}
 
 		// generating the empty csv-file with a prefilled header
@@ -271,7 +243,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 			indicatorTableWriter.writeNext(new String[]{"dimension","indicator","median value","limit","ranking value"});
 
-			System.out.println("The empty file indexIndicatorValues.csv has been generated under: " + outputIndicatorValuesCsvPath);
+			log.info("The empty file indexIndicatorValues.csv has been generated under: {}", outputIndicatorValuesCsvPath);
 		}
 	}
 
@@ -279,7 +251,8 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	public void extendIndicatorValuesCsvWithAttribute(String dimension, String indicator, String medianValue, String limit, String RankingValue) throws IOException {
 
 		try (CSVReader indicatorReader = new CSVReader(new FileReader(outputIndicatorValuesCsvPath.toFile()));
-			 CSVWriter indicatorWriter = new CSVWriter(new FileWriter(tempIndicatorValuesCsvPath.toFile()),  CSVWriter.DEFAULT_SEPARATOR,
+			 CSVWriter indicatorWriter = new CSVWriter(new FileWriter(tempIndicatorValuesCsvPath.toFile()),
+				 CSVWriter.DEFAULT_SEPARATOR,
 				 CSVWriter.NO_QUOTE_CHARACTER, // without quotations
 				 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
 				 CSVWriter.DEFAULT_LINE_END)) {
@@ -290,15 +263,16 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			}
 			indicatorWriter.writeNext(new String[]{dimension, indicator, medianValue, limit, RankingValue});
 
-
 		} catch (CsvValidationException e) {
 			throw new RuntimeException(e);
 		}
 		// rewrite original file by temp file
 		Files.move(tempIndicatorValuesCsvPath, outputIndicatorValuesCsvPath, StandardCopyOption.REPLACE_EXISTING);
 
+		log.info("File written with new indicator: {} with index value: {}", indicator, RankingValue);
 	}
 
+	// method prepares study area geometry from shapefile for isInsideStudyArea method
 	private void loadStudyArea(String shapefilePath) throws IOException {
 		File file = new File(shapefilePath);
 		FileDataStore store = FileDataStoreFinder.getDataStore(file);
@@ -311,27 +285,17 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 				studyAreaGeometry = (Geometry) feature.getDefaultGeometry();
 			}
 		}
-
-//		System.out.println("Geladene Study Area Geometrie: " + studyAreaGeometry);
-
-		//PointFeatureFactory pointFactoryBuilder = new PointFeatureFactory.Builder().setCrs(CRS.decode(config.global().getCoordinateSystem)).create();
 	}
 
+	// method checks whether a point (agent) is within the given study area based on the given coordinates
 	private boolean isInsideStudyArea(double x, double y) {
 		Point point = geometryFactory.createPoint(new Coordinate(x, y));
-
-//		private boolean isInsideStudyArea(Coordinate coordinate) {
-//
-//			Point point = geometryFactory.createPoint(coordinate);
 		boolean inside = studyAreaGeometry != null && studyAreaGeometry.contains(point);
-	//	System.out.println("Person an (" + x + ", " + y + ") ist " + (inside ? "innerhalb" : "außerhalb") + " der Study Area.");
+	//	System.out.println("Person living at (" + x + ", " + y + ") is " + (inside ? "inside" : "outside") + " of the study area.");
 		return inside;
-
-
-		//	return studyAreaGeometry != null && studyAreaGeometry.contains(point);
-
 	}
 
+	// method writes csv for SimWrapper XYT Maps from given valueMap and coordinateMap
 	public static void writeXYTDataToCSV(Path filePath, Map<String, Double> dataMap,
 										 Map<String, List<String>> coordinatesMap) throws IOException {
 		try (CSVWriter writer = new CSVWriter(new FileWriter(String.valueOf(filePath)),
@@ -358,9 +322,11 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 					});
 				}
 			}
+			log.info("XYT Map written: {}", filePath);
 		}
 	}
 
+	// method calculates Median for a given map
 	public static double calculateMedian(Map<String, Double> values) {
 		if (values == null || values.isEmpty()) {
 			throw new IllegalArgumentException("Map is empty");
@@ -376,7 +342,6 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			throw new IllegalArgumentException("Map contains only null values");
 		}
 
-
 		Collections.sort(sortedValues);
 
 		int size = sortedValues.size();
@@ -388,5 +353,4 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			return sortedValues.get(size/2);
 		}
 	}
-
 }
