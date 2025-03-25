@@ -6,6 +6,8 @@ import com.opencsv.exceptions.CsvValidationException;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.referencing.CRS;
 import org.locationtech.jts.geom.*;
@@ -50,11 +52,6 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "agentLiveabilityInfo.csv"),
 		@Dependency(value = AgentLiveabilityInfoCollection.class, files = "overallRankingTile.csv")
 	},
-	requires = {
-		"output_persons.csv.gz",
-		"accessPoints.shp",
-		"allGreenSpaces_min1ha.shp"
-	},
 	produces = {
 		"greenSpace_stats_perAgent.csv",
 		"greenSpace_utilization.csv",
@@ -94,11 +91,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	// input paths
 	private final Path inputPersonsCSVPath = ApplicationUtils.matchInput("output_persons.csv.gz", getValidOutputDirectory());
 	//accessPoint shp Layer has to include the osm_id of the corresponding green space (column name "osm_id") as well as the area of the green space (column name "area")
-	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("test_accessPoints.shp", getValidOutputDirectory());
-	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("test_accessPoints.shp", getValidInputDirectory());
-	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("zusammengefügteFiles_NEU_accessPoints.shp", getValidInputDirectory());
 	private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("accessPoints.shp", getValidInputDirectory());
-	//private final Path inputAccessPointShpPath = ApplicationUtils.matchInput("relevante_accessPoints.shp", getValidInputDirectory());
 	private final Path inputGreenSpaceShpPath = ApplicationUtils.matchInput("allGreenSpaces_min1ha.shp", getValidInputDirectory());
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
 
@@ -111,10 +104,11 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path outputDistanceTilesCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_TilesDistance.csv");
 	private final Path outputGreenSpaceUtilizationPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_utilization.csv");
 	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
-	private final Path outputGreenSpaceSHP = getValidLiveabilityOutputDirectory().resolve("greenSpaces_withUtilization.shp");
 	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.gpkg");
 	private final Path outputGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_statsGeofile.gpkg");
-	private final Path outputGeofileAgentGS = getValidLiveabilityOutputDirectory().resolve("greenSpaceAndAgent_geofile.shp");
+
+	private static final Logger log = LogManager.getLogger(AgentBasedGreenSpaceAnalysis.class);
+
 
 	public static void main(String[] args) {
 		new AgentBasedGreenSpaceAnalysis().execute(args);
@@ -127,7 +121,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		Config config = ConfigUtils.loadConfig(ApplicationUtils.matchInput("config.xml", input.getRunDirectory()).toAbsolutePath().toString());
 		SimWrapperConfigGroup simwrapper = ConfigUtils.addOrGetModule(config, SimWrapperConfigGroup.class);
 		// todo: sampleSize is currently not imported correctly (this line returns 1 while the config says 0.1 which results in errors in the results). For now the sample size is hard coded at the top.
-	//	this.sampleSize = simwrapper.sampleSize;
+		//this.sampleSize = simwrapper.sampleSize;
 
 		// initialising collections and data structures
 		AgentLiveabilityInfoCollection agentLiveabilityInfoCollection = new AgentLiveabilityInfoCollection();
@@ -143,14 +137,12 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 		Map<String, Double> utilizationPerAgent = new HashMap<>();
 		Map<String, Double> areaPerGreenSpace = new HashMap<>();
 		Map<String, Integer> nrOfPeoplePerGreenSpace = new HashMap<>();
-		Map<String, Double> meanDistancePerGreenSpace = new HashMap<>();
 		Map<String, Double> greenSpaceUtilizationDeviationValuePerGreenSpace = new HashMap<>();
 		Map<String, Double> limitDistanceToGreenSpace = new HashMap<>();
 		Map<String, Double> limitUtilizationOfGreenSpace = new HashMap<>();
 		Map<String, Double> greenSpaceUtilizationDeviationValuePerAgent = new HashMap<>();
 		Map<String, Double> distanceToGreenSpaceDeviationValuePerAgent = new HashMap<>();
 		Map<String, Double> greenSpaceOverallRankingValuePerAgent = new HashMap<>();
-		Map<String, String> dimensionOverallRankingValue = new HashMap<>();
 
 		// initializing counters for index value calculations
 		double counterOverall = 0;
@@ -257,9 +249,6 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				double distanceDeviation = (distancePerAgent.get(agentId) - limitEuclideanDistanceToGreenSpace) / limitEuclideanDistanceToGreenSpace;
 				distanceToGreenSpaceDeviationValuePerAgent.put(agentId, distanceDeviation);
 
-//				double utilizationDeviation = (utilizationPerAgent.get(agentId) - limitGreenSpaceUtilization) / limitGreenSpaceUtilization;
-//				greenSpaceUtilizationDeviationValuePerAgent.put(agentId, utilizationDeviation);
-
 				double utilizationDeviation = greenSpaceUtilizationDeviationValuePerAgent.get(agentId);
 
 				double overallGreenSpaceDeviationValue = Math.max(distanceDeviation, utilizationDeviation);
@@ -290,7 +279,6 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			// calculating overall index value and indicator index values
 			greenSpaceRankingValue = counterOverall / homeCoordinatesPerAgentInStudyArea.size();
 			formattedRankingGreenSpace = String.format(Locale.US, "%.2f%%", greenSpaceRankingValue * 100);
-			//dimensionOverallRankingValue.put("Green Space", formattedRankingGreenSpace);
 
 			greenSpace50PercentUnderLimitIndexValue = counter50PercentUnderLimit / homeCoordinatesPerAgentInStudyArea.size();
 			formatted50PercentUnderLimitIndexGreenSpace = String.format(Locale.US, "%.2f%%", greenSpace50PercentUnderLimitIndexValue * 100);
@@ -345,18 +333,12 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				String utilization = utilizationPerGreenSpace.get(id).toString();
 				Double area = areaPerGreenSpace.get(id);
 				String areaCategory;
-				    //if (area < 10000) {areaCategory = "< 1 ha";}
 					if (area < 20000) {areaCategory = "01 - 02 ha";}
 					else if (area < 50000) {areaCategory = "02 - 05 ha";}
 					else if (area < 100000) {areaCategory = "05 - 10 ha";}
 					else if (area < 200000) {areaCategory = "10 - 20 ha";}
 					else {areaCategory = "> 20 ha";}
-//				if (area < 10000) {areaCategory = "a: < 1 ha";}
-//				else if (area < 20000) {areaCategory = "b: 1 - 2 ha";}
-//				else if (area < 50000) {areaCategory = "c: 2 - 5 ha";}
-//				else if (area < 100000) {areaCategory = "d: 5 - 10 ha";}
-//				else if (area < 200000) {areaCategory = "e: 10 - 20 ha";}
-//				else {areaCategory = "f: > 20 ha";}
+
 				greenSpaceUtilizationWriter.writeNext(new String[]{id, String.valueOf(count), meanDistance, utilization, String.valueOf(area), areaCategory});
 			}
 
@@ -471,17 +453,15 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				System.err.println("Feature konnte nicht erstellt werden für Agent: " + agentId);
 			}
 			featureCollection.add(feature);
-			//System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
-
 		}
 
-		// writing the FeatureCollection into a gpkg (because shp was not working)
+		// writing the FeatureCollection into a gpkg
 		AgentBasedGreenSpaceAnalysis.deleteExistingFile(String.valueOf(outputAgentGreenSpaceGeofile));
 		GeoFileWriter.writeGeometries(featureCollection, String.valueOf(outputAgentGreenSpaceGeofile));
 
 		AgentBasedGreenSpaceAnalysis.deleteExistingFile(String.valueOf(outputGreenSpaceGeofile));
 
-		// PolygonFeatureFactory erstellen
+		// create PolygonFeatureFactory
 		PolygonFeatureFactory polygonFeatureFactory = new PolygonFeatureFactory.Builder()
 			.setName("GreenSpaceFeatures")
 			.setCrs(CRS.decode(config.global().getCoordinateSystem()))  // CRS aus Konfiguration
@@ -492,23 +472,19 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			.addAttribute("utilizationDeviationValue", Double.class)
 			.create();
 
-
-		// Angenommene bereits existierende GreenSpace-Collection
 		Collection<SimpleFeature> existingGreenSpaceCollection = GeoFileReader.getAllFeatures(String.valueOf(inputGreenSpaceShpPath));
 		// NewCollection
 		Collection<SimpleFeature> polygonCollection = new ArrayList<SimpleFeature>();
 
+		log.info("Start Geofile Writer");
 
-		System.out.println("Start Geofile Writer");
-
-		// Iteration über alle bestehenden Features, Geometrie und Attribute setzen
+		// iterating over all existing features to extract geometry and attributes
 		for (SimpleFeature existingFeature : existingGreenSpaceCollection) {
-			// Geometrie und existierende Attribute (greenSpaceID, area) übernehmen
+			// get existing attributes (greenSpaceID, area)
 			MultiPolygon geometry = (MultiPolygon) existingFeature.getDefaultGeometry();
 			String greenSpaceID = (String) existingFeature.getAttribute("osm_id");
 			Double area = (Double) existingFeature.getAttribute("area");
 
-			// Werte aus Map1 und Map2 anhand der greenSpaceID holen
 			Object[] attributes = new Object[]{
 				greenSpaceID,
 				area,
@@ -517,18 +493,17 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				greenSpaceUtilizationDeviationValuePerGreenSpace.getOrDefault(greenSpaceID, -1.0)
 			};
 
-			// Das neue Feature in die Sammlung einfügen
+			// inserting the new feature into the collection
 			SimpleFeature feature = polygonFeatureFactory.createPolygon(geometry, attributes, null);
 			if (feature == null) {
-				System.err.println("Feature konnte nicht erstellt werden für Agent: " + greenSpaceID);
+				System.err.println("Feature could not be created for areat: " + greenSpaceID);
 			}
 			polygonCollection.add(feature);
-			//System.out.println("Anzahl Features: " + featureCollection.size() + "Einträge: " + Arrays.toString(attributes));
 		}
 
 		GeoFileWriter.writeGeometries(polygonCollection, String.valueOf(outputGreenSpaceGeofile));
 
-		System.out.println("Geodateien erfolgreich geschrieben!");
+		log.info("Geofiles successfully written!");
 
 		// end of call method
 		return 0;
@@ -610,33 +585,6 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			} else {
 				System.err.println("Fehler beim Löschen der bestehenden Datei: " + filePath);
 			}
-		}
-	}
-
-	// NOT YET USED method to create the XYT map
-	private void processAgentLiveabilityData(Path inputPath, Map<String, Double> distancePerAgent,
-											 Map<String, String> greenSpaceIdPerAgent) throws IOException {
-		try(CSVReader agentLiveabilityReader = new CSVReader(new FileReader(String.valueOf(inputAgentLiveabilityInfoPath)));
-			CSVWriter XYTGreenSpaceMapWriter = new CSVWriter(new FileWriter(String.valueOf(XYTAgentBasedGreenSpaceMapPath)),
-				CSVWriter.DEFAULT_SEPARATOR,
-				CSVWriter.NO_QUOTE_CHARACTER, // Keine Anführungszeichen
-				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-				CSVWriter.DEFAULT_LINE_END)){
-
-			XYTGreenSpaceMapWriter.writeNext(new String[]{"# EPSG:25832"});
-			XYTGreenSpaceMapWriter.writeNext(new String[]{"time", "x", "y", "value"});
-
-			String[] nextLine;
-			while ((nextLine = agentLiveabilityReader.readNext()) != null) {
-				String homeX = nextLine[1];
-				String homeY = nextLine[2];
-				String person = nextLine[0];
-
-				Double indexValue = distancePerAgent.getOrDefault(person, 99.0);
-				XYTGreenSpaceMapWriter.writeNext(new String[]{"0.0", homeX, homeY, String.valueOf(indexValue)});
-			}
-		} catch (CsvValidationException e) {
-			throw new RuntimeException(e);
 		}
 	}
 }

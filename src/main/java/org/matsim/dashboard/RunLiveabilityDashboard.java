@@ -33,12 +33,12 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 //	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("Insert your output path here");
 
 	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/input_OBS_Base");
-	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/input_Kelheim");
-	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/inputBerlin_new");
+	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/input_Kelheim");
+	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/inputBerlin_new");
 	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/10pct.absSpdLim2.777");
-	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_10pct");
+	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_output");
 	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
-	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/outputBerlin_Base_all");
+	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/outputBerlin_Base_all");
 
 	// public static attributes - necessary to save the valid input and output directory paths
 	public static Path validInputDirectory;
@@ -70,8 +70,8 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		sw.addDashboard( new AgentBasedGreenSpaceDashboard());
 
 		// todo: implement safety, noise and emissions based on the contribs but with agent-specific output
-		//sw.addDashboard( new AgentBasedNoiseDashbaord());
-		//sw.addDashboard( new AgentBasedEmissionsDashbaord());
+		//sw.addDashboard( new AgentBasedNoiseDashboard());
+		//sw.addDashboard( new AgentBasedEmissionsDashboard());
 		//sw.addDashboard( new AgentBasedSafetyDashboard());
 
 		sw.addDashboard( new LiveabilitySummaryDashboard());
