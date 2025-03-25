@@ -29,7 +29,6 @@ import org.matsim.simwrapper.SimWrapperConfigGroup;
 import picocli.CommandLine;
 
 import java.io.*;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -43,8 +42,8 @@ import java.util.zip.GZIPInputStream;
 import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 @CommandLine.Command(
-	name = "lossTime-analysis",
-	description = "Loss Time Analysis",
+	name = "Traffic Quality Analysis",
+	description = "Analysis class that implements the maxAbsoluteTravelTime and lossTime indicators for the traffic quality target dimension.",
 	mixinStandardHelpOptions = true,
 	showDefaultValues = true
 )

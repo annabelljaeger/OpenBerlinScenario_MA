@@ -53,11 +53,9 @@ import java.util.zip.GZIPInputStream;
 import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 
-
-
 @CommandLine.Command(
-	name = "ptQuality-analysis",
-	description = "PT-quality Analysis",
+	name = "Pt Quality Analysis",
+	description = "Analysis class that implements the Pt to Car Travel Time Ratio and maxWalkDistanceToPtStop indicators for the public transport quality target dimension.",
 	mixinStandardHelpOptions = true,
 	showDefaultValues = true
 )
@@ -107,16 +105,16 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private LeastCostPathCalculator router;
 
 
-	private final double limitTravelTimeComparision = 2.0;
+	private final double limitTravelTimeComparison = 2.0;
 	private final double limitMaxWalkToPTDistance = 500;
 
-	//Input path
+	//Input paths
 	private final Path CONFIG_FILE = ApplicationUtils.matchInput("config.xml", getValidOutputDirectory());
 	private final Path tripsPath = ApplicationUtils.matchInput("trips.csv.gz", getValidOutputDirectory());
 	private final Path legsPath = ApplicationUtils.matchInput("legs.csv.gz", getValidOutputDirectory());
 	private final Path eventsPath = ApplicationUtils.matchInput("events.xml.gz", getValidOutputDirectory());
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("overall_stats_agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
-	//Output path
+	//Output paths
 	private final Path statsPtQualityPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_perAgent.csv");
 	private final Path statsModeComparisonPerTripPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_modeComparisonPerTrip.csv");
 	private final Path XYTPtToCarRatioMap = getValidLiveabilityOutputDirectory().resolve("ptQuality_XYT_PtToCarRatioPerAgent.csv");
@@ -396,7 +394,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 					} else {
 						maxRatio = Math.max(maxRatio, ratio);
 					}
-					maxPtToCarRatioIndexValue = (maxRatio - limitTravelTimeComparision) / limitTravelTimeComparision;
+					maxPtToCarRatioIndexValue = (maxRatio - limitTravelTimeComparison) / limitTravelTimeComparison;
 				}
 
 				if (carTime != null || backupCarTime != null) {
@@ -407,7 +405,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 					} else {
 						maxEcoMobilityRatio = Math.max(maxEcoMobilityRatio, ratio);
 					}
-					maxEcoMobilityToCarRatioIndexValue = (maxEcoMobilityRatio - limitTravelTimeComparision) / limitTravelTimeComparision;
+					maxEcoMobilityToCarRatioIndexValue = (maxEcoMobilityRatio - limitTravelTimeComparison) / limitTravelTimeComparison;
 				}
 			}
 				maxWalkDistancesPerAgent.put(agent, maxWalkDistance);
@@ -525,7 +523,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedPtQualityIndexValue, "Pt Quality Index Value");
 
 			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Pt Quality", "Max Walk To Pt Distance", formattedMedianMaxWalkToPt, String.valueOf(limitMaxWalkToPTDistance), formattedMaxWalkToPtIndexValue);
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Pt Quality", "Pt to Car travel time ratio", formattedMedianPtToCarRatio, String.valueOf(limitTravelTimeComparision), formattedPtToCarRatioIndexValue);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Pt Quality", "Pt to Car travel time ratio", formattedMedianPtToCarRatio, String.valueOf(limitTravelTimeComparison), formattedPtToCarRatioIndexValue);
 
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTPtQualityPath, overallPtQualityPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTPtToCarRatioMap, maxPtToCarRatioPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);

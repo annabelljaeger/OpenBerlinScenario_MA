@@ -38,7 +38,7 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 
 @CommandLine.Command(
 	name = "greenSpace-analysis",
-	description = "Green Space availability and accessibility Analysis. Required Input: persons.csv.gz, accessPoints (to be generated e.g. via QGIS - see ReadMe-File)",
+	description = "Analysis class that implements the greenSpaceDistance and greenSpaceUtilization indicators for the green space target dimension. Required Input: persons.csv.gz, accessPoints and allGreenSpaces_min1ha.shp ((to be generated e.g. via QGIS - see Masters Thesis for details)",
 	mixinStandardHelpOptions = true,
 	showDefaultValues = true
 )
@@ -52,8 +52,8 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.*;
 	},
 	requires = {
 		"output_persons.csv.gz",
-	//	"accessPoints.shp",
-	//	"allGreenSpaces_min1ha.shp"
+		"accessPoints.shp",
+		"allGreenSpaces_min1ha.shp"
 	},
 	produces = {
 		"greenSpace_stats_perAgent.csv",
