@@ -35,8 +35,8 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Masterarbeit final/input_BerlinCharlottenburg");
 	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/input_Kelheim");
 	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/inputBerlin_new");
-	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/3pct.absSpdLim8.333");
-	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_output");
+	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/OBS_Base/6.4_output_Charlottenburg - 8.333");
+	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_output_final");
 	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
 	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/outputBerlin_Base_all");
 
@@ -55,6 +55,8 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	// call method calling the config, AgentLiveabilityInfoCollection-Class and all the liveability-Dimension-Dashboards
 	@Override
 	public Integer call() throws Exception {
+
+		log.info("Starting RunLiveabilityDashboard");
 
 		createLiveabilityDirectory();
 

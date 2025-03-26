@@ -87,6 +87,10 @@ import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirecto
 )
 
 public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
+	private static final Logger log = LogManager.getLogger(AgentBasedPtQualityAnalysis.class);
+	private final double limitTravelTimeComparison = 2.0;
+	private final double limitMaxWalkToPTDistance = 500;
+
 
 	@CommandLine.Mixin
 	private final InputOptions input = InputOptions.ofCommand(AgentBasedPtQualityAnalysis.class);
@@ -104,8 +108,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private TravelDisutility travelDisutility;
 	private LeastCostPathCalculator router;
 
-	private final double limitTravelTimeComparison = 2.0;
-	private final double limitMaxWalkToPTDistance = 500;
 
 	//Input paths
 	private final Path CONFIG_FILE = ApplicationUtils.matchInput("config.xml", getValidOutputDirectory());
@@ -125,14 +127,14 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private final Path TilesPtToCarPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_Tiles_PtToCarRatio.csv");
 	private final Path TilesEcoMobilityRatioPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_Tiles_EcoMobilityRatio.csv");
 
-	private static final Logger log = LogManager.getLogger(AgentBasedPtQualityAnalysis.class);
+
 	private long counter = 0L;
 	private long nextCounterMsg = 1L;
 	private long counterWalkLegs = 0L;
 	private long nextCounterWalkLegsMsg = 1;
 
 	public static void main(String[] args) {
-		new AgentBasedAccessibilityAnalysis().execute(args);
+		new AgentBasedPtQualityAnalysis().execute(args);
 	}
 
 	@Override
@@ -146,9 +148,9 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 		log.info("Initialization of Scenario and SwissRailRaptor successful");
 
-		Map<String, Double> beelineDistanceFactors = routingConfig.getBeelineDistanceFactors(); // beelineFactors
+		Map<String, Double> beelineDistanceFactors = routingConfig.getBeelineDistanceFactors();
 		beelineDistanceFactors.putIfAbsent("bike", 1.3);
-		Map<String, Double> teleportedModeSpeeds = routingConfig.getTeleportedModeSpeeds(); // get average Speeds
+		Map<String, Double> teleportedModeSpeeds = routingConfig.getTeleportedModeSpeeds();
 		teleportedModeSpeeds.putIfAbsent("bike", 3.138889);
 
 		log.info("Beeline and teleportedModeSpeed successfully entered into maps.");
@@ -517,278 +519,289 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		formattedMedianPtToCarRatio = String.format(Locale.US, "%.2f", medianPtToCarRatio);
 
 
-			//Write Information in Agent Livability Info Collection
-			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(maxWalkDistancesPerAgent, "maxWalkToPtDistance");
-			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(maxWalkDistancesPerAgentIndexValue, "indexValue_maxWalkToPtDistance");
-			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(maxPtToCarRatioPerAgent, "maxPtToCarRatio");
-			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(maxPtToCarRatioPerAgentIndexValue, "indexValue_maxPtToCarRatio");
+		//Write Information in Agent Livability Info Collection
+		agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(maxWalkDistancesPerAgent, "maxWalkToPtDistance");
+		agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(maxWalkDistancesPerAgentIndexValue, "indexValue_maxWalkToPtDistance");
+		agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(maxPtToCarRatioPerAgent, "maxPtToCarRatio");
+		agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(maxPtToCarRatioPerAgentIndexValue, "indexValue_maxPtToCarRatio");
 
-			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedPtQualityIndexValue, "Pt Quality Index Value");
+		agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedPtQualityIndexValue, "Pt Quality Index Value");
 
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Pt Quality", "Max Walk To Pt Distance", formattedMedianMaxWalkToPt, String.valueOf(limitMaxWalkToPTDistance), formattedMaxWalkToPtIndexValue);
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Pt Quality", "Pt to Car travel time ratio", formattedMedianPtToCarRatio, String.valueOf(limitTravelTimeComparison), formattedPtToCarRatioIndexValue);
+		agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Pt Quality", "Max Walk To Pt Distance", formattedMedianMaxWalkToPt, String.valueOf(limitMaxWalkToPTDistance), formattedMaxWalkToPtIndexValue);
+		agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Pt Quality", "Pt to Car travel time ratio", formattedMedianPtToCarRatio, String.valueOf(limitTravelTimeComparison), formattedPtToCarRatioIndexValue);
 
-			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTPtQualityPath, overallPtQualityPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
-			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTPtToCarRatioMap, maxPtToCarRatioPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
-			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTWalkToPtPath, maxWalkDistancesPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
-			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTEcoMobilityToCarRatioMap, maxEcoMobilityToCarRatioPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
+		AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTPtQualityPath, overallPtQualityPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
+		AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTPtToCarRatioMap, maxPtToCarRatioPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
+		AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTWalkToPtPath, maxWalkDistancesPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
+		AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTEcoMobilityToCarRatioMap, maxEcoMobilityToCarRatioPerAgentIndexValue, homeCoordinatesPerAgentInStudyArea);
 
-			// generating output files for the green space dashboard page
-			try (CSVWriter PTQTileWriter = new CSVWriter(new FileWriter(TilesPtQualityPath.toFile()));
-				 CSVWriter MaxWalkToPtWriter = new CSVWriter(new FileWriter(TilesMaxWalkToPtPath.toFile()));
-				 CSVWriter MaxPtToCarRatioWriter = new CSVWriter(new FileWriter(TilesPtToCarPath.toFile()));
-				 CSVWriter EcoMobilityRatioWriter = new CSVWriter(new FileWriter(TilesEcoMobilityRatioPath.toFile()))) {
+		// generating output files for the green space dashboard page
+		try (CSVWriter PTQTileWriter = new CSVWriter(new FileWriter(TilesPtQualityPath.toFile()));
+			 CSVWriter MaxWalkToPtWriter = new CSVWriter(new FileWriter(TilesMaxWalkToPtPath.toFile()));
+			 CSVWriter MaxPtToCarRatioWriter = new CSVWriter(new FileWriter(TilesPtToCarPath.toFile()));
+			 CSVWriter EcoMobilityRatioWriter = new CSVWriter(new FileWriter(TilesEcoMobilityRatioPath.toFile()))) {
 
-				PTQTileWriter.writeNext(new String[]{"Public Transport Quality: 50% under limit", formattedPtQuality50PercentUnderIndexValue});
-				PTQTileWriter.writeNext(new String[]{"Public Transport Quality within limit", formattedPtQualityIndexValue});
-				PTQTileWriter.writeNext(new String[]{"Public Transport Quality: 50% over limit", formattedPtQuality50PercentOverIndexValue});
+			PTQTileWriter.writeNext(new String[]{"Public Transport Quality: 50% under limit", formattedPtQuality50PercentUnderIndexValue});
+			PTQTileWriter.writeNext(new String[]{"Public Transport Quality within limit", formattedPtQualityIndexValue});
+			PTQTileWriter.writeNext(new String[]{"Public Transport Quality: 50% over limit", formattedPtQuality50PercentOverIndexValue});
 
-				MaxWalkToPtWriter.writeNext(new String[]{"Max walk to Pt Index Value", formattedMaxWalkToPtIndexValue});
-				MaxWalkToPtWriter.writeNext(new String[]{"Mean max walk to Pt distance", formattedMeanMaxWalkToPt});
-				MaxWalkToPtWriter.writeNext(new String[]{"Median max walk to Pt distance", formattedMedianMaxWalkToPt});
+			MaxWalkToPtWriter.writeNext(new String[]{"Max walk to Pt Index Value", formattedMaxWalkToPtIndexValue});
+			MaxWalkToPtWriter.writeNext(new String[]{"Mean max walk to Pt distance", formattedMeanMaxWalkToPt});
+			MaxWalkToPtWriter.writeNext(new String[]{"Median max walk to Pt distance", formattedMedianMaxWalkToPt});
 
-				MaxPtToCarRatioWriter.writeNext(new String[]{"Pt to Car travel time ratio Index Value", formattedPtToCarRatioIndexValue});
-				MaxPtToCarRatioWriter.writeNext(new String[]{"Mean Pt to car travel time ratio", formattedMeanPtToCarRatio});
-				MaxPtToCarRatioWriter.writeNext(new String[]{"Median Pt to car travel time ratio", formattedMedianPtToCarRatio});
+			MaxPtToCarRatioWriter.writeNext(new String[]{"Pt to Car travel time ratio Index Value", formattedPtToCarRatioIndexValue});
+			MaxPtToCarRatioWriter.writeNext(new String[]{"Mean Pt to car travel time ratio", formattedMeanPtToCarRatio});
+			MaxPtToCarRatioWriter.writeNext(new String[]{"Median Pt to car travel time ratio", formattedMedianPtToCarRatio});
 
-				EcoMobilityRatioWriter.writeNext(new String[]{"EcoMobility to car travel time ratio: 50 % under limit", formattedEcoMobilityRatio50PercentUnderIndexValue});
-				EcoMobilityRatioWriter.writeNext(new String[]{"EcoMobility to car travel time ratio within limit", formattedEcoMobilityRatioIndexValue});
-				EcoMobilityRatioWriter.writeNext(new String[]{"EcoMobility to car travel time ratio: 50 % over limit", formattedEcoMobilityRatio50PercentOverIndexValue});
-			}
+			EcoMobilityRatioWriter.writeNext(new String[]{"EcoMobility to car travel time ratio: 50 % under limit", formattedEcoMobilityRatio50PercentUnderIndexValue});
+			EcoMobilityRatioWriter.writeNext(new String[]{"EcoMobility to car travel time ratio within limit", formattedEcoMobilityRatioIndexValue});
+			EcoMobilityRatioWriter.writeNext(new String[]{"EcoMobility to car travel time ratio: 50 % over limit", formattedEcoMobilityRatio50PercentOverIndexValue});
+		}
 
-			try (CSVWriter agentBasedWriter = new CSVWriter(new FileWriter(String.valueOf(statsPtQualityPath)),
-				CSVWriter.DEFAULT_SEPARATOR,
-				CSVWriter.NO_QUOTE_CHARACTER, // without quotation
-				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-				CSVWriter.DEFAULT_LINE_END)) {
+		try (CSVWriter agentBasedWriter = new CSVWriter(new FileWriter(String.valueOf(statsPtQualityPath)),
+			CSVWriter.DEFAULT_SEPARATOR,
+			CSVWriter.NO_QUOTE_CHARACTER,
+			CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+			CSVWriter.DEFAULT_LINE_END)) {
 
+			agentBasedWriter.writeNext(new String[]{
+				"Person",
+				"MaxWalkToPtPerAgent",
+				"indexValue_MaxWalkToPtPerAgent",
+				"PtToCarTravelTimeRatioPerAgent",
+				"indexValue_PtToCarTravelTimeRatioPerAgent",
+				"PtQuality IndexValue"
+			});
+
+			for (String person : homeCoordinatesPerAgentInStudyArea.keySet()) {
 				agentBasedWriter.writeNext(new String[]{
-					"Person",
-					"MaxWalkToPtPerAgent",
-					"indexValue_MaxWalkToPtPerAgent",
-					"PtToCarTravelTimeRatioPerAgent",
-					"indexValue_PtToCarTravelTimeRatioPerAgent",
-					"PtQuality IndexValue"
+					person,
+					String.valueOf(maxWalkDistancesPerAgent.getOrDefault(person, null)),
+					String.valueOf(maxWalkDistancesPerAgentIndexValue.getOrDefault(person, null)),
+					String.valueOf(maxPtToCarRatioPerAgent.getOrDefault(person, null)),
+					String.valueOf(maxPtToCarRatioPerAgentIndexValue.getOrDefault(person, null)),
+					String.valueOf(overallPtQualityPerAgentIndexValue.getOrDefault(person, null)),
 				});
+			}
+		}
 
-				for (String person : homeCoordinatesPerAgentInStudyArea.keySet()) {
-					agentBasedWriter.writeNext(new String[]{
+		try (CSVWriter modeComparisonWriter = new CSVWriter(new FileWriter(String.valueOf(statsModeComparisonPerTripPath)),
+			CSVWriter.DEFAULT_SEPARATOR,
+			CSVWriter.NO_QUOTE_CHARACTER,
+			CSVWriter.DEFAULT_ESCAPE_CHARACTER,
+			CSVWriter.DEFAULT_LINE_END))
+		{
+
+			modeComparisonWriter.writeNext(new String[]{
+				"Person",
+				"TripID",
+				"tripMainMode",
+				"euclideanDistance",
+				"CarTraveTime",
+				"PTTraveTime",
+				"BikeTraveTime",
+				"WalkTraveTime",
+				"PtmaxLegWalkDistance",
+				"startX",
+				"startY",
+				"endX",
+				"endY"
+			});
+
+			for (String person : valuesPerModePerTripPerAgent.keySet()) {
+				for (String trip : valuesPerModePerTripPerAgent.get(person).keySet()) {
+					modeComparisonWriter.writeNext(new String[]{
 						person,
-						String.valueOf(maxWalkDistancesPerAgent.getOrDefault(person, null)),
-						String.valueOf(maxWalkDistancesPerAgentIndexValue.getOrDefault(person, null)),
-						String.valueOf(maxPtToCarRatioPerAgent.getOrDefault(person, null)),
-						String.valueOf(maxPtToCarRatioPerAgentIndexValue.getOrDefault(person, null)),
-						String.valueOf(overallPtQualityPerAgentIndexValue.getOrDefault(person, null)),
+						trip,
+						mainModePerTrip.get(trip),
+						String.valueOf(euclideanDistancePerTrip.get(trip)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("car").getOrDefault("tripOverallTravelTime", null)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("pt").getOrDefault("tripOverallTravelTime", null)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("bike").getOrDefault("tripOverallTravelTime", null)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("walk").getOrDefault("tripOverallTravelTime", null)),
+						String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("pt").getOrDefault("legWalkMaxDistance", null)),
+						String.valueOf(startCoordinatesPerTrip.get(trip).get(0)),
+						String.valueOf(startCoordinatesPerTrip.get(trip).get(1)),
+						String.valueOf(endCoordinatesPerTrip.get(trip).get(0)),
+						String.valueOf(endCoordinatesPerTrip.get(trip).get(1))
 					});
 				}
 			}
+		}
+		return 0;
+	}
 
-			try (CSVWriter modeComparisonWriter = new CSVWriter(new FileWriter(String.valueOf(statsModeComparisonPerTripPath)),
-				CSVWriter.DEFAULT_SEPARATOR,
-				CSVWriter.NO_QUOTE_CHARACTER, // without quotation
-				CSVWriter.DEFAULT_ESCAPE_CHARACTER,
-				CSVWriter.DEFAULT_LINE_END)) {
-
-				modeComparisonWriter.writeNext(new String[]{
-					"Person",
-					"TripID",
-					"tripMainMode",
-					"euclideanDistance",
-					"CarTraveTime",
-					"PTTraveTime",
-					"BikeTraveTime",
-					"WalkTraveTime",
-					"PtmaxLegWalkDistance",
-					"startX",
-					"startY",
-					"endX",
-					"endY"
-				});
-
-				for (String person : valuesPerModePerTripPerAgent.keySet()) {
-					for (String trip : valuesPerModePerTripPerAgent.get(person).keySet()) {
-						modeComparisonWriter.writeNext(new String[]{
-							person,
-							trip,
-							mainModePerTrip.get(trip),
-							String.valueOf(euclideanDistancePerTrip.get(trip)),
-							String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("car").getOrDefault("tripOverallTravelTime", null)),
-							String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("pt").getOrDefault("tripOverallTravelTime", null)),
-							String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("bike").getOrDefault("tripOverallTravelTime", null)),
-							String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("walk").getOrDefault("tripOverallTravelTime", null)),
-							String.valueOf(valuesPerModePerTripPerAgent.get(person).get(trip).get("pt").getOrDefault("legWalkMaxDistance", null)),
-							String.valueOf(startCoordinatesPerTrip.get(trip).get(0)),
-							String.valueOf(startCoordinatesPerTrip.get(trip).get(1)),
-							String.valueOf(endCoordinatesPerTrip.get(trip).get(0)),
-							String.valueOf(endCoordinatesPerTrip.get(trip).get(1))
-						});
-					}
-				}
-			}
-
-			return 0;
+	/**
+	 * method that transfers time formats to seconds
+	 */
+	public static int timeToSeconds (String time){
+		// Split the time string into hours, minutes, and seconds
+		String[] parts = time.split(":");
+		if (parts.length != 3) {
+			throw new IllegalArgumentException("Invalid time format: " + time);
 		}
 
-		//method to create the Transit Router for the SwissRailRaptor
+		// Parse hours, minutes, and seconds
+		int hours = Integer.parseInt(parts[0]);
+		int minutes = Integer.parseInt(parts[1]);
+		int seconds = Integer.parseInt(parts[2]);
+
+		// Convert to total seconds
+		return hours * 3600 + minutes * 60 + seconds;
+	}
+
+	/**
+	 * 	Stream-based method to count entries without null values
+	 */
+	public static long sizeWithoutNulls (Map < String, Double > map){
+		return map.values().stream()
+			.filter(Objects::nonNull)
+			.count();
+	}
+
+	/**
+	 * method to create the Transit Router for the SwissRailRaptor
+	 */
 		private SwissRailRaptor createTransitRouter (TransitSchedule schedule, Config config, Network network){
-			SwissRailRaptorData data = SwissRailRaptorData.create(schedule, (Vehicles) null, RaptorUtils.createStaticConfig(config), network, (OccupancyData) null);
-			return (new SwissRailRaptor.Builder(data, config)).build();
+		SwissRailRaptorData data = SwissRailRaptorData.create(schedule, (Vehicles) null, RaptorUtils.createStaticConfig(config), network, (OccupancyData) null);
+		return (new SwissRailRaptor.Builder(data, config)).build();
+	}
+
+	/**
+	 * method to initialize the SwissRailRaptor
+ 	 */
+	public void initializeSwissRailRaptor () {
+		RaptorParameters raptorParams = RaptorUtils.createParameters(config);
+		this.transitRouter = this.createTransitRouter(TransitSchedule, config, network);
+	}
+
+	/**
+	 * method to calculate the car trip in the occupied network for all trips that are not car trips
+ 	 */
+	private Map<String, Double> calculateCarTrip (String startLinkID, String endLinkID, String departureTime){
+		double tripOverallTravelTime = 0.0;
+		double currentTime = timeToSeconds(departureTime);
+		Map<String, Double> CarTripValues = new HashMap<>();
+
+		// Define start and end link
+		Link startLink = network.getLinks().get(Id.createLinkId(startLinkID));
+		Link endLink = network.getLinks().get(Id.createLinkId(endLinkID));
+
+		// Calculate optimal Route
+		Node startNode = startLink.getToNode();
+		Node endNode = endLink.getToNode();
+		LeastCostPathCalculator.Path path = router.calcLeastCostPath(startNode, endNode, timeToSeconds(departureTime), null, null);
+
+		if (path == null) {
+			//	System.out.println("No car route found for " + startLinkID + " and " + endLinkID);
+			CarTripValues.put("tripOverallTravelTime", null);
 		}
 
-		// method to initialize the SwissRailRaptor
-		public void initializeSwissRailRaptor () {
-			RaptorParameters raptorParams = RaptorUtils.createParameters(config);
-			this.transitRouter = this.createTransitRouter(TransitSchedule, config, network);
+		// Calculate Overall Car travel time
+		for (Link link : path.links) {
+			tripOverallTravelTime += travelTime.getLinkTravelTime(link, currentTime, null, null);
+			currentTime += travelTime.getLinkTravelTime(link, currentTime, null, null);
 		}
 
-		// method to calculate the car trip in the occupied network for all trips that are not car trips
-		private Map<String, Double> calculateCarTrip (String startLinkID, String endLinkID, String departureTime){
-			double tripOverallTravelTime = 0.0;
-			double currentTime = timeToSeconds(departureTime);
-			Map<String, Double> CarTripValues = new HashMap<>();
+		CarTripValues.put("tripOverallTravelTime", tripOverallTravelTime);
+		return CarTripValues;
+	}
 
-			// Define start and end link
-			Link startLink = network.getLinks().get(Id.createLinkId(startLinkID));
-			Link endLink = network.getLinks().get(Id.createLinkId(endLinkID));
+	/**
+	 * method to get the information for the occupation of the network from the events file
+ 	 */
+	public TravelTimeCalculator readEventsIntoTravelTimeCalculator (Network network ){
+		EventsManager manager = EventsUtils.createEventsManager();
+		TravelTimeCalculator.Builder builder = new TravelTimeCalculator.Builder(network);
+		TravelTimeCalculator tcc = builder.build();
+		manager.addHandler(tcc);
+		manager.initProcessing();
+		new MatsimEventsReader(manager).readFile(String.valueOf(eventsPath));
+		manager.finishProcessing();
+		return tcc;
+	}
 
-			// Calculate optimal Route
-			Node startNode = startLink.getToNode();
-			Node endNode = endLink.getToNode();
-			LeastCostPathCalculator.Path path = router.calcLeastCostPath(startNode, endNode, timeToSeconds(departureTime), null, null);
+	/**
+	 * method to calculate the pt trip
+ 	 */
+	private Map<String, Double> calculatePtTrip (Facility start, Facility end, String time){
+		double tripOverallTravelTime = 0.0;
+		double legWalkMaxDistance = 0.0;
+		Map<String, Double> PtTripValues = new HashMap<>();
 
-			if (path == null) {
-				//	System.out.println("No car route found for " + startLinkID + " and " + endLinkID);
-				CarTripValues.put("tripOverallTravelTime", null);
-			}
-
-			// Calculate Overall Car travel time
-			for (Link link : path.links) {
-				tripOverallTravelTime += travelTime.getLinkTravelTime(link, currentTime, null, null);
-				currentTime += travelTime.getLinkTravelTime(link, currentTime, null, null);
-			}
-
-			CarTripValues.put("tripOverallTravelTime", tripOverallTravelTime);
-			return CarTripValues;
+		if (transitRouter == null) {
+			throw new IllegalStateException("TransitRouter has not been initialized. Call initializeSwissRailRaptor first.");
 		}
 
-		// method to get the information for the occupation of the network from the events file
-		public TravelTimeCalculator readEventsIntoTravelTimeCalculator (Network network ){
-			EventsManager manager = EventsUtils.createEventsManager();
-			TravelTimeCalculator.Builder builder = new TravelTimeCalculator.Builder(network);
-			TravelTimeCalculator tcc = builder.build();
-			manager.addHandler(tcc);
-			manager.initProcessing();
-			new MatsimEventsReader(manager).readFile(String.valueOf(eventsPath));
-			manager.finishProcessing();
-			return tcc;
-		}
+		List<? extends PlanElement> planElements = transitRouter.calcRoute(DefaultRoutingRequest.withoutAttributes(start, end, timeToSeconds(time), (Person) null));
 
-		// method to calculate the pt trip
-		private Map<String, Double> calculatePtTrip (Facility start, Facility end, String time){
-			double tripOverallTravelTime = 0.0;
-			double legWalkMaxDistance = 0.0;
-			Map<String, Double> PtTripValues = new HashMap<>();
+		if (planElements == null) {
+			//	System.out.println("No pt route found for " + start + " and " + end);
+			PtTripValues.put("tripOverallTravelTime", null);
+			PtTripValues.put("legWalkMaxDistance", null);
 
-			if (transitRouter == null) {
-				throw new IllegalStateException("TransitRouter has not been initialized. Call initializeSwissRailRaptor first.");
-			}
+		} else {
+			List<Leg> legs = TripStructureUtils.getLegs(planElements);
 
-			List<? extends PlanElement> planElements = transitRouter.calcRoute(DefaultRoutingRequest.withoutAttributes(start, end, timeToSeconds(time), (Person) null));
-
-			if (planElements == null) {
-				//	System.out.println("No pt route found for " + start + " and " + end);
-				PtTripValues.put("tripOverallTravelTime", null);
-				PtTripValues.put("legWalkMaxDistance", null);
-
-			} else {
-				List<Leg> legs = TripStructureUtils.getLegs(planElements);
-
-				for (Leg leg : legs) {
-					tripOverallTravelTime += leg.getTravelTime().seconds();
-					//	System.out.println("ptTravelTime for " + leg + "is " + tripOverallTravelTime);
-					if (Objects.equals(leg.getMode(), "walk")) {
-						legWalkMaxDistance = Math.max(legWalkMaxDistance, leg.getRoute().getDistance());
-					}
-				}
-
-				PtTripValues.put("tripOverallTravelTime", tripOverallTravelTime);
-				PtTripValues.put("legWalkMaxDistance", legWalkMaxDistance);
-			}
-			return PtTripValues;
-		}
-
-		// method to create a facility from coordinates and a link
-		private Facility createFacility (String coordinateX, String coordinateY, String string_link){
-			Id<Link> LinkId = Id.createLinkId(string_link);
-			Link link = network.getLinks().get(LinkId);
-			Coord coordinate = new Coord(Double.parseDouble(coordinateX), Double.parseDouble(coordinateY));
-			return new LinkWrapperFacilityWithSpecificCoord(link, coordinate);
-		}
-
-		// method to initialize the scenario
-		private void initializeScenario () {
-			if (this.scenario == null) {
-				this.config = ConfigUtils.loadConfig(String.valueOf(CONFIG_FILE));
-				this.routingConfig = config.routing();
-				this.scenario = ScenarioUtils.loadScenario(config);
-				Population population = scenario.getPopulation();
-				this.network = scenario.getNetwork();
-				this.TransitSchedule = scenario.getTransitSchedule();
-				this.travelTimeCalculator = readEventsIntoTravelTimeCalculator(network);
-				this.travelTime = travelTimeCalculator.getLinkTravelTimes();
-				// initialize router
-				this.travelDisutility = new TravelDisutility() {
-					@Override
-					public double getLinkTravelDisutility(Link link, double v, Person person, Vehicle vehicle) {
-						return travelTime.getLinkTravelTime(link, v, person, vehicle);
-					}
-
-					@Override
-					public double getLinkMinimumTravelDisutility(Link link) {
-						return link.getLength() / link.getFreespeed(); // Minimale Reisezeit basierend auf Freigeschwindigkeit
-					}
-				};
-
-				this.router = new DijkstraFactory().createPathCalculator(network, travelDisutility, travelTime);
-
-				AccessibilityConfigGroup accConfig = ConfigUtils.addOrGetModule(config, AccessibilityConfigGroup.class);
-			}
-		}
-
-		// method that transfers time formats to seconds
-		public static int timeToSeconds (String time){
-			// Split the time string into hours, minutes, and seconds
-			String[] parts = time.split(":");
-			if (parts.length != 3) {
-				throw new IllegalArgumentException("Invalid time format: " + time);
-			}
-
-			// Parse hours, minutes, and seconds
-			int hours = Integer.parseInt(parts[0]);
-			int minutes = Integer.parseInt(parts[1]);
-			int seconds = Integer.parseInt(parts[2]);
-
-			// Convert to total seconds
-			return hours * 3600 + minutes * 60 + seconds;
-		}
-
-		private double getLegWalkDistanceMax (String trip) throws IOException {
-			double legWalkMaxDistance = 0.0;
-			try (InputStream fileStream = new FileInputStream(legsPath.toFile());
-				 InputStream gzipStream = new GZIPInputStream(fileStream);
-				 Reader reader = new InputStreamReader(gzipStream);
-				 CSVParser legsParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withDelimiter(';'))) {
-
-				//read legs input file line by line, extract the content and use for iterations over all legs (instead of other for or while-loop)
-				for (CSVRecord legsRecord : legsParser) {
-					if (Objects.equals(legsRecord.get("trip_id"), trip)) {
-						legWalkMaxDistance = Math.max(legWalkMaxDistance, Double.parseDouble(legsRecord.get("distance")));
-					}
+			for (Leg leg : legs) {
+				tripOverallTravelTime += leg.getTravelTime().seconds();
+				//	System.out.println("ptTravelTime for " + leg + "is " + tripOverallTravelTime);
+				if (Objects.equals(leg.getMode(), "walk")) {
+					legWalkMaxDistance = Math.max(legWalkMaxDistance, leg.getRoute().getDistance());
 				}
 			}
-			return legWalkMaxDistance;
-		}
 
+			PtTripValues.put("tripOverallTravelTime", tripOverallTravelTime);
+			PtTripValues.put("legWalkMaxDistance", legWalkMaxDistance);
+		}
+		return PtTripValues;
+	}
+
+	/**
+	 * method to create a facility from coordinates and a link
+ 	 */
+	private Facility createFacility (String coordinateX, String coordinateY, String string_link){
+		Id<Link> LinkId = Id.createLinkId(string_link);
+		Link link = network.getLinks().get(LinkId);
+		Coord coordinate = new Coord(Double.parseDouble(coordinateX), Double.parseDouble(coordinateY));
+		return new LinkWrapperFacilityWithSpecificCoord(link, coordinate);
+	}
+
+	/**
+	 * method to initialize the scenario
+ 	 */
+	private void initializeScenario () {
+		if (this.scenario == null) {
+			this.config = ConfigUtils.loadConfig(String.valueOf(CONFIG_FILE));
+			this.routingConfig = config.routing();
+			this.scenario = ScenarioUtils.loadScenario(config);
+			Population population = scenario.getPopulation();
+			this.network = scenario.getNetwork();
+			this.TransitSchedule = scenario.getTransitSchedule();
+			this.travelTimeCalculator = readEventsIntoTravelTimeCalculator(network);
+			this.travelTime = travelTimeCalculator.getLinkTravelTimes();
+			// initialize router
+			this.travelDisutility = new TravelDisutility() {
+				@Override
+				public double getLinkTravelDisutility(Link link, double v, Person person, Vehicle vehicle) {
+					return travelTime.getLinkTravelTime(link, v, person, vehicle);
+				}
+
+				@Override
+				public double getLinkMinimumTravelDisutility(Link link) {
+					return link.getLength() / link.getFreespeed(); // Minimale Reisezeit basierend auf Freigeschwindigkeit
+				}
+			};
+
+			this.router = new DijkstraFactory().createPathCalculator(network, travelDisutility, travelTime);
+		}
+	}
+
+
+
+	/**
+	 * catch all maximum leg walk distances per trip
+	 */
 	private Map<String, Double> getAllLegWalkDistanceMax() throws IOException {
 		Map<String, Double> tripMaxDistances = new HashMap<>();
 		try (InputStream fileStream = new FileInputStream(legsPath.toFile());
@@ -815,14 +828,4 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		}
 		return tripMaxDistances;
 	}
-
-
-
-
-		// Stream-based method to count entries without null values
-		public static long sizeWithoutNulls (Map < String, Double > map){
-			return map.values().stream()  // Convert the values of the map into a stream
-				.filter(Objects::nonNull)  // Filters out the null values
-				.count();  // Counts the remaining elements (non-null values)
-		}
-	}
+}

@@ -78,6 +78,8 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 	private final GeometryFactory geometryFactory = new GeometryFactory();
 
 	private static final Logger log = LogManager.getLogger(AgentLiveabilityInfoCollection.class);
+	private long counter = 0L;
+	private long nextCounterMsg = 1L;
 
 	// method generates the csv-Files - the methods to extend the files are called in the dimension analysis classes
 	@Override
@@ -100,6 +102,8 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 			throw new IOException("The file output_persons.csv.gz could not be found: " + personsCsvPath);
 		}
 
+		log.info("Starting spatial ");
+
 		try (InputStream fileStream = new FileInputStream(personsCsvPath.toFile());
 			 InputStream gzipStream = new GZIPInputStream(fileStream);
 			 Reader personsReader = new InputStreamReader(gzipStream);
@@ -116,6 +120,13 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 				String person = record.get("person");
 				String homeX = (record.get("home_x"));
 				String homeY = (record.get("home_y"));
+
+				// logarithmic counter for logger
+				++this.counter;
+				if (this.counter == this.nextCounterMsg) {
+					this.nextCounterMsg *= 4L;
+					log.info(" person # {}", this.counter);
+				}
 
 				if (homeX != null && !homeX.isEmpty() && homeY != null && !homeY.isEmpty()) {
 					try {
