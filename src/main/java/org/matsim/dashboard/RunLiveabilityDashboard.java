@@ -29,16 +29,8 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	private static Path outputDirectory;
 
 	// option to insert standard input and output paths for users
-//	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("Insert your input path here");
-//	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("Insert your output path here");
-
-	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Masterarbeit final/input_BerlinCharlottenburg");
-	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/input_Kelheim");
-	//private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/inputBerlin_new");
-	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/OBS_Base/6.4_output_Charlottenburg - 8.333");
-	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/Kelheim from svn/BaseCase_output_final");
-	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/OBS_Base/output_OBS_Base/berlin-v6.3-10pct");
-	//private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("C:/Users/annab/MatSim for MA/Output_Cluster/outputBerlin_Base_all");
+	private static final Path DEFAULT_INPUT_DIRECTORY = Paths.get("Insert your input path here");
+	private static final Path DEFAULT_OUTPUT_DIRECTORY = Paths.get("Insert your output path here");
 
 	// public static attributes - necessary to save the valid input and output directory paths
 	public static Path validInputDirectory;
@@ -86,19 +78,26 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 		return 0;
 	}
 
-	// deciding whether path given as absolute path or via command line is used for the input path
+	/**
+	* deciding whether path given as absolute path or via command line is used for the input path
+	 */
 	public static Path getValidInputDirectory() {
 		validInputDirectory = (inputDirectory != null) ? inputDirectory : (DEFAULT_INPUT_DIRECTORY);
 		return validInputDirectory;
 	}
 
-	// deciding whether path given as absolute path or via command line is used for the output path
+	/**
+	 * deciding whether path given as absolute path or via command line is used for the output path
+	 */
 	public static Path getValidOutputDirectory() {
 		validOutputDirectory = (outputDirectory != null) ? outputDirectory : (DEFAULT_OUTPUT_DIRECTORY);
 		return validOutputDirectory;
 	}
 
-	// deciding whether path given as absolute path or via command line is used for the analysis output path
+
+	/**
+	 * deciding whether path given as absolute path or via command line is used for the analysis output path
+	 */
 	public static Path getValidLiveabilityOutputDirectory() {
 		if (validLiveabilityOutputDirectory == null) {
 			String groupName = RunLiveabilityDashboard.class.getAnnotation(CommandSpec.class).group();
@@ -107,6 +106,9 @@ public class RunLiveabilityDashboard implements MATSimAppCommand {
 	return validLiveabilityOutputDirectory;
 	}
 
+	/**
+	 * creates liveability directory
+	 */
 	public static void createLiveabilityDirectory() throws IOException {
 		Path baseOutputDirectory = getValidOutputDirectory();
 		String groupName = RunLiveabilityDashboard.class.getAnnotation(CommandSpec.class).group();

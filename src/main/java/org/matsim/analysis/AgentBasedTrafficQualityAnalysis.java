@@ -491,8 +491,6 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 				String intervalStart = getIntervalStart(timeFormat.parse(depTime), 15);
 				lossTimePerTimeIntervall.put(intervalStart, lossTimePerTimeIntervall.getOrDefault(intervalStart, 0.0) + legLossTime.getSeconds());
 
-
-
 				// calculate sum of travel time and of loss time per agent. overall loss time sum and mode per person info
 				freeSpeedTravTimePerAgent.put(person, freeSpeedTravTimePerAgent.getOrDefault(person, 0.0) + legFreeSpeedTravTime.getSeconds());
 				lossTimePerAgent.put(person, lossTimePerAgent.getOrDefault(person, 0.0) + legLossTime.getSeconds());
@@ -554,7 +552,6 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 				temp_lossTimeIndexValue = (lossTimePercentagePerAgent.get(person) - limitRelativeLossTime) / limitRelativeLossTime;
 				lossTimeIndexValuePerAgent.put(person, temp_lossTimeIndexValue);
-
 			}
 
 			for (double lossTime : lossTimePerAgent.values()) {
@@ -897,11 +894,9 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 
 			case "pt":
 			default:
-			//	System.out.println("No calculation of free speed travel time defined for mode: " + mode);
 		}
 		return backup_travelTime;
 	}
-
 
 	/**
 	 * method the parse time from String

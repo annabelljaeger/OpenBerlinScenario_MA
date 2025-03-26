@@ -60,7 +60,6 @@ public class LiveabilitySummaryAnalysis implements MATSimAppCommand {
 
 	private static final Logger log = LogManager.getLogger(LiveabilitySummaryAnalysis.class);
 
-
 	public static void main(String[] args) {
 		new LiveabilitySummaryAnalysis().execute(args);
 	}

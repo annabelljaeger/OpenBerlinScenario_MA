@@ -106,11 +106,11 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path outputPersonsCSVPath = getValidLiveabilityOutputDirectory().resolve("greenSpace_stats_perAgent.csv");
 	private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.gpkg");
 	private final Path outputGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_statsGeofile.gpkg");
+	// If there is a use for an agent specific geofile, this path can be reintroduced (code is available in this method, just commented for quicker calculations as this file is not required for the dashboard).
 	//private final Path outputAgentGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_perAgentGeofile.gpkg");
 
 	private long counter = 0L;
 	private long nextCounterMsg = 1L;
-
 
 	public static void main(String[] args) {
 		new AgentBasedGreenSpaceAnalysis().execute(args);
@@ -492,7 +492,7 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			featureCollection.add(feature);
 		}
 
-		// writing the FeatureCollection into a gpkg
+		// writing the FeatureCollection into a gpkg - reintrodice if agent specific geofile shall be created
 		//AgentBasedGreenSpaceAnalysis.deleteExistingFile(String.valueOf(outputAgentGreenSpaceGeofile));
 		//GeoFileWriter.writeGeometries(featureCollection, String.valueOf(outputAgentGreenSpaceGeofile));
 
@@ -626,7 +626,6 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	 * calculating the utilization per green space by dividing the people by the area of the green space to receive the number
 	 * of people per m² of green space
 	 */
-
 	private void calculateGreenSpaceUtilization(Map<String, Double> areaPerGreenSpace,
 												Map<String, Integer> nrOfPeoplePerGreenSpace,
 												Map<String, Double> utilizationPerGreenSpace,
@@ -639,5 +638,4 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 			greenSpaceUtilizationDeviationValuePerGreenSpace.put(greenSpaceId, ((peopleCount/area)-limitGreenSpaceUtilization)/limitGreenSpaceUtilization);
 		}
 	}
-
 }

@@ -23,7 +23,6 @@ import org.matsim.application.Dependency;
 import org.matsim.application.MATSimAppCommand;
 import org.matsim.application.options.InputOptions;
 import org.matsim.application.options.OutputOptions;
-import org.matsim.contrib.accessibility.AccessibilityConfigGroup;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.config.Config;
 import org.matsim.core.config.ConfigUtils;
@@ -115,6 +114,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private final Path legsPath = ApplicationUtils.matchInput("legs.csv.gz", getValidOutputDirectory());
 	private final Path eventsPath = ApplicationUtils.matchInput("events.xml.gz", getValidOutputDirectory());
 	private final Path inputAgentLiveabilityInfoPath = ApplicationUtils.matchInput("overall_stats_agentLiveabilityInfo.csv", getValidLiveabilityOutputDirectory());
+
 	//Output paths
 	private final Path statsPtQualityPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_perAgent.csv");
 	private final Path statsModeComparisonPerTripPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_stats_modeComparisonPerTrip.csv");
@@ -171,11 +171,9 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		Map<String, Map<String, Map<String, Map<String, Double>>>> valuesPerModePerTripPerAgent = new HashMap<>();
 		Map<String, Double> tripMaxWalkDistances = new HashMap<>();
 
-
 		// initializing counters
 		int counterTesting = 0;
 		int limitTesting = -1; // no limit for  -1
-
 
 		// initializing counters for index value calculations
 		double counterOverallPtQuality = 0;
@@ -217,7 +215,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		double counterEco50PercentOverLimit = 0;
 
 		tripMaxWalkDistances = getAllLegWalkDistanceMax();
-
 
 		//prepping a map for all study area agents to be used for writing files and calculating index values
 		try (Reader studyAreaAgentReader = new FileReader(inputAgentLiveabilityInfoPath.toFile());
@@ -425,7 +422,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 				maxEcoMobilityToCarRatioPerAgentIndexValue.put(agent, maxEcoMobilityToCarRatioIndexValue);
 			}
 
-
 			// calculating percentage of agents with deviation under 0 (index value per indicator) and for further analysis also for deviation -0.5 and +0.5
 			for (Map.Entry<String, List<String>> entry : homeCoordinatesPerAgentInStudyArea.entrySet()) {
 				String agentId = entry.getKey();
@@ -478,7 +474,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 			if (maxEcoMobilityToCarRatioPerAgentIndexValue.get(agentId)  <= 0.5) {
 				counterEco50PercentOverLimit++;
 			}
-
 		}
 
 		// calculating overall index values and indicator index values
@@ -796,8 +791,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 			this.router = new DijkstraFactory().createPathCalculator(network, travelDisutility, travelTime);
 		}
 	}
-
-
 
 	/**
 	 * catch all maximum leg walk distances per trip
