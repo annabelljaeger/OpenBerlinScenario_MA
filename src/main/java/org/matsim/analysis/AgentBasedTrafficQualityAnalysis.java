@@ -125,6 +125,8 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 	private final Path BarChartNumberOfModesPath = getValidLiveabilityOutputDirectory().resolve("travelTime_bar_numberOfModes.csv");
 
 	private static final Logger log = LogManager.getLogger(AgentBasedTrafficQualityAnalysis.class);
+	private long counter = 0L;
+	private long nextCounterMsg = 1L;
 
 
 	public static void main(String[] args) {
@@ -390,16 +392,25 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 				"end_link"
 			});
 
+			log.info("Leg loss time calculation begins");
 
 			for (CSVRecord legRecord : legsParser) {
+
+				String person = legRecord.get("person");
+				if (!homeCoordinatesPerAgentInStudyArea.containsKey(person)) {
+					continue;
+				}
 
 				// if statement for calculating only some agents
 				if (count >= limit && limit != -1) {
 					break;
 				}
-				String person = legRecord.get("person");
-				if (!homeCoordinatesPerAgentInStudyArea.containsKey(person)) {
-					continue;
+
+				// logarithmic counter for logger
+				++this.counter;
+				if (this.counter == this.nextCounterMsg) {
+					this.nextCounterMsg *= 4L;
+					log.info(" leg # " + this.counter );
 				}
 
 				//Initializing leg variables
@@ -589,28 +600,28 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 			formattedTravelTime50PercentOverIndexValue = String.format(Locale.US, "%.2f%%", travelTime50PercentOverIndexValue * 100);
 
 			meanTotalLossTime = lossTimePerAgent.values().stream().collect(Collectors.averagingDouble(Double::doubleValue));
-			formattedMeanTotalLossTime = formatDuration(Duration.ofSeconds((long) meanTotalLossTime)); //String.format(Locale.US, "%.2f min", meanTotalLossTime / 60);
+			formattedMeanTotalLossTime = formatDuration(Duration.ofSeconds((long) meanTotalLossTime));
 
 			medianTotalLossTime = AgentLiveabilityInfoCollection.calculateMedian(lossTimePerAgent);
-			formattedMedianTotalLossTime = formatDuration(Duration.ofSeconds((long) medianTotalLossTime)); //String.format(Locale.US, "%.2f min", medianTotalLossTime / 60);
+			formattedMedianTotalLossTime = formatDuration(Duration.ofSeconds((long) medianTotalLossTime));
 
 			medianLongestCarTrip = AgentLiveabilityInfoCollection.calculateMedian(longestTripTravelTimePerAgent.entrySet().stream()
 				.filter(entry -> "car".equals(longestTripModePerAgent.get(entry.getKey())))
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
-			formattedMedianLongestCarTrip = formatDuration(Duration.ofSeconds((long) medianLongestCarTrip)); //String.format(Locale.US, "%.2f min", medianLongestCarTrip/ 60);
+			formattedMedianLongestCarTrip = formatDuration(Duration.ofSeconds((long) medianLongestCarTrip));
 
 			medianLongestPTTrip = AgentLiveabilityInfoCollection.calculateMedian(longestTripTravelTimePerAgent.entrySet().stream()
 				.filter(entry -> "pt".equals(longestTripModePerAgent.get(entry.getKey())))
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
-			formattedMedianLongestPTTrip = formatDuration(Duration.ofSeconds((long) medianLongestPTTrip)); //String.format(Locale.US, "%.2f min", medianLongestPTTrip/ 60);
+			formattedMedianLongestPTTrip = formatDuration(Duration.ofSeconds((long) medianLongestPTTrip));
 
 			medianLongestRideTrip = AgentLiveabilityInfoCollection.calculateMedian(longestTripTravelTimePerAgent.entrySet().stream()
 				.filter(entry -> "ride".equals(longestTripModePerAgent.get(entry.getKey())))
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
-			formattedMedianLongestRideTrip = formatDuration(Duration.ofSeconds((long) medianLongestRideTrip)); //String.format(Locale.US, "%.2f min", medianLongestRideTrip/ 60);
+			formattedMedianLongestRideTrip = formatDuration(Duration.ofSeconds((long) medianLongestRideTrip));
 
 			medianLongestTrip = AgentLiveabilityInfoCollection.calculateMedian(longestTripTravelTimePerAgent);
-			formattedMedianLongestTrip = formatDuration(Duration.ofSeconds((long) medianLongestTrip)); //String.format(Locale.US, "%.2f min", medianLongestTrip/ 60);
+			formattedMedianLongestTrip = formatDuration(Duration.ofSeconds((long) medianLongestTrip));
 
 			//Write Information in Agent Livability Info Collection
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(longestTripTravelTimePerAgent, "maxTravelTimePerTrip");
@@ -623,10 +634,10 @@ public class AgentBasedTrafficQualityAnalysis implements MATSimAppCommand {
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(lossTimeLimitPerAgent, "limit_relativeLossTime");
 			agentLiveabilityInfoCollection.extendAgentLiveabilityInfoCsvWithAttribute(lossTimeIndexValuePerAgent, "indexValue_relativeLossTime");
 
-			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedTravelTimeIndexValue, "Travel Time Index Value");
+			agentLiveabilityInfoCollection.extendSummaryTilesCsvWithAttribute(formattedTravelTimeIndexValue, "Traffic Quality Time Index Value");
 
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Longest trip", formattedMedianLongestTrip, "60 / 30 / inf min", formattedLongestTripIndexValue);
-			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Travel Time", "Loss time", formattedMedianTotalLossTime, String.valueOf(limitRelativeLossTime), formattedLossTimeIndexValue);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Traffic Quality", "Longest trip", formattedMedianLongestTrip, "60 / 30 / inf min", formattedLongestTripIndexValue);
+			agentLiveabilityInfoCollection.extendIndicatorValuesCsvWithAttribute("Traffic Quality", "Loss time", formattedMedianTotalLossTime, String.valueOf(limitRelativeLossTime), formattedLossTimeIndexValue);
 
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTLossTimeAgentMapPath, lossTimeIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);
 			AgentLiveabilityInfoCollection.writeXYTDataToCSV(XYTLongestTripAgentMapPath, longestTripIndexValuePerAgent, homeCoordinatesPerAgentInStudyArea);

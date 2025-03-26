@@ -195,7 +195,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 		// generate and initialize empty/placeholder-filled csv-file
 		try (CSVWriter writer = new CSVWriter(new FileWriter(outputCategoryRankingCsvPath.toFile()))) {
-			writer.writeNext(new String[]{"Why is there nothing here? :( - CSV created but no content added"});
+			writer.writeNext(new String[]{"Theres nothing here to see :( - CSV created but no content added"});
 
 			log.info("The prepared file Datei summaryTiles.csv has been generated: " + outputCategoryRankingCsvPath);
 		}
@@ -209,7 +209,7 @@ public class AgentLiveabilityInfoCollection implements MATSimAppCommand {
 
 			String[] nextLine;
 			while ((nextLine = tilesReader.readNext()) != null) {
-				if (String.join(";", nextLine).contains("Theres nothing here to see :(")) {
+				if (String.join(";", nextLine).contains("Theres nothing here to see :( - CSV created but no content added")) {
 					continue;
 				}
 				tilesWriter.writeNext(nextLine);

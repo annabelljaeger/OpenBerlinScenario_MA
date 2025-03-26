@@ -52,7 +52,8 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
-import static org.matsim.dashboard.RunLiveabilityDashboard.*;
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidLiveabilityOutputDirectory;
+import static org.matsim.dashboard.RunLiveabilityDashboard.getValidOutputDirectory;
 
 
 @CommandLine.Command(
@@ -103,7 +104,6 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private TravelDisutility travelDisutility;
 	private LeastCostPathCalculator router;
 
-
 	private final double limitTravelTimeComparison = 2.0;
 	private final double limitMaxWalkToPTDistance = 500;
 
@@ -126,7 +126,10 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 	private final Path TilesEcoMobilityRatioPath = getValidLiveabilityOutputDirectory().resolve("ptQuality_Tiles_EcoMobilityRatio.csv");
 
 	private static final Logger log = LogManager.getLogger(AgentBasedPtQualityAnalysis.class);
-
+	private long counter = 0L;
+	private long nextCounterMsg = 1L;
+	private long counterWalkLegs = 0L;
+	private long nextCounterWalkLegsMsg = 1;
 
 	public static void main(String[] args) {
 		new AgentBasedAccessibilityAnalysis().execute(args);
@@ -141,7 +144,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		initializeScenario();
 		initializeSwissRailRaptor();
 
-		log.info("Initialization successful");
+		log.info("Initialization of Scenario and SwissRailRaptor successful");
 
 		Map<String, Double> beelineDistanceFactors = routingConfig.getBeelineDistanceFactors(); // beelineFactors
 		beelineDistanceFactors.putIfAbsent("bike", 1.3);
@@ -164,10 +167,12 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		Map<String, Double> maxEcoMobilityToCarRatioPerAgentIndexValue = new HashMap<>();
 		Map<String, Double> overallPtQualityPerAgentIndexValue = new HashMap<>();
 		Map<String, Map<String, Map<String, Map<String, Double>>>> valuesPerModePerTripPerAgent = new HashMap<>();
+		Map<String, Double> tripMaxWalkDistances = new HashMap<>();
+
 
 		// initializing counters
 		int counterTesting = 0;
-		int limitTesting = 100000; // no limit for  -1
+		int limitTesting = -1; // no limit for  -1
 
 
 		// initializing counters for index value calculations
@@ -209,6 +214,8 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 		double counterEco50PercentUnderLimit = 0;
 		double counterEco50PercentOverLimit = 0;
 
+		tripMaxWalkDistances = getAllLegWalkDistanceMax();
+
 
 		//prepping a map for all study area agents to be used for writing files and calculating index values
 		try (Reader studyAreaAgentReader = new FileReader(inputAgentLiveabilityInfoPath.toFile());
@@ -229,6 +236,8 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 			}
 		}
 
+		log.info("Travel Time calculations per Trip for comparison begin.");
+
 		//use CSVParser for reading the trips.csv.gz file and CSVWriter for writing the output files
 		try (InputStream fileStream = new FileInputStream(tripsPath.toFile());
 			 InputStream gzipStream = new GZIPInputStream(fileStream);
@@ -237,6 +246,13 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 			//read trips input file line by line, extract the content and use for iterations over all trips (instead of other for or while-loop)
 			for (CSVRecord tripRecord : tripParser) {
+
+				++this.counter;
+				if (this.counter == this.nextCounterMsg) {
+					this.nextCounterMsg *= 2L;
+					log.info(" trip # " + this.counter);
+				}
+
 				Map<String, Map<String, Double>> modeValues = new HashMap<>();
 				Map<String, Double> ptTripValues = new HashMap<>();
 				Map<String, Double> carTripValues = new HashMap<>();
@@ -293,7 +309,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 
 						case "drt":
 						case "pt":
-							ptTripValues.put("legWalkMaxDistance", getLegWalkDistanceMax(tripId));
+							ptTripValues.put("legWalkMaxDistance", tripMaxWalkDistances.getOrDefault(tripId, null));
 							ptTripValues.put("tripOverallTravelTime", (double) timeToSeconds(currentTravTime));
 							carTripValues = calculateCarTrip(startLink, endLink, depTime);
 							walkTripValues.put("tripOverallTravelTime", euclideanDistance * beelineDistanceFactors.get("walk") / teleportedModeSpeeds.get("walk"));
@@ -343,7 +359,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 				tripValues.put(tripId, modeValues);
 				valuesPerModePerTripPerAgent.put(person, tripValues);
 			}
-			log.info("PT Routing completed.");
+			log.info("PT and Car Routing completed.");
 		}
 
 		for (String agent : valuesPerModePerTripPerAgent.keySet()) {
@@ -531,7 +547,7 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 				MaxWalkToPtWriter.writeNext(new String[]{"Mean max walk to Pt distance", formattedMeanMaxWalkToPt});
 				MaxWalkToPtWriter.writeNext(new String[]{"Median max walk to Pt distance", formattedMedianMaxWalkToPt});
 
-				MaxPtToCarRatioWriter.writeNext(new String[]{"Pt to Car travel time ratio Index Value", formattedPtQualityIndexValue});
+				MaxPtToCarRatioWriter.writeNext(new String[]{"Pt to Car travel time ratio Index Value", formattedPtToCarRatioIndexValue});
 				MaxPtToCarRatioWriter.writeNext(new String[]{"Mean Pt to car travel time ratio", formattedMeanPtToCarRatio});
 				MaxPtToCarRatioWriter.writeNext(new String[]{"Median Pt to car travel time ratio", formattedMedianPtToCarRatio});
 
@@ -772,6 +788,36 @@ public class AgentBasedPtQualityAnalysis implements MATSimAppCommand {
 			}
 			return legWalkMaxDistance;
 		}
+
+	private Map<String, Double> getAllLegWalkDistanceMax() throws IOException {
+		Map<String, Double> tripMaxDistances = new HashMap<>();
+		try (InputStream fileStream = new FileInputStream(legsPath.toFile());
+			 InputStream gzipStream = new GZIPInputStream(fileStream);
+			 Reader reader = new InputStreamReader(gzipStream);
+			 CSVParser legsParser = new CSVParser(reader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withDelimiter(';'))) {
+
+			// Iteration über alle Zeilen der CSV-Datei
+			for (CSVRecord legsRecord : legsParser) {
+				++this.counterWalkLegs;
+				if (this.counterWalkLegs == this.nextCounterWalkLegsMsg) {
+					this.nextCounterWalkLegsMsg *= 4L;
+					log.info(" GetTripWithWalk # " + this.counterWalkLegs);
+				}
+
+				String tripId = legsRecord.get("trip_id");
+				String mode = legsRecord.get("mode");
+				double distance = Double.parseDouble(legsRecord.get("distance"));
+
+				if (Objects.equals(mode, "walk")) {
+					tripMaxDistances.put(tripId, Math.max(tripMaxDistances.getOrDefault(tripId, 0.0), distance));
+				}
+			}
+		}
+		return tripMaxDistances;
+	}
+
+
+
 
 		// Stream-based method to count entries without null values
 		public static long sizeWithoutNulls (Map < String, Double > map){

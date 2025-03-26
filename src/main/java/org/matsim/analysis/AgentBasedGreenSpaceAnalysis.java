@@ -108,6 +108,8 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 	private final Path outputGreenSpaceGeofile = getValidLiveabilityOutputDirectory().resolve("greenSpace_statsGeofile.gpkg");
 
 	private static final Logger log = LogManager.getLogger(AgentBasedGreenSpaceAnalysis.class);
+	private long counter = 0L;
+	private long nextCounterMsg = 1L;
 
 
 	public static void main(String[] args) {
@@ -202,8 +204,16 @@ public class AgentBasedGreenSpaceAnalysis implements MATSimAppCommand {
 				 CSVWriter.DEFAULT_ESCAPE_CHARACTER,
 				 CSVWriter.DEFAULT_LINE_END)) {
 
+			log.info("AccessPoint iterations begin");
 			// processing access point features
 			for (SimpleFeature simpleFeature : accessPointFeatures) {
+
+				++this.counter;
+				if (this.counter == this.nextCounterMsg) {
+					this.nextCounterMsg *= 4L;
+					log.info(" access point # " + this.counter + " / " + accessPointFeatures.size());
+				}
+
 				String osmId = (String) simpleFeature.getAttribute("osm_id");
 				if (!greenSpaceUtilization.containsKey(osmId)) {
 					greenSpaceUtilization.putIfAbsent(osmId, Arrays.asList(0.0, 0.0));
